@@ -86,6 +86,9 @@ Success criteria:
   advisory tool expectations.
 - Role manifests distinguish orchestrator, reviewer, synthesis owner, and rerun
   decider responsibilities.
+- Later phases extend `llm/reviews/registry.json` as their new schemas, scripts,
+  skills, examples, and helper contracts are added. The registry remains the
+  single discovery entry point.
 
 ## Phase 2: Validated Runtime State
 
@@ -120,8 +123,9 @@ Canonical artifact boundary:
 - Each completed lens review has a Markdown body and a normalized JSON record.
 - The ledger references normalized review records and synthesis records by
   stable IDs, not by prose headings alone.
-- Validators may check Markdown artifact existence, hash, and required section
-  presence, but they must not infer lifecycle state only from Markdown prose.
+- Validators must check Markdown artifact existence, hash, and required section
+  presence when a JSON record references a Markdown artifact, but they must not
+  infer lifecycle state only from Markdown prose.
 - Lifecycle state lives only in normalized JSON records and the ledger.
 
 Planned files:
@@ -130,6 +134,7 @@ Planned files:
 llm/reviews/schemas/review-ledger.schema.json
 llm/reviews/schemas/review-output.schema.json
 llm/reviews/schemas/synthesis-output.schema.json
+llm/reviews/examples/fixture-counts.json
 llm/reviews/examples/review-output.valid-full.json
 llm/reviews/examples/review-output.valid-minimal.json
 llm/reviews/examples/review-output.invalid-missing-cross-cutting.json
@@ -178,6 +183,19 @@ node llm/reviews/scripts/validate-ledger.mjs <ledger-json> --target-revision <ha
 node llm/reviews/scripts/validate-review-fixtures.mjs
 ```
 
+Common options:
+
+- `--help`: print usage to stdout and exit `0`.
+- `--version`: print the LensTemper validator contract version to stdout and
+  exit `0`.
+- `--quiet`: suppress success summaries; validation failures still print to
+  stderr.
+- `--json`: emit machine-readable JSON Lines to stdout; errors still exit with
+  the same codes.
+- `--update-counts`: fixture runner only; rewrite
+  `llm/reviews/examples/fixture-counts.json` from discovered fixtures after the
+  contributor intentionally changes fixture inventory.
+
 Exit behavior:
 
 - Exit `0` only when every supplied artifact is valid.
@@ -190,6 +208,22 @@ Exit behavior:
   error, then exit non-zero.
 - Validators report all independently detectable failures in a readable artifact.
   They fail fast only when an artifact cannot be read or parsed.
+- Individual validators print no output on success unless `--json` is used or a
+  later `--verbose` option is added. `validate-review-fixtures.mjs` prints the
+  aggregate fixture-count success summary.
+- Validators fail with a clear Node 18+ version message before using unsupported
+  runtime features.
+
+Exit codes:
+
+| Code | Meaning |
+|------|---------|
+| `0` | Success, help, or version output. |
+| `1` | Validation failed for a readable artifact. |
+| `2` | CLI usage error, missing required argument, or unsupported option. |
+| `3` | File read, JSON parse, or Markdown artifact read failure. |
+| `4` | Stale target revision or hash mismatch. |
+| `5` | Internal validator error. |
 
 Example failure output:
 
@@ -197,16 +231,36 @@ Example failure output:
 llm/reviews/examples/review-ledger.invalid-absolute-artifact-path.json record=review-implementation-1 field=artifact_path expected=repository-relative path actual=C:\tmp\review.md
 ```
 
+Output ergonomics:
+
+- Human-readable output is ASCII-only in Phase 2.
+- Human-readable output must be deterministic: sort by artifact path, then
+  record ID, then field or section name.
+- Validation failure events are one line each.
+- Human-readable success summaries go to stdout; validation failures and usage
+  errors go to stderr.
+- Non-TTY output must use the same stable format as TTY output.
+- Do not emit ANSI styling by default. If color is added later, disable it when
+  `NO_COLOR` is set or stdout/stderr is not a TTY.
+- `--json` emits one JSON object per line with stable keys and the same event
+  ordering as human-readable output.
+
 Shared validator helpers should stay dependency-light and cover provenance,
 score parsing, enum checks, target revision matching, repository-relative path
 checks, Markdown section checks, and structured error formatting.
 Shared validation contracts should live in
 `llm/reviews/scripts/validation-contracts.mjs` and export the required-field
 lists, enum maps, canonical scorecard keys, cross-cutting keys, and lock-state
-values checked by the validators. `validate-review-fixtures.mjs` compares those
-exports against the schema files for required-field and enum drift.
+values checked by the validators. It must also export required Markdown section
+names for review, synthesis, and final summary artifacts. `validate-review-fixtures.mjs`
+compares those exports against the schema files for required-field and enum
+drift.
 
 Canonical JSON shapes:
+
+The block below defines shared nested object shapes, not complete top-level
+record examples. Complete review, synthesis, and ledger records are defined by
+their schema files and the required-field lists below.
 
 ```json
 {
@@ -251,13 +305,34 @@ Canonical JSON shapes:
 }
 ```
 
+`verdict` belongs to individual lens review records and uses the reviewer
+template enum: `Strong`, `Usable with fixes`, `High risk`, or `Incomplete`.
+`final_assessment` belongs to synthesis records and uses the synthesis enum:
+`Ready to implement`, `Ready with minor clarifications`, `Needs revision`, or
+`Not implementation-ready`.
+
+`schema_version` starts at integer `1`. Validators must reject missing,
+non-integer, or unknown schema versions rather than attempting best-effort
+parsing.
+
+`finding_id` values must be stable slugs. They should be derived from the issue
+domain and summary, not from list position, and synthesis records should include
+the source lens and source review record ID for each accepted, rejected,
+downgraded, or deferred finding.
+
 Reference arrays use stable record IDs only:
 
 - `current_review_record_ids`: records counted for readiness.
-- `superseded_review_record_ids`: stale or replaced records retained only for
-  history.
+- Ledger `superseded_review_record_ids`: stale or replaced records retained only
+  for history.
 - `included_review_record_ids`: synthesis inputs counted for current readiness.
-- `superseded_review_record_ids`: synthesis context excluded from readiness.
+- Synthesis `superseded_review_record_ids`: historical review context excluded
+  from current readiness. `validation-contracts.mjs` must document this dual
+  semantic so validators do not treat ledger and synthesis superseded references
+  as interchangeable.
+- Ledger validation resolves record IDs through repository-relative artifact
+  paths listed in the ledger. It must not infer record locations from ID strings
+  alone.
 
 Paths and artifact binding:
 
@@ -270,8 +345,8 @@ Paths and artifact binding:
 - The full fixture `review-output.valid-full.json` and
   `synthesis-output.valid.json` must include `markdown_artifact_path` and
   `markdown_artifact_sha`. The minimal review-output fixture may omit Markdown
-  binding only when it is explicitly marked as a schema-only minimal fixture and
-  is not counted as a completed review record.
+  binding only when it has `fixture_kind: "schema_only_minimal"` and is not
+  counted as a completed review record.
 - Absolute local paths are invalid in durable JSON records.
 - Empty paths, `.` segments, `..` segments, backslashes, drive-prefixed paths,
   and resolved paths outside the artifact root are invalid.
@@ -282,6 +357,16 @@ Paths and artifact binding:
   normalization and store it as `sha256:<hex>`. Validators must compare both the
   prefix and value so fixture, archive, and validation code agree on the hash
   algorithm.
+- Hash algorithm success notices are silent by default. Validators report hash
+  algorithm details only in `--json` events, on hash mismatch/failure, or under a
+  later explicit verbose mode. `--quiet` suppresses hash success notices.
+- Hash JSON events must include stable keys: `event`, `artifact_path`,
+  `hash_algorithm`, `expected`, and `actual` when applicable.
+- A single current review run should not mix `git:` and `sha256:` hashes.
+  Mixed-prefix archives are allowed only for explicitly imported historical
+  records that are excluded from current readiness.
+- Apply the same `git:<hash>` / `sha256:<hex>` prefix rule to target, template,
+  and lens hashes created in later prompt assembly and archive helpers.
 - Review-output validation must confirm the Markdown artifact exists under the
   optional `--artifact-root` or repository root, matches `markdown_artifact_sha`,
   and contains the required template sections.
@@ -404,6 +489,10 @@ Success criteria:
   ledger: 1 valid passed, 6 invalid rejected
   all review validators passed
   ```
+- The expected counts live in `llm/reviews/examples/fixture-counts.json`.
+  Contributors update that file only by running
+  `node llm/reviews/scripts/validate-review-fixtures.mjs --update-counts` after
+  intentionally adding, removing, or reclassifying fixtures.
 - Validation errors identify the file path, record ID when available, field or
   section name, expected value, and actual value.
 - Every validation rule is mapped to at least one valid or invalid fixture
@@ -413,6 +502,8 @@ Success criteria:
   value, and actual value.
 - Phase 2 implementation is not complete until
   `node llm/reviews/scripts/validate-review-fixtures.mjs` passes locally.
+- Update `llm/reviews/registry.json` with Phase 2 schemas, scripts, examples,
+  fixture-count manifest, and validation helper contracts.
 
 ## Phase 3: Skill Packaging
 
@@ -452,8 +543,12 @@ Success criteria:
 - Read-only reviewers may emit structured verification requests, but only the
   orchestrator or verification runner may execute shell commands or update the
   ledger with verification results.
+- The verification runner may append verification-result records to the ledger.
+  Lens reviewers may not write ledger state.
 - The skills remain wrappers around current source files rather than a second
   divergent prompt system.
+- Update `llm/reviews/registry.json` with all skill paths and role-skill
+  mappings.
 
 ## Phase 4: Prompt Assembly
 
@@ -476,12 +571,23 @@ The assembly helper should:
 - inject the review template variables
 - support optional `previous_adjudications` for reruns
 
+Output contract:
+
+- By default, write the assembled prompt to stdout.
+- With `--out <path>`, write the assembled prompt to that repository-relative
+  file path and print one ASCII status line to stdout.
+- Errors use the validator one-line-per-event shape and go to stderr.
+- `--json` emits a JSON Lines event with output path, target hash, template
+  hash, lens hash, and selected lens.
+
 Success criteria:
 
 - A reviewer prompt can be regenerated from paths without manual paste work.
 - The generated prompt includes deterministic provenance.
 - The generated prompt can be validated against the selected lens manifest and
   current target hash before a reviewer sees it.
+- Update `llm/reviews/registry.json` with prompt assembly scripts and example
+  input packet paths.
 
 ## Phase 5: Ledger And Archive Helpers
 
@@ -494,10 +600,47 @@ llm/reviews/scripts/create-ledger.mjs
 llm/reviews/scripts/update-ledger.mjs
 llm/reviews/scripts/archive-review-run.mjs
 llm/reviews/scripts/decide-reruns.mjs
+llm/reviews/scripts/emit-completion-summary.mjs
 ```
 
 These scripts should help an agent maintain state while the host agent still
 owns actual subagent spawning.
+
+`decide-reruns.mjs` is the script implementation of the rerun-decider role
+manifest. The role manifest defines responsibility; the script is the callable
+helper.
+
+`update-ledger.mjs` assumes a single writer. Concurrent orchestrators must use
+separate pass IDs or serialize writes outside the helper.
+
+Output contracts:
+
+- `decide-reruns.mjs` writes rerun-decision JSON to stdout by default. With
+  `--ledger <path> --write`, it updates the ledger and prints one ASCII status
+  line. Errors use the validator one-line-per-event shape.
+- `archive-review-run.mjs` writes archive files and prints one ASCII status line
+  containing the archive path and final assessment. `--json` emits JSON Lines.
+- `emit-completion-summary.mjs` reads a ledger plus synthesis artifact and emits
+  the user-facing completion summary required by `llm/reviews/README.md`,
+  including final assessment, target path/revision, artifact storage status,
+  per-lens score table, accepted findings, rerun/lock status, and verification
+  evidence.
+- `emit-completion-summary.mjs --ledger <ledger-json> --synthesis <synthesis-md>
+  [--out <path>] [--json] [--quiet]` is the canonical interface.
+- Without `--out`, human-readable summary output goes to stdout. With `--out`,
+  the summary is written to the repository-relative path and one ASCII status
+  line goes to stdout unless `--quiet` is set.
+- Completion-summary failures use the validator one-line-per-event shape on
+  stderr and the same exit-code table as validators.
+- `emit-completion-summary.mjs --json` emits one JSON object for the full summary
+  with stable keys: `final_assessment`, `target_path`, `target_revision`,
+  `artifact_storage`, `lens_scores`, `accepted_findings`,
+  `rerun_or_lock_status`, and `verification_evidence`.
+- Human-readable completion summaries keep the README score table exactly for
+  normal terminal output. When `--quiet` is set, or when a constrained host asks
+  for compact output, emit deterministic line-oriented fields in this order:
+  final assessment, target, artifact storage, one `lens=` line per selected lens,
+  accepted findings, rerun/lock status, and verification evidence.
 
 Archive helpers must normalize or flag workspace-local absolute paths before
 writing durable artifacts. They must reject generic example fixtures that include
@@ -518,6 +661,8 @@ Success criteria:
 - Locked lenses are preserved unless the target changes in their domain.
 - Rerun decisions explain selected, skipped, locked, stale, and superseded
   lenses in terms of material findings or domain-relevant target changes.
+- Update `llm/reviews/registry.json` with ledger, archive, rerun, and completion
+  summary helper scripts.
 
 ## Phase 6: Review-Quality Eval Harness
 
