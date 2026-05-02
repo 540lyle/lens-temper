@@ -93,18 +93,117 @@ Add schemas, a JSON ledger contract, and validators before adding orchestration.
 The Markdown output remains the human-readable artifact; JSON and validation make
 the review run mechanically checkable.
 
+### Runtime And Artifact Contract
+
+Phase 2 uses dependency-light Node scripts with `.mjs` extensions and no package
+scaffold. Commands run with the system `node` executable. If the repo later adds
+a package scaffold, TypeScript can replace these scripts without changing the
+schemas, fixture names, or command contracts.
+
+Canonical artifact boundary:
+
+- Markdown remains the human-readable review, synthesis, and final-summary
+  artifact.
+- JSON is the machine-readable source of truth for validation, rerun decisions,
+  stale-output rejection, and archive helpers.
+- Each completed lens review has a Markdown body and a normalized JSON record.
+- The ledger references normalized review records and synthesis records by
+  stable IDs, not by prose headings alone.
+- Validators may check Markdown section presence, but they must not infer
+  lifecycle state only from Markdown prose.
+
 Planned files:
 
 ```text
 llm/reviews/schemas/review-ledger.schema.json
 llm/reviews/schemas/review-output.schema.json
 llm/reviews/schemas/synthesis-output.schema.json
+llm/reviews/examples/review-output.valid-full.json
+llm/reviews/examples/review-output.valid-minimal.json
+llm/reviews/examples/review-output.invalid-missing-cross-cutting.json
+llm/reviews/examples/review-output.invalid-score.json
+llm/reviews/examples/review-output.invalid-missing-provenance.json
+llm/reviews/examples/synthesis-output.valid.json
+llm/reviews/examples/synthesis-output.invalid-stale-reference.json
+llm/reviews/examples/synthesis-output.invalid-missing-final-assessment.json
 llm/reviews/examples/review-ledger.valid.json
-llm/reviews/examples/review-ledger.invalid.json
-llm/reviews/scripts/validate-ledger.ts
-llm/reviews/scripts/validate-review-output.ts
-llm/reviews/scripts/validate-synthesis-output.ts
+llm/reviews/examples/review-ledger.invalid-unclosed-reviewer.json
+llm/reviews/examples/review-ledger.invalid-uncaptured-output.json
+llm/reviews/examples/review-ledger.invalid-stale-target.json
+llm/reviews/examples/review-ledger.invalid-duplicate-current-review.json
+llm/reviews/scripts/validate-ledger.mjs
+llm/reviews/scripts/validate-review-output.mjs
+llm/reviews/scripts/validate-synthesis-output.mjs
+llm/reviews/scripts/validate-review-fixtures.mjs
 ```
+
+Exact local validation command:
+
+```powershell
+node llm/reviews/scripts/validate-review-fixtures.mjs
+```
+
+The command validates all example artifacts and exits non-zero when a valid
+fixture fails, an invalid fixture passes, an expected count changes without the
+expected output being updated, or a referenced artifact is missing.
+
+Normalized review output records should include:
+
+- `schema_version`
+- `record_id`
+- `pass_id`
+- `target_path`
+- `target_revision`
+- `template_revision`
+- `lens`
+- `lens_revision`
+- `attempt`
+- `execution_mode`
+- `artifact_path`
+- `verdict`
+- `material_blockers`
+- `cross_cutting_status`
+- six named scorecard values
+
+Normalized synthesis records should include:
+
+- `schema_version`
+- `record_id`
+- `pass_id`
+- `target_path`
+- `target_revision`
+- `included_review_record_ids`
+- `superseded_review_record_ids`
+- `finding_decisions`
+- `lens_lock_decisions`
+- `final_assessment`
+- `artifact_path`
+
+Ledger records should include:
+
+- `schema_version`
+- `pass_id`
+- `target_path`
+- `target_revision`
+- `status`
+- `execution_mode`
+- selected lenses
+- current review record IDs
+- superseded review record IDs
+- synthesis record IDs
+- archive paths
+
+Conditional lifecycle rules:
+
+- In `fresh_spawned_lens_reviewers` mode, each current completed review requires
+  `agent_id`, `closed: true`, and `output_captured: true`.
+- In `manual_or_imported` mode, `agent_id` may be absent, but each current
+  completed review still requires a captured artifact path, target revision,
+  verdict, scorecard, material-blocker status, and explicit provenance.
+- A synthesis record may reference superseded reviews only when they are listed
+  as historical context and excluded from current readiness.
+- There may be only one current review record per `pass_id`, `target_revision`,
+  `lens`, and `attempt` tuple.
 
 Validation should enforce:
 
@@ -119,6 +218,10 @@ Validation should enforce:
 - closed reviewer state
 - captured output for completed reviewers
 - stale review rejection when `target_revision` does not match
+- unique current review identity per lens and attempt
+- synthesis references only current valid reviews unless a review is explicitly
+  marked superseded historical context
+- conditional required fields for spawned and manual/imported execution modes
 - no synthesis completion when any included current review is stale, invalid,
   uncaptured, or unclosed
 
@@ -139,6 +242,8 @@ Success criteria:
   ledger: 1 valid passed, 4 invalid rejected
   all review validators passed
   ```
+- Validation errors identify the file path, record ID when available, field or
+  section name, expected value, and actual value.
 
 ## Phase 3: Skill Packaging
 
@@ -165,6 +270,8 @@ Skill packaging should define:
 - read-only default for lens reviewers
 - synthesis-only access to multiple reviewer outputs
 - verification-runner separation for test or shell commands
+- verification request handoff from read-only reviewers to the orchestrator or
+  verification runner
 - compatibility notes for host agents that do not support native skill loading
 
 Success criteria:
@@ -173,6 +280,9 @@ Success criteria:
   synthesis, rerun decisions, or verification.
 - Lens reviewer instructions explicitly forbid writes, sibling review access,
   and synthesis behavior.
+- Read-only reviewers may emit structured verification requests, but only the
+  orchestrator or verification runner may execute shell commands or update the
+  ledger with verification results.
 - The skills remain wrappers around current source files rather than a second
   divergent prompt system.
 
@@ -183,8 +293,8 @@ Add a repeatable prompt assembly helper.
 Planned files:
 
 ```text
-llm/reviews/scripts/hash-review-target.ts
-llm/reviews/scripts/assemble-review-prompt.ts
+llm/reviews/scripts/hash-review-target.mjs
+llm/reviews/scripts/assemble-review-prompt.mjs
 llm/reviews/examples/review-input.packet.md
 ```
 
@@ -211,19 +321,26 @@ Add simple state helpers, not full autonomous orchestration yet.
 Planned files:
 
 ```text
-llm/reviews/scripts/create-ledger.ts
-llm/reviews/scripts/update-ledger.ts
-llm/reviews/scripts/archive-review-run.ts
-llm/reviews/scripts/decide-reruns.ts
+llm/reviews/scripts/create-ledger.mjs
+llm/reviews/scripts/update-ledger.mjs
+llm/reviews/scripts/archive-review-run.mjs
+llm/reviews/scripts/decide-reruns.mjs
 ```
 
 These scripts should help an agent maintain state while the host agent still
 owns actual subagent spawning.
 
+Archive helpers must normalize or flag workspace-local absolute paths before
+writing durable artifacts. They must reject generic example fixtures that include
+private source-project names, non-public target details, or local absolute paths
+unless the run is explicitly marked private and local-only.
+
 Success criteria:
 
 - A run can be archived under
   `llm/archive/reviews/<yyyy-mm-dd>-<target-slug>-<pass-id>/`.
+- Archive directories contain `ledger.json`, `input.packet.md`, `reviews/`,
+  `synthesis.md`, and `final.md` when those artifacts exist.
 - Rerun decisions are generated from ledger state, synthesis decisions, and
   changed target hashes.
 - Locked lenses are preserved unless the target changes in their domain.
@@ -240,7 +357,7 @@ Planned files:
 ```text
 llm/reviews/evals/fixtures/
 llm/reviews/evals/expected-findings.json
-llm/reviews/scripts/run-review-evals.ts
+llm/reviews/scripts/run-review-evals.mjs
 ```
 
 Fixture types:
@@ -267,6 +384,18 @@ Metrics:
 - rerun decision accuracy
 - synthesis deduplication quality
 
+Expected eval report shape:
+
+```text
+fixtures: 8
+critical_recall: 7/7
+false_positive_blockers: 0
+unsupported_claim_rate: 0.00
+schema_validity: 8/8
+rerun_decision_accuracy: 8/8
+recommendation: keep
+```
+
 Adoption rule:
 
 - Keep an added process layer only when recall is same or better, false
@@ -282,9 +411,9 @@ Only after the previous phases are useful, consider a callable runner.
 Possible files:
 
 ```text
-llm/reviews/scripts/select-lenses.ts
-llm/reviews/scripts/run-plan-review.ts
-llm/reviews/scripts/run-synthesis.ts
+llm/reviews/scripts/select-lenses.mjs
+llm/reviews/scripts/run-plan-review.mjs
+llm/reviews/scripts/run-synthesis.mjs
 ```
 
 Important constraint:
@@ -321,9 +450,12 @@ Start with Phase 2:
 1. Add `review-ledger.schema.json`.
 2. Add `review-output.schema.json`.
 3. Add `synthesis-output.schema.json`.
-4. Add valid and invalid example artifacts.
-5. Add validators for ledger, review output, and synthesis output.
-6. Keep implementation small enough that it can run locally without a full agent
+4. Add normalized valid and invalid example artifacts for review output,
+   synthesis output, and ledger records.
+5. Add dependency-light `.mjs` validators for ledger, review output, and
+   synthesis output.
+6. Add `validate-review-fixtures.mjs` as the single local validation command.
+7. Keep implementation small enough that it can run locally without a full agent
    runtime.
 
 This turns the current composable index into enforceable state without changing

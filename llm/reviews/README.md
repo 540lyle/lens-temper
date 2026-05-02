@@ -26,8 +26,10 @@ Standardize plan review so that:
 Store completed review outputs outside this folder unless they are still being actively assembled.
 `llm/reviews/` is for reusable tooling and review-input packets; durable finished outputs or synthesis
 should live in `llm/archive/` or next to the owning plan/doc when that folder explicitly owns review history.
-Default durable review packet path: `llm/archive/reviews/<yyyy-mm-dd>-<target-slug>-<pass-id>.md`.
-Use an owning plan/doc folder instead when that folder already keeps review history next to the plan.
+Default durable review run path: `llm/archive/reviews/<yyyy-mm-dd>-<target-slug>-<pass-id>/`.
+That directory should contain `ledger.json`, `input.packet.md`, `reviews/`, `synthesis.md`, and `final.md`
+when those artifacts are produced. Use an owning plan/doc folder instead when that folder already keeps
+review history next to the plan.
 
 ## Fresh-Agent Review Runs
 
@@ -173,6 +175,26 @@ Final evidence before completion:
 - Confirmation that each current reviewer read the current workspace files directly.
 - Confirmation that every spawned reviewer has terminal status and is closed.
 - A concise synthesis listing material fixes applied, accepted non-blocking issues, rejected or downgraded findings that affected rerun scope, and any explicitly deferred risks.
+
+User-facing completion summary:
+
+When reporting a completed review run to the user, the orchestrator must include a compact final summary. Do not require the user to open the archive to learn the outcome.
+
+Required fields:
+
+- Final assessment from synthesis.
+- Target path and deterministic target revision reviewed.
+- Review artifact path, plus whether the artifact is committed, ignored/local-only, or stored elsewhere.
+- Per-lens score table with lens, verdict, all six score values, material-blocker status, and lock/rerun status.
+- Accepted material findings and the plan changes or follow-up actions they require.
+- Rejected, downgraded, deferred, or non-blocking findings that affect rerun scope.
+- Verification evidence: reviewer outputs captured, reviewers terminal and closed, current reviewers read current workspace files directly, and any validator or stale-output checks that were run.
+
+Use this table shape unless the host interface requires a shorter form:
+
+| Lens | Verdict | Correctness | Completeness | Risk Awareness | Testability | Maintainability | Ship Readiness | Material Blockers | Status |
+|------|---------|-------------|--------------|----------------|-------------|-----------------|----------------|-------------------|--------|
+| Implementation | Usable with fixes | 4/5 | 3/5 | 4/5 | 4/5 | 4/5 | 3/5 | yes | rerun_required |
 
 ## Recommended Prompt Assembly
 
