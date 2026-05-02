@@ -11,14 +11,80 @@
     "example_review_output": "llm/reviews/example-review-output.md",
     "archive_root": "llm/archive/reviews"
   },
-  "default_flow": [
-    "select_lenses",
-    "assemble_review_prompt",
-    "run_fresh_lens_reviewers",
-    "validate_review_outputs",
-    "synthesize_feedback",
-    "decide_reruns_or_completion",
-    "archive_final_result"
+  "current_flow": [
+    {
+      "id": "select_lenses",
+      "availability": "manual",
+      "source_path": "llm/reviews/README.md"
+    },
+    {
+      "id": "assemble_review_prompt",
+      "availability": "manual",
+      "source_path": "llm/reviews/README.md"
+    },
+    {
+      "id": "run_fresh_lens_reviewers",
+      "availability": "host_agent",
+      "source_path": "llm/reviews/README.md"
+    },
+    {
+      "id": "check_review_outputs",
+      "availability": "manual",
+      "source_path": "llm/reviews/reviewer-template.md"
+    },
+    {
+      "id": "synthesize_feedback",
+      "availability": "manual",
+      "source_path": "llm/reviews/synthesize-review-feedback.md"
+    },
+    {
+      "id": "decide_reruns_or_completion",
+      "availability": "manual",
+      "source_path": "llm/reviews/README.md"
+    },
+    {
+      "id": "archive_final_result",
+      "availability": "manual",
+      "source_path": "llm/reviews/README.md"
+    }
+  ],
+  "planned_runtime_steps": [
+    {
+      "id": "validate_review_outputs",
+      "availability": "planned",
+      "planned_phase": "Phase 2",
+      "source_path": "FORWARD_PLAN.md"
+    },
+    {
+      "id": "validate_ledger",
+      "availability": "planned",
+      "planned_phase": "Phase 2",
+      "source_path": "FORWARD_PLAN.md"
+    },
+    {
+      "id": "validate_synthesis_output",
+      "availability": "planned",
+      "planned_phase": "Phase 2",
+      "source_path": "FORWARD_PLAN.md"
+    },
+    {
+      "id": "assemble_review_prompt",
+      "availability": "planned_script",
+      "planned_phase": "Phase 4",
+      "source_path": "FORWARD_PLAN.md"
+    },
+    {
+      "id": "decide_reruns_or_completion",
+      "availability": "planned_script",
+      "planned_phase": "Phase 5",
+      "source_path": "FORWARD_PLAN.md"
+    },
+    {
+      "id": "archive_final_result",
+      "availability": "planned_script",
+      "planned_phase": "Phase 5",
+      "source_path": "FORWARD_PLAN.md"
+    }
   ],
   "lenses": [
     {

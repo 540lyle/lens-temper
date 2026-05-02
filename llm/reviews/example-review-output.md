@@ -25,10 +25,10 @@ This file shows the expected shape of a completed review. Use it as a reference 
 - Includes a migration step for the new `role` column.
 
 ### Gaps and Risks
-- `[critical]` Step 3 adds a non-nullable `role` column to the `users` table but does not specify a default value or backfill strategy. This will fail on existing rows.
-- `[major]` The plan assumes the frontend can call the new `/permissions` endpoint before it is deployed. No feature flag or fallback is specified for the transition period.
-- `[major]` No integration test is planned for the permission check. The unit test in step 6 only covers the happy path.
-- `[minor]` The plan does not specify the error message shown to users when a permission check fails.
+- [critical] Step 3 adds a non-nullable `role` column to the `users` table but does not specify a default value or backfill strategy. This will fail on existing rows.
+- [major] The plan assumes the frontend can call the new `/permissions` endpoint before it is deployed. No feature flag or fallback is specified for the transition period.
+- [major] No integration test is planned for the permission check. The unit test in step 6 only covers the happy path.
+- [minor] The plan does not specify the error message shown to users when a permission check fails.
 
 ### Recommended Changes
 - Add a backfill migration step between steps 3 and 4 that sets `role = 'member'` for all existing users.
@@ -42,11 +42,11 @@ This file shows the expected shape of a completed review. Use it as a reference 
 
 ### Cross-Cutting Sweep
 
-- Security / privacy: `[major]` Permission-denial behavior must not reveal whether a protected resource exists.
-- Accessibility: `[minor]` Permission-denied copy should be exposed through the existing alert/status pattern.
+- Security / privacy: [major] Permission-denial behavior must not reveal whether a protected resource exists.
+- Accessibility: [minor] Permission-denied copy should be exposed through the existing alert/status pattern.
 - Performance: Not applicable from this lens.
-- Reliability / rollback: `[major]` Feature flag fallback is required for frontend/backend rollout ordering.
-- Observability / debuggability: `[minor]` Add a lightweight denied-permission diagnostic log or existing analytics event if one already exists.
+- Reliability / rollback: [major] Feature flag fallback is required for frontend/backend rollout ordering.
+- Observability / debuggability: [minor] Add a lightweight denied-permission diagnostic log or existing analytics event if one already exists.
 - Compatibility / platform constraints: Not applicable from this lens.
 
 ### Scorecard
@@ -85,7 +85,7 @@ This second fabricated example shows that a review can legitimately end at `Stro
 - Reuses the existing status pattern instead of introducing a new interaction model.
 
 ### Gaps and Risks
-- `[minor]` Non-material polish: the plan could name the exact success-message copy, but it already defines the required state, tone, and placement clearly enough to implement.
+- [minor] Non-material polish: the plan could name the exact success-message copy, but it already defines the required state, tone, and placement clearly enough to implement.
 
 ### Recommended Changes
 - Optional polish: add the exact success-message string while editing the plan, but do not block implementation on this.
