@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "id": "product-ux",
+  "kind": "lens",
+  "display_name": "Product & UX",
+  "prompt_path": "llm/reviews/lens-product-ux.md",
+  "domain_focus": [
+    "user-visible behavior",
+    "interaction flow",
+    "states and feedback",
+    "accessibility",
+    "mental model clarity"
+  ],
+  "cross_cutting_ownership": {
+    "primary": [
+      "Accessibility"
+    ],
+    "secondary": [
+      "Performance",
+      "Compatibility / platform constraints"
+    ]
+  },
+  "default_selection_triggers": [
+    "user-facing workflow",
+    "UI refresh",
+    "interaction states",
+    "saved-record or mutation behavior",
+    "accessibility-sensitive behavior"
+  ],
+  "advisory_tool_expectations": [
+    "Read the target plan or spec directly from disk.",
+    "Inspect referenced product, UX, or accessibility docs when provided.",
+    "Keep findings tied to user-visible outcomes."
+  ]
+}

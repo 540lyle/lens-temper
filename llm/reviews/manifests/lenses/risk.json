@@ -1,0 +1,34 @@
+{
+  "schema_version": "1.0",
+  "id": "risk",
+  "kind": "lens",
+  "display_name": "Risk",
+  "prompt_path": "llm/reviews/lens-risk.md",
+  "domain_focus": [
+    "failure modes",
+    "rollback",
+    "observability",
+    "deployment risk",
+    "blast radius"
+  ],
+  "cross_cutting_ownership": {
+    "primary": [
+      "Security / privacy",
+      "Reliability / rollback",
+      "Observability / debuggability"
+    ],
+    "secondary": []
+  },
+  "default_selection_triggers": [
+    "risky rollout",
+    "migration",
+    "irreversible user-data change",
+    "production failure mode",
+    "security, privacy, reliability, or rollback concern"
+  ],
+  "advisory_tool_expectations": [
+    "Read the target plan or spec directly from disk.",
+    "Inspect referenced rollout, observability, privacy, or operations docs when provided.",
+    "Separate material ship risks from theoretical risks."
+  ]
+}

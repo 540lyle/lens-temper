@@ -1,0 +1,38 @@
+{
+  "schema_version": "1.0",
+  "id": "implementation",
+  "kind": "lens",
+  "display_name": "Implementation",
+  "prompt_path": "llm/reviews/lens-implementation.md",
+  "domain_focus": [
+    "step sequencing",
+    "engineering feasibility",
+    "dependency ordering",
+    "hidden implementation work",
+    "scope control"
+  ],
+  "cross_cutting_ownership": {
+    "primary": [
+      "Compatibility / platform constraints"
+    ],
+    "secondary": [
+      "Security / privacy",
+      "Accessibility",
+      "Performance",
+      "Reliability / rollback",
+      "Observability / debuggability"
+    ]
+  },
+  "default_selection_triggers": [
+    "multi-step implementation plans",
+    "platform constraints",
+    "sequencing risk",
+    "migration or compatibility handling",
+    "shared utility or tooling changes"
+  ],
+  "advisory_tool_expectations": [
+    "Read the target plan or spec directly from disk.",
+    "Inspect referenced file paths only when the review packet asks for repo-specific validation.",
+    "Prefer concrete execution gaps over style preferences."
+  ]
+}

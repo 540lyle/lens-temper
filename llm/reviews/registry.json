@@ -1,0 +1,67 @@
+{
+  "schema_version": "1.0",
+  "name": "LensTemper review registry",
+  "description": "Machine-readable discovery index for the LensTemper Markdown review workflow.",
+  "paths_are_relative_to": "repository_root",
+  "entrypoints": {
+    "workflow": "llm/reviews/README.md",
+    "agent_instructions": "llm/reviews/AGENT.md",
+    "reviewer_template": "llm/reviews/reviewer-template.md",
+    "synthesis_template": "llm/reviews/synthesize-review-feedback.md",
+    "example_review_output": "llm/reviews/example-review-output.md",
+    "archive_root": "llm/archive/reviews"
+  },
+  "default_flow": [
+    "select_lenses",
+    "assemble_review_prompt",
+    "run_fresh_lens_reviewers",
+    "validate_review_outputs",
+    "synthesize_feedback",
+    "decide_reruns_or_completion",
+    "archive_final_result"
+  ],
+  "lenses": [
+    {
+      "id": "architecture",
+      "manifest_path": "llm/reviews/manifests/lenses/architecture.json"
+    },
+    {
+      "id": "implementation",
+      "manifest_path": "llm/reviews/manifests/lenses/implementation.json"
+    },
+    {
+      "id": "risk",
+      "manifest_path": "llm/reviews/manifests/lenses/risk.json"
+    },
+    {
+      "id": "test-strategy",
+      "manifest_path": "llm/reviews/manifests/lenses/test-strategy.json"
+    },
+    {
+      "id": "product-ux",
+      "manifest_path": "llm/reviews/manifests/lenses/product-ux.json"
+    },
+    {
+      "id": "data-model",
+      "manifest_path": "llm/reviews/manifests/lenses/data-model.json"
+    }
+  ],
+  "roles": [
+    {
+      "id": "orchestrator",
+      "manifest_path": "llm/reviews/manifests/roles/orchestrator.json"
+    },
+    {
+      "id": "lens-reviewer",
+      "manifest_path": "llm/reviews/manifests/roles/lens-reviewer.json"
+    },
+    {
+      "id": "synthesis-owner",
+      "manifest_path": "llm/reviews/manifests/roles/synthesis-owner.json"
+    },
+    {
+      "id": "rerun-decider",
+      "manifest_path": "llm/reviews/manifests/roles/rerun-decider.json"
+    }
+  ]
+}
