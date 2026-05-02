@@ -1,4 +1,4 @@
-# Lens Review System
+# LensTemper
 
 Repo-local, agent-readable lens review workflow extracted from Chip Chad.
 
@@ -20,8 +20,8 @@ This repository starts as a copy of the current Chip Chad implementation under
 
 ## Design Boundary
 
-This is not a Chip Chad product feature. Treat it as a reusable process/tooling
-project whose job is to make implementation-plan reviews:
+This is not a Chip Chad product feature. Treat LensTemper as a reusable
+process/tooling project whose job is to make implementation-plan reviews:
 
 - repeatable
 - composable

@@ -1,8 +1,8 @@
-# Forward Plan: Composable Lens Review System
+# Forward Plan: LensTemper
 
 ## Goal
 
-Turn the current Markdown lens review system into a composable workflow that an
+Turn the current Markdown review system into LensTemper: a composable workflow that an
 agent can discover, run in parts, validate, and archive without relying on prior
 chat context.
 
