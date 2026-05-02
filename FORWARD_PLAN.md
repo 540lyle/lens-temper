@@ -6,6 +6,9 @@ Turn the current Markdown review system into LensTemper: a composable workflow t
 agent can discover, run in parts, validate, and archive without relying on prior
 chat context.
 
+Use `LensTemper` for product/brand copy and `lens-temper` for repository names,
+URLs, package names, and code identifiers.
+
 The target shape is:
 
 ```text

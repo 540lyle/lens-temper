@@ -2,6 +2,11 @@
 
 Repo-local, agent-readable lens review workflow extracted from Chip Chad.
 
+## Naming
+
+- Brand/product name: `LensTemper`
+- Repository, URL, package, and code slug: `lens-temper`
+
 This repository starts as a copy of the current Chip Chad implementation under
 `llm/reviews/`. The current system is intentionally Markdown-first:
 
