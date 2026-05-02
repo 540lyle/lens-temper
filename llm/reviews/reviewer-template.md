@@ -8,12 +8,16 @@ Do not rewrite the entire plan unless it is fundamentally unsound. Prefer target
 
 ## Repository Context
 
-This repository uses:
-- `AGENTS.md` to define workflow and indexing behavior
+When present, treat repository-local agent instructions, review manifests, and
+the referenced plan/spec files as sources of truth. Common source locations may
+include:
+- `AGENTS.md` or a workflow-local `AGENT.md` for agent instructions
 - `/llm` for agent-facing context, prompts, and workflow assets
 - `/docs` for human-facing specifications, requirements, and design context
 
-Treat these as sources of truth when referenced in the inputs below. Do not assume details that were not provided.
+Use only the files and context referenced in the inputs below. Do not assume a
+specific application stack, repository layout, platform, or product domain unless
+the review packet provides it.
 
 When this review is run by a spawned workspace agent, read the current referenced files directly from disk before reviewing. Do not rely on inherited conversation context, earlier review passes, pasted stale excerpts, or another lens agent's conclusions. If a required file path is missing or unreadable, call that out as a review input problem instead of guessing.
 

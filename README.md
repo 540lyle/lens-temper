@@ -1,14 +1,14 @@
 # LensTemper
 
-Repo-local, agent-readable lens review workflow extracted from Chip Chad.
+Repo-local, agent-readable lens review workflow for implementation-plan
+reviews.
 
 ## Naming
 
 - Brand/product name: `LensTemper`
 - Repository, URL, package, and code slug: `lens-temper`
 
-This repository starts as a copy of the current Chip Chad implementation under
-`llm/reviews/`. The current system is intentionally Markdown-first:
+The current system is intentionally Markdown-first:
 
 - `llm/reviews/README.md` defines the review workflow, ledger semantics, lens
   locking, rerun rules, and final evidence requirements.
@@ -19,14 +19,14 @@ This repository starts as a copy of the current Chip Chad implementation under
 - `llm/reviews/lens-*.md` define the six default review lenses.
 - `llm/reviews/example-review-output.md` provides both fix-required and
   `Strong` / all-`5/5` examples.
-- `llm/reviews/*-review-inputs.md` are copied sample input packets from the
-  source repo. Keep them as fixtures or replace them with generic examples as
-  the standalone project matures.
+- `llm/reviews/*-review-inputs.md` are generic fixture packets that show how to
+  assemble review inputs without exposing project-specific implementation
+  details.
 
 ## Design Boundary
 
-This is not a Chip Chad product feature. Treat LensTemper as a reusable
-process/tooling project whose job is to make implementation-plan reviews:
+Treat LensTemper as a reusable process/tooling project whose job is to make
+implementation-plan reviews:
 
 - repeatable
 - composable

@@ -126,7 +126,7 @@ Use the smallest lens set that covers the risk, but do not skip the user-facing 
 
 - User-facing workflow plans should include at least Product & UX and Test Strategy.
 - Persistence, saved-record, library, history, or schema plans should also include Data Model.
-- Shared solver, engine, or cross-module contract plans should also include Architecture and Implementation.
+- Shared domain engines, services, or cross-module contract plans should also include Architecture and Implementation.
 - Risky rollout, migration, or irreversible user-data changes should also include Risk.
 
 ## Standard Inputs

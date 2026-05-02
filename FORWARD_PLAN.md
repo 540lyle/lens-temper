@@ -32,6 +32,8 @@ validation rules.
   useful.
 - Do not add MCP or tracing infrastructure until there is repeated usage that
   justifies it.
+- Do not publish non-public feature plans, product constraints, or absolute
+  local paths. Example packets must be generic fixtures.
 
 ## Phase 1: Composable Index
 
@@ -209,13 +211,15 @@ provides a stable subagent API.
 
 ## First Implementation Slice
 
-Start with Phase 1 only:
+Start with documentation independence, then Phase 1:
 
-1. Add `registry.json`.
-2. Add lens manifests that point at the current `lens-*.md` files.
-3. Add role manifests for orchestrator, lens reviewer, synthesis owner, and
+1. Sanitize existing docs so LensTemper stands alone and no non-public
+   implementation plans or constraints remain.
+2. Add `registry.json`.
+3. Add lens manifests that point at the current `lens-*.md` files.
+4. Add role manifests for orchestrator, lens reviewer, synthesis owner, and
    rerun decider.
-4. Add `AGENT.md` with the discovery order and review safety rules.
-5. Do not move existing files.
+5. Add `AGENT.md` with the discovery order and review safety rules.
+6. Do not move existing files.
 
 This gives the project composability without changing the working review loop.
