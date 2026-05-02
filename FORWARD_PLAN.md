@@ -96,9 +96,20 @@ the review run mechanically checkable.
 ### Runtime And Artifact Contract
 
 Phase 2 uses dependency-light Node scripts with `.mjs` extensions and no package
-scaffold. Commands run with the system `node` executable. If the repo later adds
-a package scaffold, TypeScript can replace these scripts without changing the
-schemas, fixture names, or command contracts.
+scaffold. Commands run with the system `node` executable, with Node 18+ as the
+minimum runtime floor. If the repo later adds a package scaffold, TypeScript can
+replace these scripts without changing the schemas, fixture names, or command
+contracts.
+
+The `.schema.json` files are normative documentation for the JSON shapes. During
+Phase 2, the `.mjs` validators enforce those shapes with hand-written,
+dependency-light checks instead of requiring a JSON Schema runtime dependency.
+Each schema file must expose the same required fields, enum values, and object
+shapes that the validator enforces. `validate-review-fixtures.mjs` must include a
+schema-drift guard that fails when a schema declares a required field or enum the
+matching validator does not check. Nested object-shape parity is enforced by the
+shared validation contracts plus targeted fixture assertions for the canonical
+JSON shapes.
 
 Canonical artifact boundary:
 
@@ -109,8 +120,9 @@ Canonical artifact boundary:
 - Each completed lens review has a Markdown body and a normalized JSON record.
 - The ledger references normalized review records and synthesis records by
   stable IDs, not by prose headings alone.
-- Validators may check Markdown section presence, but they must not infer
-  lifecycle state only from Markdown prose.
+- Validators may check Markdown artifact existence, hash, and required section
+  presence, but they must not infer lifecycle state only from Markdown prose.
+- Lifecycle state lives only in normalized JSON records and the ledger.
 
 Planned files:
 
@@ -123,6 +135,9 @@ llm/reviews/examples/review-output.valid-minimal.json
 llm/reviews/examples/review-output.invalid-missing-cross-cutting.json
 llm/reviews/examples/review-output.invalid-score.json
 llm/reviews/examples/review-output.invalid-missing-provenance.json
+llm/reviews/examples/review-output.invalid-markdown-artifact-hash.json
+llm/reviews/examples/review-output.invalid-missing-markdown-section.json
+llm/reviews/examples/review-output.invalid-path-traversal.json
 llm/reviews/examples/synthesis-output.valid.json
 llm/reviews/examples/synthesis-output.invalid-stale-reference.json
 llm/reviews/examples/synthesis-output.invalid-missing-final-assessment.json
@@ -131,6 +146,13 @@ llm/reviews/examples/review-ledger.invalid-unclosed-reviewer.json
 llm/reviews/examples/review-ledger.invalid-uncaptured-output.json
 llm/reviews/examples/review-ledger.invalid-stale-target.json
 llm/reviews/examples/review-ledger.invalid-duplicate-current-review.json
+llm/reviews/examples/review-ledger.invalid-absolute-artifact-path.json
+llm/reviews/examples/review-ledger.invalid-current-attempt-collision.json
+llm/reviews/examples/artifacts/review-output.valid-full.md
+llm/reviews/examples/artifacts/synthesis-output.valid.md
+llm/reviews/examples/artifacts/final.valid.md
+llm/reviews/scripts/validation-contracts.mjs
+llm/reviews/scripts/validation-helpers.mjs
 llm/reviews/scripts/validate-ledger.mjs
 llm/reviews/scripts/validate-review-output.mjs
 llm/reviews/scripts/validate-synthesis-output.mjs
@@ -147,6 +169,135 @@ The command validates all example artifacts and exits non-zero when a valid
 fixture fails, an invalid fixture passes, an expected count changes without the
 expected output being updated, or a referenced artifact is missing.
 
+Individual script interfaces:
+
+```powershell
+node llm/reviews/scripts/validate-review-output.mjs <review-json> --target-revision <hash> [--artifact-root <path>]
+node llm/reviews/scripts/validate-synthesis-output.mjs <synthesis-json> --ledger <ledger-json> [--artifact-root <path>]
+node llm/reviews/scripts/validate-ledger.mjs <ledger-json> --target-revision <hash> [--artifact-root <path>]
+node llm/reviews/scripts/validate-review-fixtures.mjs
+```
+
+Exit behavior:
+
+- Exit `0` only when every supplied artifact is valid.
+- Exit non-zero when a required argument is missing, JSON cannot be parsed, a
+  schema rule fails, a referenced file is missing, a target revision is stale, a
+  current review is invalid, or an expected invalid fixture unexpectedly passes.
+- Print validation errors as one line per failure with artifact path, record ID
+  when available, field or section name, expected value, and actual value.
+- Missing or invalid CLI arguments print the command usage, then the validation
+  error, then exit non-zero.
+- Validators report all independently detectable failures in a readable artifact.
+  They fail fast only when an artifact cannot be read or parsed.
+
+Example failure output:
+
+```text
+llm/reviews/examples/review-ledger.invalid-absolute-artifact-path.json record=review-implementation-1 field=artifact_path expected=repository-relative path actual=C:\tmp\review.md
+```
+
+Shared validator helpers should stay dependency-light and cover provenance,
+score parsing, enum checks, target revision matching, repository-relative path
+checks, Markdown section checks, and structured error formatting.
+Shared validation contracts should live in
+`llm/reviews/scripts/validation-contracts.mjs` and export the required-field
+lists, enum maps, canonical scorecard keys, cross-cutting keys, and lock-state
+values checked by the validators. `validate-review-fixtures.mjs` compares those
+exports against the schema files for required-field and enum drift.
+
+Canonical JSON shapes:
+
+```json
+{
+  "scorecard": {
+    "correctness": 5,
+    "completeness": 5,
+    "risk_awareness": 5,
+    "testability": 5,
+    "maintainability": 5,
+    "ship_readiness": 5
+  },
+  "material_blockers": {
+    "present": false,
+    "summary": "no accepted material blockers",
+    "count": 0
+  },
+  "cross_cutting_status": {
+    "security_privacy": "not_applicable|non_blocking|material_issue",
+    "accessibility": "not_applicable|non_blocking|material_issue",
+    "performance": "not_applicable|non_blocking|material_issue",
+    "reliability_rollback": "not_applicable|non_blocking|material_issue",
+    "observability_debuggability": "not_applicable|non_blocking|material_issue",
+    "compatibility_platform": "not_applicable|non_blocking|material_issue"
+  },
+  "finding_decisions": [
+    {
+      "finding_id": "implementation-cli-contracts",
+      "decision": "accepted|rejected|downgraded|deferred",
+      "severity": "critical|major|minor",
+      "affects_rerun_scope": true,
+      "reason": "short reason"
+    }
+  ],
+  "lens_lock_decisions": [
+    {
+      "lens": "implementation",
+      "lock_state": "active|failing|passing_locked|rerun_required|converged_locked",
+      "rerun_needed": true,
+      "reason": "short reason"
+    }
+  ]
+}
+```
+
+Reference arrays use stable record IDs only:
+
+- `current_review_record_ids`: records counted for readiness.
+- `superseded_review_record_ids`: stale or replaced records retained only for
+  history.
+- `included_review_record_ids`: synthesis inputs counted for current readiness.
+- `superseded_review_record_ids`: synthesis context excluded from readiness.
+
+Paths and artifact binding:
+
+- `artifact_path` and `markdown_artifact_path` must be repository-relative paths
+  using forward slashes.
+- `artifact_path` identifies the normalized JSON artifact or archive entry for
+  the record.
+- `markdown_artifact_path` identifies the human-readable Markdown artifact whose
+  sections and hash are validated.
+- The full fixture `review-output.valid-full.json` and
+  `synthesis-output.valid.json` must include `markdown_artifact_path` and
+  `markdown_artifact_sha`. The minimal review-output fixture may omit Markdown
+  binding only when it is explicitly marked as a schema-only minimal fixture and
+  is not counted as a completed review record.
+- Absolute local paths are invalid in durable JSON records.
+- Empty paths, `.` segments, `..` segments, backslashes, drive-prefixed paths,
+  and resolved paths outside the artifact root are invalid.
+- `markdown_artifact_sha` is required when `markdown_artifact_path` is present.
+- Compute `markdown_artifact_sha` with `git hash-object --
+  <markdown_artifact_path>` and store it as `git:<hash>`. If `git hash-object`
+  is unavailable, compute SHA-256 over the raw file bytes without text
+  normalization and store it as `sha256:<hex>`. Validators must compare both the
+  prefix and value so fixture, archive, and validation code agree on the hash
+  algorithm.
+- Review-output validation must confirm the Markdown artifact exists under the
+  optional `--artifact-root` or repository root, matches `markdown_artifact_sha`,
+  and contains the required template sections.
+
+Attempt semantics:
+
+- `attempt` is a positive integer scoped by `pass_id`, `target_revision`, and
+  `lens`.
+- The first current review for a lens starts at `attempt: 1`.
+- Replacement reviews for the same target revision and lens increment the
+  attempt.
+- Stale, invalid, and superseded attempts remain addressable by record ID but
+  cannot appear in `current_review_record_ids`.
+- A ledger is invalid when two current records share the same `pass_id`,
+  `target_revision`, `lens`, and `attempt`.
+
 Normalized review output records should include:
 
 - `schema_version`
@@ -160,6 +311,8 @@ Normalized review output records should include:
 - `attempt`
 - `execution_mode`
 - `artifact_path`
+- `markdown_artifact_path`
+- `markdown_artifact_sha`
 - `verdict`
 - `material_blockers`
 - `cross_cutting_status`
@@ -178,6 +331,8 @@ Normalized synthesis records should include:
 - `lens_lock_decisions`
 - `final_assessment`
 - `artifact_path`
+- `markdown_artifact_path`
+- `markdown_artifact_sha`
 
 Ledger records should include:
 
@@ -192,6 +347,7 @@ Ledger records should include:
 - superseded review record IDs
 - synthesis record IDs
 - archive paths
+- artifact path visibility (`public_safe` or `private_local_only`)
 
 Conditional lifecycle rules:
 
@@ -222,12 +378,18 @@ Validation should enforce:
 - synthesis references only current valid reviews unless a review is explicitly
   marked superseded historical context
 - conditional required fields for spawned and manual/imported execution modes
+- repository-relative artifact paths and rejection of local absolute paths
+- Markdown artifact hash and required-section checks when a JSON record points
+  to a Markdown artifact
+- attempt assignment, attempt collision, and current-vs-superseded reference
+  rules
+- privacy/local-path fixture lint for generic examples
 - no synthesis completion when any included current review is stale, invalid,
   uncaptured, or unclosed
 
 Success criteria:
 
-- Existing example outputs validate.
+- Valid example outputs added in this phase validate.
 - Intentionally malformed examples fail with useful errors.
 - Ledger validation catches stale, incomplete, uncaptured, or unclosed reviewer
   records.
@@ -237,13 +399,20 @@ Success criteria:
   any unexpected result. Expected successful output shape:
 
   ```text
-  review-output: 2 valid passed, 3 invalid rejected
+  review-output: 2 valid passed, 6 invalid rejected
   synthesis-output: 1 valid passed, 2 invalid rejected
-  ledger: 1 valid passed, 4 invalid rejected
+  ledger: 1 valid passed, 6 invalid rejected
   all review validators passed
   ```
 - Validation errors identify the file path, record ID when available, field or
   section name, expected value, and actual value.
+- Every validation rule is mapped to at least one valid or invalid fixture
+  assertion before `validate-review-fixtures.mjs` is considered complete.
+- At least one invalid fixture for each artifact type asserts the emitted error
+  includes file path, record ID when available, field or section name, expected
+  value, and actual value.
+- Phase 2 implementation is not complete until
+  `node llm/reviews/scripts/validate-review-fixtures.mjs` passes locally.
 
 ## Phase 3: Skill Packaging
 
@@ -334,6 +503,9 @@ Archive helpers must normalize or flag workspace-local absolute paths before
 writing durable artifacts. They must reject generic example fixtures that include
 private source-project names, non-public target details, or local absolute paths
 unless the run is explicitly marked private and local-only.
+Archive rejection output must identify the offending field/path, state that the
+artifact was blocked from durable archive, and name the required metadata for
+private local-only storage.
 
 Success criteria:
 
@@ -450,12 +622,16 @@ Start with Phase 2:
 1. Add `review-ledger.schema.json`.
 2. Add `review-output.schema.json`.
 3. Add `synthesis-output.schema.json`.
-4. Add normalized valid and invalid example artifacts for review output,
+4. Add `validation-contracts.mjs` and `validation-helpers.mjs` so schemas,
+   fixtures, and validators share field lists, enum maps, score keys,
+   cross-cutting keys, path checks, hash checks, and error formatting.
+5. Add normalized valid and invalid example artifacts for review output,
    synthesis output, and ledger records.
-5. Add dependency-light `.mjs` validators for ledger, review output, and
+6. Add the generic Markdown artifact fixtures that JSON records will bind to.
+7. Add dependency-light `.mjs` validators for ledger, review output, and
    synthesis output.
-6. Add `validate-review-fixtures.mjs` as the single local validation command.
-7. Keep implementation small enough that it can run locally without a full agent
+8. Add `validate-review-fixtures.mjs` as the single local validation command.
+9. Keep implementation small enough that it can run locally without a full agent
    runtime.
 
 This turns the current composable index into enforceable state without changing
