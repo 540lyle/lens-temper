@@ -130,6 +130,15 @@ Success criteria:
   records.
 - The ledger becomes the runtime source of truth for pass status, reviewer
   status, lock state, rerun decisions, and archive paths.
+- A single local validation command reports fixture counts and exits non-zero on
+  any unexpected result. Expected successful output shape:
+
+  ```text
+  review-output: 2 valid passed, 3 invalid rejected
+  synthesis-output: 1 valid passed, 2 invalid rejected
+  ledger: 1 valid passed, 4 invalid rejected
+  all review validators passed
+  ```
 
 ## Phase 3: Skill Packaging
 
