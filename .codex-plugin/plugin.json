@@ -1,0 +1,41 @@
+{
+  "name": "lens-temper",
+  "version": "0.1.0",
+  "description": "LensTemper review workflow skills for structured implementation-plan reviews, validation, synthesis, reruns, and archival evidence.",
+  "author": {
+    "name": "LensTemper maintainers"
+  },
+  "homepage": "https://github.com/540lyle/lens-temper",
+  "repository": "https://github.com/540lyle/lens-temper",
+  "license": "MIT",
+  "keywords": [
+    "code-review",
+    "plan-review",
+    "skills",
+    "validation",
+    "synthesis",
+    "workflow"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "LensTemper",
+    "shortDescription": "Structured lens reviews for implementation plans",
+    "longDescription": "Use LensTemper to run independent lens reviews, validate review artifacts, synthesize findings, decide reruns, and archive final review evidence.",
+    "developerName": "LensTemper maintainers",
+    "category": "Coding",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Review this implementation plan with LensTemper.",
+      "Run a structured lens review for this plan."
+    ],
+    "websiteURL": "https://github.com/540lyle/lens-temper",
+    "privacyPolicyURL": "https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement",
+    "termsOfServiceURL": "https://docs.github.com/en/site-policy/github-terms/github-terms-of-service",
+    "brandColor": "#2563EB",
+    "screenshots": []
+  }
+}

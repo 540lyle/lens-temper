@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "id": "orchestrator",
+  "kind": "role",
+  "display_name": "Orchestrator",
+  "source_paths": [
+    "reviews/registry.json",
+    "reviews/README.md",
+    "reviews/AGENT.md"
+  ],
+  "responsibilities": [
+    "Select the smallest lens set that covers the target plan's risk.",
+    "Create and maintain review ledger state.",
+    "Spawn or otherwise run independent lens reviewers with fresh context.",
+    "Ensure reviewer outputs are captured, terminal, and closed.",
+    "Hand completed outputs to the synthesis owner.",
+    "Archive final review artifacts when the review is complete."
+  ],
+  "inputs": [
+    "target_path",
+    "target_revision",
+    "feature_request",
+    "constraints",
+    "selected_lenses"
+  ],
+  "outputs": [
+    "review ledger",
+    "per-lens review prompts or packets",
+    "captured reviewer outputs",
+    "archive path"
+  ],
+  "validation_rules": [
+    "Every selected lens must map to a manifest in registry.json.",
+    "Every active reviewer must report the current target_revision.",
+    "Completed spawned reviewers must have output_captured=true and closed=true."
+  ]
+}

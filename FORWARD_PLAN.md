@@ -25,20 +25,25 @@ validation rules.
 
 ## Current Baseline
 
-The first documentation and discovery slice is in place:
+The reusable workflow baseline is in place:
 
 - Source-project implementation details were removed from reusable docs and
   example packets.
-- `llm/reviews/registry.json` is the machine-readable entry point.
+- `reviews/registry.json` is the machine-readable entry point.
 - Lens manifests declare prompt paths, domain focus, cross-cutting ownership,
   default selection triggers, and advisory tool expectations.
 - Role manifests distinguish orchestrator, lens reviewer, synthesis owner, and
   rerun decider responsibilities.
-- `llm/reviews/AGENT.md` defines discovery order and review safety rules.
+- `reviews/AGENT.md` defines discovery order and review safety rules.
+- `reviews/reviewer-template.md` and the six lens prompts now carry the
+  stateful-workflow sweep directly in the operational reviewer prompt path.
+- `.codex-plugin/plugin.json` and root `skills/` entrypoints make the workflow
+  installable as a Codex plugin while staying compatible with other
+  Agent Skills-style hosts.
 
-The project is still Markdown-first. The registry and manifests wrap the
-existing files; they do not replace validators, runtime state, skill packaging,
-or orchestration.
+The project is still Markdown-first. The registry, manifests, validators,
+helpers, skills, and evals wrap the existing files; they do not require a host
+agent runtime.
 
 ## Non-Goals
 
@@ -46,8 +51,8 @@ or orchestration.
 - Do not build a full agent runtime before validators and ledger state prove
   value.
 - Do not require a specific host agent platform.
-- Do not move the current Markdown files into a new directory hierarchy until
-  the registry, validators, and skill packaging prove useful.
+- Do not move the current Markdown files into a deeper package hierarchy beyond
+  the root `reviews/` layout until validators and skill packaging prove useful.
 - Do not add MCP or tracing infrastructure until there is repeated usage that
   justifies it.
 - Do not publish non-public feature plans, product constraints, or absolute
@@ -62,22 +67,42 @@ Status: complete as the current baseline.
 Added files:
 
 ```text
-llm/reviews/registry.json
-llm/reviews/manifests/lenses/architecture.json
-llm/reviews/manifests/lenses/implementation.json
-llm/reviews/manifests/lenses/risk.json
-llm/reviews/manifests/lenses/test-strategy.json
-llm/reviews/manifests/lenses/product-ux.json
-llm/reviews/manifests/lenses/data-model.json
-llm/reviews/manifests/roles/orchestrator.json
-llm/reviews/manifests/roles/lens-reviewer.json
-llm/reviews/manifests/roles/synthesis-owner.json
-llm/reviews/manifests/roles/rerun-decider.json
-llm/reviews/AGENT.md
+reviews/registry.json
+reviews/README.md
+reviews/AGENT.md
+reviews/reviewer-template.md
+reviews/synthesize-review-feedback.md
+reviews/lenses/lens-architecture.md
+reviews/lenses/lens-implementation.md
+reviews/lenses/lens-risk.md
+reviews/lenses/lens-test-strategy.md
+reviews/lenses/lens-product-ux.md
+reviews/lenses/lens-data-model.md
+reviews/manifests/lenses/architecture.json
+reviews/manifests/lenses/implementation.json
+reviews/manifests/lenses/risk.json
+reviews/manifests/lenses/test-strategy.json
+reviews/manifests/lenses/product-ux.json
+reviews/manifests/lenses/data-model.json
+reviews/manifests/roles/orchestrator.json
+reviews/manifests/roles/lens-reviewer.json
+reviews/manifests/roles/synthesis-owner.json
+reviews/manifests/roles/rerun-decider.json
+skills/plan-review-orchestrator/SKILL.md
+skills/lens-reviewer/SKILL.md
+skills/synthesize-review-feedback/SKILL.md
+skills/rerun-decider/SKILL.md
+skills/verification-runner/SKILL.md
+reviews/examples/artifacts/example-review-output.md
+reviews/examples/input-packets/pwa-offline-review-inputs.md
+reviews/examples/input-packets/ui-refresh-review-inputs.md
+reviews/archive/.gitkeep
 ```
 
-JSON stays the first manifest format to avoid parser dependencies. The manifests
-point to the current Markdown files instead of relocating them.
+JSON stays the first manifest format to avoid parser dependencies. The reusable
+workflow root is `reviews/`, with lens prompts under `reviews/lenses/`, manifests
+under `reviews/manifests/`, generic examples under `reviews/examples/`, and
+ignored local run history under `reviews/archive/`.
 
 Success criteria:
 
@@ -86,11 +111,15 @@ Success criteria:
   advisory tool expectations.
 - Role manifests distinguish orchestrator, reviewer, synthesis owner, and rerun
   decider responsibilities.
-- Later phases extend `llm/reviews/registry.json` as their new schemas, scripts,
+- The root `reviews/` layout is the durable LensTemper-owned structure, not a
+  verbatim embedded copy of a source-project review folder.
+- Later phases extend `reviews/registry.json` as their new schemas, scripts,
   skills, examples, and helper contracts are added. The registry remains the
   single discovery entry point.
 
 ## Phase 2: Validated Runtime State
+
+Status: complete as the current validator baseline.
 
 Add schemas, a JSON ledger contract, and validators before adding orchestration.
 The Markdown output remains the human-readable artifact; JSON and validation make
@@ -128,46 +157,101 @@ Canonical artifact boundary:
   infer lifecycle state only from Markdown prose.
 - Lifecycle state lives only in normalized JSON records and the ledger.
 
+Stateful workflow review contract:
+
+Plans that include restore, load, save, update, delete, reset, deferred apply,
+planner/apply separation, persisted records, or active UI/application state must
+receive an explicit state-transition review. This is a cross-lens concern rather
+than a new default lens. The orchestrator should select the existing lenses that
+own the risk:
+
+- Data Model owns absence semantics, persistence shape, backward compatibility,
+  and whether missing values mean unknown, intentionally cleared, defaulted,
+  legacy, invalid, or not yet loaded.
+- Architecture owns state ownership, derived mirrors, cache invalidation,
+  planner/apply boundaries, and whether business rules are centralized in the
+  right layer.
+- Implementation owns sequencing, async/deferred behavior, idempotency,
+  cancellation, and whether every planner output has a concrete apply path.
+- Product & UX owns user-visible meaning for load, save, update, overwrite,
+  reset, success, failure, and stale or transitional states.
+- Test Strategy owns regression cases for stale active state, partial restore,
+  deferred restore followed by save/update/delete, ignored planner fields, and
+  planner/apply symmetry.
+- Risk owns race conditions, silent data corruption, rollback, observability, and
+  blast radius when persisted or active state can diverge.
+
+Required stateful-workflow questions:
+
+- What does absence mean for each value: `undefined`, `null`, empty string, empty
+  array, empty object, missing key, or omitted planner field?
+- What existing active state must be preserved, replaced, cleared, invalidated,
+  or resynced before and after the action?
+- Can restore or apply work be deferred, and what happens if the user saves,
+  updates, deletes, resets, or starts a second restore before the deferred work
+  runs?
+- Does every planner output field, action, and state transition have a matching
+  App or application-layer apply path, and does every apply branch have a planner
+  case that can produce it?
+- Is the saved data a full snapshot, patch, reference, or intent, and can saving
+  during transitional state create mixed or invalid records?
+- Does visible UI state match persisted/application state after success, failure,
+  cancellation, and retry?
+
+The synthesis owner must treat unanswered stateful-workflow questions as material
+when the feature can mutate durable data, restore user context, or leave active
+state stale. Deferrals are valid only when they name the deferred behavior, owner,
+timing, and interim user/data semantics.
+
 Planned files:
 
 ```text
-llm/reviews/schemas/review-ledger.schema.json
-llm/reviews/schemas/review-output.schema.json
-llm/reviews/schemas/synthesis-output.schema.json
-llm/reviews/examples/fixture-counts.json
-llm/reviews/examples/review-output.valid-full.json
-llm/reviews/examples/review-output.valid-minimal.json
-llm/reviews/examples/review-output.invalid-missing-cross-cutting.json
-llm/reviews/examples/review-output.invalid-score.json
-llm/reviews/examples/review-output.invalid-missing-provenance.json
-llm/reviews/examples/review-output.invalid-markdown-artifact-hash.json
-llm/reviews/examples/review-output.invalid-missing-markdown-section.json
-llm/reviews/examples/review-output.invalid-path-traversal.json
-llm/reviews/examples/synthesis-output.valid.json
-llm/reviews/examples/synthesis-output.invalid-stale-reference.json
-llm/reviews/examples/synthesis-output.invalid-missing-final-assessment.json
-llm/reviews/examples/review-ledger.valid.json
-llm/reviews/examples/review-ledger.invalid-unclosed-reviewer.json
-llm/reviews/examples/review-ledger.invalid-uncaptured-output.json
-llm/reviews/examples/review-ledger.invalid-stale-target.json
-llm/reviews/examples/review-ledger.invalid-duplicate-current-review.json
-llm/reviews/examples/review-ledger.invalid-absolute-artifact-path.json
-llm/reviews/examples/review-ledger.invalid-current-attempt-collision.json
-llm/reviews/examples/artifacts/review-output.valid-full.md
-llm/reviews/examples/artifacts/synthesis-output.valid.md
-llm/reviews/examples/artifacts/final.valid.md
-llm/reviews/scripts/validation-contracts.mjs
-llm/reviews/scripts/validation-helpers.mjs
-llm/reviews/scripts/validate-ledger.mjs
-llm/reviews/scripts/validate-review-output.mjs
-llm/reviews/scripts/validate-synthesis-output.mjs
-llm/reviews/scripts/validate-review-fixtures.mjs
+reviews/reviewer-template.md
+reviews/lenses/lens-architecture.md
+reviews/lenses/lens-implementation.md
+reviews/lenses/lens-risk.md
+reviews/lenses/lens-test-strategy.md
+reviews/lenses/lens-product-ux.md
+reviews/lenses/lens-data-model.md
+reviews/schemas/review-ledger.schema.json
+reviews/schemas/review-output.schema.json
+reviews/schemas/synthesis-output.schema.json
+reviews/examples/fixture-counts.json
+reviews/examples/review-output.valid-full.json
+reviews/examples/review-output.valid-minimal.json
+reviews/examples/review-output.invalid-missing-cross-cutting.json
+reviews/examples/review-output.invalid-score.json
+reviews/examples/review-output.invalid-missing-provenance.json
+reviews/examples/review-output.invalid-completed-missing-markdown.json
+reviews/examples/review-output.invalid-markdown-artifact-hash.json
+reviews/examples/review-output.invalid-missing-markdown-section.json
+reviews/examples/review-output.invalid-path-traversal.json
+reviews/examples/synthesis-output.valid.json
+reviews/examples/synthesis-output.invalid-stale-reference.json
+reviews/examples/synthesis-output.invalid-missing-final-assessment.json
+reviews/examples/synthesis-output.invalid-included-review-invalid.json
+reviews/examples/review-ledger.valid.json
+reviews/examples/review-ledger.invalid-unclosed-reviewer.json
+reviews/examples/review-ledger.invalid-uncaptured-output.json
+reviews/examples/review-ledger.invalid-stale-target.json
+reviews/examples/review-ledger.invalid-duplicate-current-review.json
+reviews/examples/review-ledger.invalid-absolute-artifact-path.json
+reviews/examples/review-ledger.invalid-current-attempt-collision.json
+reviews/examples/artifacts/review-output.valid-full.md
+reviews/examples/artifacts/synthesis-output.valid.md
+reviews/examples/artifacts/final.valid.md
+reviews/scripts/validation-contracts.mjs
+reviews/scripts/validation-helpers.mjs
+reviews/scripts/validate-ledger.mjs
+reviews/scripts/validate-review-output.mjs
+reviews/scripts/validate-synthesis-output.mjs
+reviews/scripts/validate-review-fixtures.mjs
 ```
 
 Exact local validation command:
 
 ```powershell
-node llm/reviews/scripts/validate-review-fixtures.mjs
+node reviews/scripts/validate-review-fixtures.mjs
 ```
 
 The command validates all example artifacts and exits non-zero when a valid
@@ -177,10 +261,10 @@ expected output being updated, or a referenced artifact is missing.
 Individual script interfaces:
 
 ```powershell
-node llm/reviews/scripts/validate-review-output.mjs <review-json> --target-revision <hash> [--artifact-root <path>]
-node llm/reviews/scripts/validate-synthesis-output.mjs <synthesis-json> --ledger <ledger-json> [--artifact-root <path>]
-node llm/reviews/scripts/validate-ledger.mjs <ledger-json> --target-revision <hash> [--artifact-root <path>]
-node llm/reviews/scripts/validate-review-fixtures.mjs
+node reviews/scripts/validate-review-output.mjs <review-json> --target-revision <hash> [--artifact-root <path>]
+node reviews/scripts/validate-synthesis-output.mjs <synthesis-json> --ledger <ledger-json> [--artifact-root <path>]
+node reviews/scripts/validate-ledger.mjs <ledger-json> --target-revision <hash> [--artifact-root <path>]
+node reviews/scripts/validate-review-fixtures.mjs
 ```
 
 Common options:
@@ -193,7 +277,7 @@ Common options:
 - `--json`: emit machine-readable JSON Lines to stdout; errors still exit with
   the same codes.
 - `--update-counts`: fixture runner only; rewrite
-  `llm/reviews/examples/fixture-counts.json` from discovered fixtures after the
+  `reviews/examples/fixture-counts.json` from discovered fixtures after the
   contributor intentionally changes fixture inventory.
 
 Exit behavior:
@@ -228,7 +312,7 @@ Exit codes:
 Example failure output:
 
 ```text
-llm/reviews/examples/review-ledger.invalid-absolute-artifact-path.json record=review-implementation-1 field=artifact_path expected=repository-relative path actual=C:\tmp\review.md
+reviews/examples/review-ledger.invalid-absolute-artifact-path.json record=review-implementation-1 field=artifact_path expected=repository-relative path actual=C:\tmp\review.md
 ```
 
 Output ergonomics:
@@ -249,7 +333,7 @@ Shared validator helpers should stay dependency-light and cover provenance,
 score parsing, enum checks, target revision matching, repository-relative path
 checks, Markdown section checks, and structured error formatting.
 Shared validation contracts should live in
-`llm/reviews/scripts/validation-contracts.mjs` and export the required-field
+`reviews/scripts/validation-contracts.mjs` and export the required-field
 lists, enum maps, canonical scorecard keys, cross-cutting keys, and lock-state
 values checked by the validators. It must also export required Markdown section
 names for review, synthesis, and final summary artifacts. `validate-review-fixtures.mjs`
@@ -484,14 +568,14 @@ Success criteria:
   any unexpected result. Expected successful output shape:
 
   ```text
-  review-output: 2 valid passed, 6 invalid rejected
-  synthesis-output: 1 valid passed, 2 invalid rejected
+  review-output: 2 valid passed, 7 invalid rejected
+  synthesis-output: 1 valid passed, 3 invalid rejected
   ledger: 1 valid passed, 6 invalid rejected
   all review validators passed
   ```
-- The expected counts live in `llm/reviews/examples/fixture-counts.json`.
+- The expected counts live in `reviews/examples/fixture-counts.json`.
   Contributors update that file only by running
-  `node llm/reviews/scripts/validate-review-fixtures.mjs --update-counts` after
+  `node reviews/scripts/validate-review-fixtures.mjs --update-counts` after
   intentionally adding, removing, or reclassifying fixtures.
 - Validation errors identify the file path, record ID when available, field or
   section name, expected value, and actual value.
@@ -501,25 +585,28 @@ Success criteria:
   includes file path, record ID when available, field or section name, expected
   value, and actual value.
 - Phase 2 implementation is not complete until
-  `node llm/reviews/scripts/validate-review-fixtures.mjs` passes locally.
-- Update `llm/reviews/registry.json` with Phase 2 schemas, scripts, examples,
+  `node reviews/scripts/validate-review-fixtures.mjs` passes locally.
+- Update `reviews/registry.json` with Phase 2 schemas, scripts, examples,
   fixture-count manifest, and validation helper contracts.
 
-## Phase 3: Skill Packaging
+## Phase 3: Skill And Plugin Packaging
+
+Status: complete as root skill entrypoints plus a Codex plugin manifest.
 
 Package the existing workflow as composable Agent Skills-style folders while
-keeping the current Markdown files in place. The skill files should be thin
-activation and procedure wrappers that point back to the registry, manifests,
-templates, and validators.
+keeping the current Markdown files in place. The skill files are thin activation
+and procedure wrappers that point back to the registry, manifests, templates,
+and validators.
 
 Planned files:
 
 ```text
-llm/reviews/skills/plan-review-orchestrator/SKILL.md
-llm/reviews/skills/lens-reviewer/SKILL.md
-llm/reviews/skills/synthesize-review-feedback/SKILL.md
-llm/reviews/skills/rerun-decider/SKILL.md
-llm/reviews/skills/verification-runner/SKILL.md
+.codex-plugin/plugin.json
+skills/plan-review-orchestrator/SKILL.md
+skills/lens-reviewer/SKILL.md
+skills/synthesize-review-feedback/SKILL.md
+skills/rerun-decider/SKILL.md
+skills/verification-runner/SKILL.md
 ```
 
 Skill packaging should define:
@@ -547,19 +634,21 @@ Success criteria:
   Lens reviewers may not write ledger state.
 - The skills remain wrappers around current source files rather than a second
   divergent prompt system.
-- Update `llm/reviews/registry.json` with all skill paths and role-skill
+- Update `reviews/registry.json` with all skill paths and role-skill
   mappings.
 
 ## Phase 4: Prompt Assembly
+
+Status: complete as dependency-light local scripts.
 
 Add a repeatable prompt assembly helper.
 
 Planned files:
 
 ```text
-llm/reviews/scripts/hash-review-target.mjs
-llm/reviews/scripts/assemble-review-prompt.mjs
-llm/reviews/examples/review-input.packet.md
+reviews/scripts/hash-review-target.mjs
+reviews/scripts/assemble-review-prompt.mjs
+reviews/examples/review-input.packet.md
 ```
 
 The assembly helper should:
@@ -586,21 +675,23 @@ Success criteria:
 - The generated prompt includes deterministic provenance.
 - The generated prompt can be validated against the selected lens manifest and
   current target hash before a reviewer sees it.
-- Update `llm/reviews/registry.json` with prompt assembly scripts and example
+- Update `reviews/registry.json` with prompt assembly scripts and example
   input packet paths.
 
 ## Phase 5: Ledger And Archive Helpers
+
+Status: complete as single-writer local state helpers.
 
 Add simple state helpers, not full autonomous orchestration yet.
 
 Planned files:
 
 ```text
-llm/reviews/scripts/create-ledger.mjs
-llm/reviews/scripts/update-ledger.mjs
-llm/reviews/scripts/archive-review-run.mjs
-llm/reviews/scripts/decide-reruns.mjs
-llm/reviews/scripts/emit-completion-summary.mjs
+reviews/scripts/create-ledger.mjs
+reviews/scripts/update-ledger.mjs
+reviews/scripts/archive-review-run.mjs
+reviews/scripts/decide-reruns.mjs
+reviews/scripts/emit-completion-summary.mjs
 ```
 
 These scripts should help an agent maintain state while the host agent still
@@ -621,7 +712,7 @@ Output contracts:
 - `archive-review-run.mjs` writes archive files and prints one ASCII status line
   containing the archive path and final assessment. `--json` emits JSON Lines.
 - `emit-completion-summary.mjs` reads a ledger plus synthesis artifact and emits
-  the user-facing completion summary required by `llm/reviews/README.md`,
+  the user-facing completion summary required by `reviews/README.md`,
   including final assessment, target path/revision, artifact storage status,
   per-lens score table, accepted findings, rerun/lock status, and verification
   evidence.
@@ -653,7 +744,7 @@ private local-only storage.
 Success criteria:
 
 - A run can be archived under
-  `llm/archive/reviews/<yyyy-mm-dd>-<target-slug>-<pass-id>/`.
+  `reviews/archive/<yyyy-mm-dd>-<target-slug>-<pass-id>/`.
 - Archive directories contain `ledger.json`, `input.packet.md`, `reviews/`,
   `synthesis.md`, and `final.md` when those artifacts exist.
 - Rerun decisions are generated from ledger state, synthesis decisions, and
@@ -661,10 +752,13 @@ Success criteria:
 - Locked lenses are preserved unless the target changes in their domain.
 - Rerun decisions explain selected, skipped, locked, stale, and superseded
   lenses in terms of material findings or domain-relevant target changes.
-- Update `llm/reviews/registry.json` with ledger, archive, rerun, and completion
+- Update `reviews/registry.json` with ledger, archive, rerun, and completion
   summary helper scripts.
 
 ## Phase 6: Review-Quality Eval Harness
+
+Status: complete as a deterministic fixture-content and prompt-assembly eval
+harness.
 
 Before building a full runner, test whether the added structure improves review
 quality or just burns tokens.
@@ -672,15 +766,22 @@ quality or just burns tokens.
 Planned files:
 
 ```text
-llm/reviews/evals/fixtures/
-llm/reviews/evals/expected-findings.json
-llm/reviews/scripts/run-review-evals.mjs
+reviews/evals/fixtures/
+reviews/evals/expected-findings.json
+reviews/scripts/run-review-evals.mjs
 ```
 
 Fixture types:
 
 - missing migration backfill
 - UI error state missing
+- ambiguous absence semantics, such as `undefined` versus intentionally cleared
+  values
+- stale active state not cleared during load, restore, reset, or delete
+- deferred restore followed by save, update, delete, reset, or a second restore
+- planner output with no matching application-layer apply path
+- application apply branch with no planner case that can produce it
+- partial snapshot save that mixes restored context with pre-restore state
 - rollback or kill switch missing
 - happy-path-only tests
 - stale target revision
@@ -710,6 +811,7 @@ false_positive_blockers: 0
 unsupported_claim_rate: 0.00
 schema_validity: 8/8
 rerun_decision_accuracy: 8/8
+prompt_assertions: 1/1
 recommendation: keep
 ```
 
@@ -723,14 +825,16 @@ Adoption rule:
 
 ## Phase 7: Optional Full Orchestration
 
+Status: complete as host-coordinator scaffolding.
+
 Only after the previous phases are useful, consider a callable runner.
 
 Possible files:
 
 ```text
-llm/reviews/scripts/select-lenses.mjs
-llm/reviews/scripts/run-plan-review.mjs
-llm/reviews/scripts/run-synthesis.mjs
+reviews/scripts/select-lenses.mjs
+reviews/scripts/run-plan-review.mjs
+reviews/scripts/run-synthesis.mjs
 ```
 
 Important constraint:
@@ -760,24 +864,16 @@ surface area:
 - platform-specific tool permission adapters.
 - durable resumable execution when a host runtime offers reliable state APIs.
 
-## Next Implementation Slice
+## Post-Plan Hardening
 
-Start with Phase 2:
+Recommended hardening after the forward plan:
 
-1. Add `review-ledger.schema.json`.
-2. Add `review-output.schema.json`.
-3. Add `synthesis-output.schema.json`.
-4. Add `validation-contracts.mjs` and `validation-helpers.mjs` so schemas,
-   fixtures, and validators share field lists, enum maps, score keys,
-   cross-cutting keys, path checks, hash checks, and error formatting.
-5. Add normalized valid and invalid example artifacts for review output,
-   synthesis output, and ledger records.
-6. Add the generic Markdown artifact fixtures that JSON records will bind to.
-7. Add dependency-light `.mjs` validators for ledger, review output, and
-   synthesis output.
-8. Add `validate-review-fixtures.mjs` as the single local validation command.
-9. Keep implementation small enough that it can run locally without a full agent
-   runtime.
+1. Use the scripts on a fresh real review run and archive it under
+   `reviews/archive/<yyyy-mm-dd>-<target-slug>-<pass-id>/`.
+2. Tighten validator coverage from the first real run's failures or awkward
+   manual steps.
+3. Decide whether the Phase 7 host-coordinator scripts should stay as local
+   scaffolding or become host-specific integrations.
 
-This turns the current composable index into enforceable state without changing
-the working review loop.
+The current implementation turns the composable index into enforceable state
+without requiring a full agent runtime.
