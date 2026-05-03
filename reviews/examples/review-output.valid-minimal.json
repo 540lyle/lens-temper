@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "fixture_kind": "schema_only_minimal",
+  "record_id": "review-risk-minimal-1",
+  "pass_id": "example-pass",
+  "target_path": "FORWARD_PLAN.md",
+  "target_revision": "example-target-revision",
+  "template_revision": "example-template-revision",
+  "lens": "risk",
+  "lens_revision": "example-lens-revision",
+  "attempt": 1,
+  "execution_mode": "manual_or_imported",
+  "status": "superseded",
+  "artifact_path": "reviews/examples/review-output.valid-minimal.json",
+  "verdict": "Strong",
+  "material_blockers": {
+    "present": false,
+    "summary": "schema-only minimal fixture",
+    "count": 0
+  },
+  "cross_cutting_status": {
+    "security_privacy": "not_applicable",
+    "accessibility": "not_applicable",
+    "performance": "not_applicable",
+    "reliability_rollback": "not_applicable",
+    "observability_debuggability": "not_applicable",
+    "compatibility_platform": "not_applicable"
+  },
+  "scorecard": {
+    "correctness": 5,
+    "completeness": 5,
+    "risk_awareness": 5,
+    "testability": 5,
+    "maintainability": 5,
+    "ship_readiness": 5
+  }
+}

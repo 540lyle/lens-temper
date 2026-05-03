@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "LensTemper Review Ledger",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "pass_id",
+    "target_path",
+    "target_revision",
+    "status",
+    "execution_mode",
+    "selected_lenses",
+    "current_review_record_ids",
+    "superseded_review_record_ids",
+    "synthesis_record_ids",
+    "archive_paths",
+    "artifact_visibility",
+    "review_record_artifacts",
+    "synthesis_record_artifacts"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "pass_id": { "type": "string" },
+    "target_path": { "type": "string" },
+    "target_revision": { "type": "string" },
+    "status": {
+      "enum": ["active", "completed", "error", "superseded", "stale"]
+    },
+    "execution_mode": {
+      "enum": ["fresh_spawned_lens_reviewers", "manual_or_imported"]
+    },
+    "selected_lenses": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "current_review_record_ids": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "superseded_review_record_ids": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "synthesis_record_ids": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "archive_paths": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "artifact_visibility": {
+      "enum": ["public_safe", "private_local_only"]
+    },
+    "review_record_artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["record_id", "artifact_path"],
+        "properties": {
+          "record_id": { "type": "string" },
+          "artifact_path": { "type": "string" }
+        },
+        "additionalProperties": true
+      }
+    },
+    "synthesis_record_artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["record_id", "artifact_path"],
+        "properties": {
+          "record_id": { "type": "string" },
+          "artifact_path": { "type": "string" }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}

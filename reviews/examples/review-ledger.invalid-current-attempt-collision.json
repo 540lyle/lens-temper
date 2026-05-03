@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "pass_id": "example-pass",
+  "target_path": "FORWARD_PLAN.md",
+  "target_revision": "example-target-revision",
+  "status": "active",
+  "execution_mode": "fresh_spawned_lens_reviewers",
+  "selected_lenses": ["implementation"],
+  "current_review_record_ids": ["review-duplicate-a", "review-duplicate-b"],
+  "superseded_review_record_ids": [],
+  "synthesis_record_ids": [],
+  "archive_paths": ["reviews/archive/example-pass"],
+  "artifact_visibility": "public_safe",
+  "review_record_artifacts": [
+    {
+      "record_id": "review-duplicate-a",
+      "artifact_path": "reviews/examples/support/review-duplicate-a.json"
+    },
+    {
+      "record_id": "review-duplicate-b",
+      "artifact_path": "reviews/examples/support/review-duplicate-b.json"
+    }
+  ],
+  "synthesis_record_artifacts": []
+}

@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "LensTemper Review Output",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "record_id",
+    "pass_id",
+    "target_path",
+    "target_revision",
+    "template_revision",
+    "lens",
+    "lens_revision",
+    "attempt",
+    "execution_mode",
+    "status",
+    "artifact_path",
+    "verdict",
+    "material_blockers",
+    "cross_cutting_status",
+    "scorecard"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "fixture_kind": { "type": "string" },
+    "record_id": { "type": "string" },
+    "pass_id": { "type": "string" },
+    "target_path": { "type": "string" },
+    "target_revision": { "type": "string" },
+    "template_revision": { "type": "string" },
+    "lens": { "type": "string" },
+    "lens_revision": { "type": "string" },
+    "attempt": { "type": "integer", "minimum": 1 },
+    "execution_mode": {
+      "enum": ["fresh_spawned_lens_reviewers", "manual_or_imported"]
+    },
+    "status": {
+      "enum": ["completed", "error", "superseded", "stale"]
+    },
+    "agent_id": { "type": "string" },
+    "closed": { "type": "boolean" },
+    "output_captured": { "type": "boolean" },
+    "artifact_path": { "type": "string" },
+    "markdown_artifact_path": { "type": "string" },
+    "markdown_artifact_sha": { "type": "string" },
+    "verdict": {
+      "enum": ["Strong", "Usable with fixes", "High risk", "Incomplete"]
+    },
+    "material_blockers": {
+      "type": "object",
+      "required": ["present", "summary", "count"],
+      "properties": {
+        "present": { "type": "boolean" },
+        "summary": { "type": "string", "minLength": 1 },
+        "count": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": true
+    },
+    "cross_cutting_status": {
+      "type": "object",
+      "required": [
+        "security_privacy",
+        "accessibility",
+        "performance",
+        "reliability_rollback",
+        "observability_debuggability",
+        "compatibility_platform"
+      ],
+      "properties": {
+        "security_privacy": { "enum": ["not_applicable", "non_blocking", "material_issue"] },
+        "accessibility": { "enum": ["not_applicable", "non_blocking", "material_issue"] },
+        "performance": { "enum": ["not_applicable", "non_blocking", "material_issue"] },
+        "reliability_rollback": { "enum": ["not_applicable", "non_blocking", "material_issue"] },
+        "observability_debuggability": { "enum": ["not_applicable", "non_blocking", "material_issue"] },
+        "compatibility_platform": { "enum": ["not_applicable", "non_blocking", "material_issue"] }
+      },
+      "additionalProperties": true
+    },
+    "scorecard": {
+      "type": "object",
+      "required": [
+        "correctness",
+        "completeness",
+        "risk_awareness",
+        "testability",
+        "maintainability",
+        "ship_readiness"
+      ],
+      "properties": {
+        "correctness": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "completeness": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "risk_awareness": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "testability": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "maintainability": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "ship_readiness": { "type": "integer", "minimum": 1, "maximum": 5 }
+      },
+      "additionalProperties": true
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "const": "completed" } } },
+      "then": {
+        "required": ["markdown_artifact_path", "markdown_artifact_sha"]
+      }
+    }
+  ],
+  "additionalProperties": true
+}

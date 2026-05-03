@@ -26,6 +26,18 @@ Evaluate the plan from an architecture perspective. Focus on whether the plan pl
 - Does it create multiple sources of truth for the same data or decision?
 - Are interfaces clear and stable enough to build against?
 
+## Stateful Workflow Ownership
+
+For plans involving restore, load, save, update, delete, reset, deferred apply,
+planner/apply separation, persisted records, or active application state, own
+these checks:
+
+- Are active state, derived mirrors, caches, and persisted state owned by clear layers?
+- Does the plan say which existing active state is preserved, replaced, cleared, invalidated, or resynced?
+- Does every planner output field and state transition have a matching App or application-layer apply path?
+- Does every apply branch have a planner case that can produce it?
+- Are business rules centralized in a domain/application seam rather than scattered through UI branches?
+
 ## Red Flags
 
 Apply the materiality gate before lowering a score: would this architectural issue justify changing the plan before implementation? If not, record it as non-blocking polish and do not let it prevent a `5/5`. Treat the list below as examples of issues to watch for, not a checklist that must produce findings.

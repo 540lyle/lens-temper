@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "fixtures": [
+    {
+      "id": "missing-migration-backfill",
+      "path": "reviews/evals/fixtures/missing-migration-backfill.md",
+      "expected_finding": "schema change needs backfill or default",
+      "must_contain": ["required", "field", "backfill", "default"],
+      "severity": "critical"
+    },
+    {
+      "id": "ui-error-state-missing",
+      "path": "reviews/evals/fixtures/ui-error-state-missing.md",
+      "expected_finding": "user-visible error state is unspecified",
+      "must_contain": ["save", "fails", "times out", "retried"],
+      "severity": "critical"
+    },
+    {
+      "id": "ambiguous-absence-semantics",
+      "path": "reviews/evals/fixtures/ambiguous-absence-semantics.md",
+      "expected_finding": "undefined versus intentionally cleared is ambiguous",
+      "must_contain": ["undefined", "previous value", "clear"],
+      "severity": "critical"
+    },
+    {
+      "id": "stale-active-state",
+      "path": "reviews/evals/fixtures/stale-active-state.md",
+      "expected_finding": "restore does not clear stale active state",
+      "must_contain": ["restores", "active material", "untouched", "omits"],
+      "severity": "critical"
+    },
+    {
+      "id": "deferred-restore-save-race",
+      "path": "reviews/evals/fixtures/deferred-restore-save-race.md",
+      "expected_finding": "save can capture transitional state before deferred restore completes",
+      "must_contain": ["defers", "next render", "save", "immediately"],
+      "severity": "critical"
+    },
+    {
+      "id": "planner-apply-mismatch",
+      "path": "reviews/evals/fixtures/planner-apply-mismatch.md",
+      "expected_finding": "planner output has no matching apply path",
+      "must_contain": ["planner", "clearActiveSetup", "apply path", "loadSetup"],
+      "severity": "critical"
+    },
+    {
+      "id": "rollback-missing",
+      "path": "reviews/evals/fixtures/rollback-missing.md",
+      "expected_finding": "rollout has no rollback or kill switch",
+      "must_contain": ["every user", "kill switch", "rollback", "post-deploy"],
+      "severity": "critical"
+    },
+    {
+      "id": "false-positive-bait",
+      "path": "reviews/evals/fixtures/false-positive-bait.md",
+      "expected_finding": "no material blocker should be raised",
+      "must_contain": ["copy-only", "no", "behavior"],
+      "severity": "non_blocking"
+    }
+  ],
+  "prompt_assertions": [
+    {
+      "id": "stateful-workflow-sweep-in-assembled-prompt",
+      "target": "reviews/evals/fixtures/deferred-restore-save-race.md",
+      "lens": "implementation",
+      "pass_id": "eval-stateful-prompt",
+      "must_contain": [
+        "Stateful Workflow Sweep",
+        "What does absence mean",
+        "What existing active state",
+        "before the deferred work runs",
+        "matching App or application-layer apply path",
+        "full snapshot, patch, reference, or intent",
+        "visible UI state",
+        "save-before-restore"
+      ]
+    }
+  ],
+  "expected_report": {
+    "fixtures": 8,
+    "critical_recall": "7/7",
+    "false_positive_blockers": 0,
+    "unsupported_claim_rate": "0.00",
+    "schema_validity": "8/8",
+    "rerun_decision_accuracy": "8/8",
+    "prompt_assertions": "1/1",
+    "recommendation": "keep"
+  }
+}

@@ -99,6 +99,25 @@ For cross-cutting categories outside your lens domain, write `Not applicable fro
 
 If the prompt includes previous adjudications, do not re-raise those findings unless the current target revision introduces new material evidence.
 
+### Stateful Workflow Sweep
+
+If the feature request, plan, or context includes restore, load, save, update,
+delete, reset, deferred apply, planner/apply separation, persisted records, or
+active UI/application state, complete this sweep through your assigned lens.
+If a question is outside your lens, say so briefly; do not silently skip it.
+
+- What does absence mean for each relevant value: `undefined`, `null`, empty string, empty array, empty object, missing key, or omitted planner field?
+- What existing active state must be preserved, replaced, cleared, invalidated, or resynced before and after the action?
+- Can restore or apply work be deferred, and what happens if the user saves, updates, deletes, resets, or starts a second restore before the deferred work runs?
+- Does every planner output field, action, and state transition have a matching App or application-layer apply path, and does every apply branch have a planner case that can produce it?
+- Is the saved data a full snapshot, patch, reference, or intent, and can saving during transitional state create mixed or invalid records?
+- Does visible UI state match persisted/application state after success, failure, cancellation, and retry?
+
+Treat unanswered stateful-workflow questions as material when the feature can
+mutate durable data, restore user context, or leave active state stale. Deferrals
+are acceptable only when the plan names the deferred behavior, owner, timing, and
+interim user/data semantics.
+
 ---
 
 ## Self-Check
@@ -111,6 +130,7 @@ Before producing your final output, verify:
 - Your scores are consistent with the issues you identified.
 - Any score below `5` is backed by a material issue, not by preference-only polish.
 - The cross-cutting sweep includes all six categories and either names a finding or says `Not applicable from this lens`.
+- For stateful workflows, the stateful workflow sweep is explicitly addressed or marked outside this lens.
 
 ---
 
@@ -163,6 +183,16 @@ Use exactly these categories. For each, include one concise bullet or `Not appli
 - Reliability / rollback:
 - Observability / debuggability:
 - Compatibility / platform constraints:
+
+### Stateful Workflow Sweep
+For non-stateful plans, write `Not applicable: no stateful workflow behavior in scope`.
+
+- Absence semantics:
+- Active state clearing/resync:
+- Deferred apply/save race:
+- Planner/apply symmetry:
+- Snapshot/patch/reference semantics:
+- Visible state consistency:
 
 ### Scorecard
 

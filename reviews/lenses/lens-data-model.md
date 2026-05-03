@@ -26,6 +26,18 @@ Evaluate the plan from a data modeling, schema, and storage perspective. Focus o
 - Does the plan account for data validation at the boundary and integrity at the storage layer?
 - Are indexes and query patterns considered for performance at realistic data volumes?
 
+## Stateful Workflow Ownership
+
+For plans involving restore, load, save, update, delete, reset, deferred apply,
+planner/apply separation, persisted records, or active application state, own
+these checks:
+
+- Does the plan define absence semantics for `undefined`, `null`, empty string, empty array, empty object, missing key, and omitted planner fields?
+- Is saved data modeled as a full snapshot, patch, reference, or intent?
+- Can saving during transitional state create mixed records, stale references, or invalid partial snapshots?
+- Are legacy records, missing values, defaults, validation, and backfills handled before restore or apply reads the data?
+- Are delete/reset/update semantics represented durably enough to avoid resurrecting stale active state?
+
 ## Red Flags
 
 Apply the materiality gate before lowering a score: would this data-model issue justify changing the plan before implementation? If not, record it as non-blocking polish and do not let it prevent a `5/5`. Treat the list below as examples of issues to watch for, not a checklist that must produce findings.

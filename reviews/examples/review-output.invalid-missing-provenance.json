@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "record_id": "review-invalid-provenance",
+  "pass_id": "example-pass",
+  "target_path": "FORWARD_PLAN.md",
+  "template_revision": "example-template-revision",
+  "lens": "implementation",
+  "lens_revision": "example-lens-revision",
+  "attempt": 1,
+  "execution_mode": "manual_or_imported",
+  "status": "completed",
+  "artifact_path": "reviews/examples/review-output.invalid-missing-provenance.json",
+  "verdict": "Strong",
+  "material_blockers": {
+    "present": false,
+    "summary": "missing target revision",
+    "count": 0
+  },
+  "cross_cutting_status": {
+    "security_privacy": "not_applicable",
+    "accessibility": "not_applicable",
+    "performance": "not_applicable",
+    "reliability_rollback": "not_applicable",
+    "observability_debuggability": "not_applicable",
+    "compatibility_platform": "not_applicable"
+  },
+  "scorecard": {
+    "correctness": 5,
+    "completeness": 5,
+    "risk_awareness": 5,
+    "testability": 5,
+    "maintainability": 5,
+    "ship_readiness": 5
+  }
+}

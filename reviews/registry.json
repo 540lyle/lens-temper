@@ -48,42 +48,178 @@
       "source_path": "reviews/README.md"
     }
   ],
-  "planned_runtime_steps": [
+  "runtime_steps": [
     {
       "id": "validate_review_outputs",
-      "availability": "planned",
+      "availability": "script",
       "planned_phase": "Phase 2",
-      "source_path": "FORWARD_PLAN.md"
+      "source_path": "reviews/scripts/validate-review-output.mjs"
     },
     {
       "id": "validate_ledger",
-      "availability": "planned",
+      "availability": "script",
       "planned_phase": "Phase 2",
-      "source_path": "FORWARD_PLAN.md"
+      "source_path": "reviews/scripts/validate-ledger.mjs"
     },
     {
       "id": "validate_synthesis_output",
-      "availability": "planned",
+      "availability": "script",
       "planned_phase": "Phase 2",
-      "source_path": "FORWARD_PLAN.md"
+      "source_path": "reviews/scripts/validate-synthesis-output.mjs"
     },
     {
       "id": "assemble_review_prompt",
-      "availability": "planned_script",
+      "availability": "script",
       "planned_phase": "Phase 4",
-      "source_path": "FORWARD_PLAN.md"
+      "source_path": "reviews/scripts/assemble-review-prompt.mjs"
     },
     {
       "id": "decide_reruns_or_completion",
-      "availability": "planned_script",
+      "availability": "script",
       "planned_phase": "Phase 5",
-      "source_path": "FORWARD_PLAN.md"
+      "source_path": "reviews/scripts/decide-reruns.mjs"
     },
     {
       "id": "archive_final_result",
-      "availability": "planned_script",
+      "availability": "script",
       "planned_phase": "Phase 5",
-      "source_path": "FORWARD_PLAN.md"
+      "source_path": "reviews/scripts/archive-review-run.mjs"
+    }
+  ],
+  "schemas": [
+    {
+      "id": "review-ledger",
+      "path": "reviews/schemas/review-ledger.schema.json"
+    },
+    {
+      "id": "review-output",
+      "path": "reviews/schemas/review-output.schema.json"
+    },
+    {
+      "id": "synthesis-output",
+      "path": "reviews/schemas/synthesis-output.schema.json"
+    }
+  ],
+  "scripts": [
+    {
+      "id": "validation-contracts",
+      "path": "reviews/scripts/validation-contracts.mjs"
+    },
+    {
+      "id": "validation-helpers",
+      "path": "reviews/scripts/validation-helpers.mjs"
+    },
+    {
+      "id": "validate-review-fixtures",
+      "path": "reviews/scripts/validate-review-fixtures.mjs"
+    },
+    {
+      "id": "hash-review-target",
+      "path": "reviews/scripts/hash-review-target.mjs"
+    },
+    {
+      "id": "assemble-review-prompt",
+      "path": "reviews/scripts/assemble-review-prompt.mjs"
+    },
+    {
+      "id": "create-ledger",
+      "path": "reviews/scripts/create-ledger.mjs"
+    },
+    {
+      "id": "update-ledger",
+      "path": "reviews/scripts/update-ledger.mjs"
+    },
+    {
+      "id": "archive-review-run",
+      "path": "reviews/scripts/archive-review-run.mjs"
+    },
+    {
+      "id": "decide-reruns",
+      "path": "reviews/scripts/decide-reruns.mjs"
+    },
+    {
+      "id": "emit-completion-summary",
+      "path": "reviews/scripts/emit-completion-summary.mjs"
+    },
+    {
+      "id": "run-review-evals",
+      "path": "reviews/scripts/run-review-evals.mjs"
+    },
+    {
+      "id": "select-lenses",
+      "path": "reviews/scripts/select-lenses.mjs"
+    },
+    {
+      "id": "run-plan-review",
+      "path": "reviews/scripts/run-plan-review.mjs"
+    },
+    {
+      "id": "run-synthesis",
+      "path": "reviews/scripts/run-synthesis.mjs"
+    }
+  ],
+  "examples": [
+    {
+      "id": "fixture-counts",
+      "path": "reviews/examples/fixture-counts.json"
+    },
+    {
+      "id": "example-review-output",
+      "path": "reviews/examples/artifacts/example-review-output.md"
+    },
+    {
+      "id": "review-input-packet",
+      "path": "reviews/examples/review-input.packet.md"
+    }
+  ],
+  "evals": [
+    {
+      "id": "expected-findings",
+      "path": "reviews/evals/expected-findings.json"
+    },
+    {
+      "id": "fixtures",
+      "path": "reviews/evals/fixtures"
+    }
+  ],
+  "skills": [
+    {
+      "id": "plan-review-orchestrator",
+      "path": "skills/plan-review-orchestrator/SKILL.md"
+    },
+    {
+      "id": "lens-reviewer",
+      "path": "skills/lens-reviewer/SKILL.md"
+    },
+    {
+      "id": "synthesize-review-feedback",
+      "path": "skills/synthesize-review-feedback/SKILL.md"
+    },
+    {
+      "id": "rerun-decider",
+      "path": "skills/rerun-decider/SKILL.md"
+    },
+    {
+      "id": "verification-runner",
+      "path": "skills/verification-runner/SKILL.md"
+    }
+  ],
+  "role_skill_mappings": [
+    {
+      "role": "orchestrator",
+      "skill": "plan-review-orchestrator"
+    },
+    {
+      "role": "lens-reviewer",
+      "skill": "lens-reviewer"
+    },
+    {
+      "role": "synthesis-owner",
+      "skill": "synthesize-review-feedback"
+    },
+    {
+      "role": "rerun-decider",
+      "skill": "rerun-decider"
     }
   ],
   "lenses": [

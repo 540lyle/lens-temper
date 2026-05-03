@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "record_id": "review-invalid-cross-cutting",
+  "pass_id": "example-pass",
+  "target_path": "FORWARD_PLAN.md",
+  "target_revision": "example-target-revision",
+  "template_revision": "example-template-revision",
+  "lens": "implementation",
+  "lens_revision": "example-lens-revision",
+  "attempt": 1,
+  "execution_mode": "manual_or_imported",
+  "status": "completed",
+  "artifact_path": "reviews/examples/review-output.invalid-missing-cross-cutting.json",
+  "verdict": "Strong",
+  "material_blockers": {
+    "present": false,
+    "summary": "missing one cross-cutting category",
+    "count": 0
+  },
+  "cross_cutting_status": {
+    "security_privacy": "not_applicable",
+    "accessibility": "not_applicable",
+    "performance": "not_applicable",
+    "reliability_rollback": "not_applicable",
+    "observability_debuggability": "not_applicable"
+  },
+  "scorecard": {
+    "correctness": 5,
+    "completeness": 5,
+    "risk_awareness": 5,
+    "testability": 5,
+    "maintainability": 5,
+    "ship_readiness": 5
+  }
+}

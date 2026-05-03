@@ -25,7 +25,7 @@ validation rules.
 
 ## Current Baseline
 
-The first documentation and discovery slice is in place:
+The reusable workflow baseline is in place:
 
 - Source-project implementation details were removed from reusable docs and
   example packets.
@@ -35,10 +35,15 @@ The first documentation and discovery slice is in place:
 - Role manifests distinguish orchestrator, lens reviewer, synthesis owner, and
   rerun decider responsibilities.
 - `reviews/AGENT.md` defines discovery order and review safety rules.
+- `reviews/reviewer-template.md` and the six lens prompts now carry the
+  stateful-workflow sweep directly in the operational reviewer prompt path.
+- `.codex-plugin/plugin.json` and root `skills/` entrypoints make the workflow
+  installable as a Codex plugin while staying compatible with other
+  Agent Skills-style hosts.
 
-The project is still Markdown-first. The registry and manifests wrap the
-existing files; they do not replace validators, runtime state, skill packaging,
-or orchestration.
+The project is still Markdown-first. The registry, manifests, validators,
+helpers, skills, and evals wrap the existing files; they do not require a host
+agent runtime.
 
 ## Non-Goals
 
@@ -83,6 +88,11 @@ reviews/manifests/roles/orchestrator.json
 reviews/manifests/roles/lens-reviewer.json
 reviews/manifests/roles/synthesis-owner.json
 reviews/manifests/roles/rerun-decider.json
+skills/plan-review-orchestrator/SKILL.md
+skills/lens-reviewer/SKILL.md
+skills/synthesize-review-feedback/SKILL.md
+skills/rerun-decider/SKILL.md
+skills/verification-runner/SKILL.md
 reviews/examples/artifacts/example-review-output.md
 reviews/examples/input-packets/pwa-offline-review-inputs.md
 reviews/examples/input-packets/ui-refresh-review-inputs.md
@@ -108,6 +118,8 @@ Success criteria:
   single discovery entry point.
 
 ## Phase 2: Validated Runtime State
+
+Status: complete as the current validator baseline.
 
 Add schemas, a JSON ledger contract, and validators before adding orchestration.
 The Markdown output remains the human-readable artifact; JSON and validation make
@@ -194,6 +206,13 @@ timing, and interim user/data semantics.
 Planned files:
 
 ```text
+reviews/reviewer-template.md
+reviews/lenses/lens-architecture.md
+reviews/lenses/lens-implementation.md
+reviews/lenses/lens-risk.md
+reviews/lenses/lens-test-strategy.md
+reviews/lenses/lens-product-ux.md
+reviews/lenses/lens-data-model.md
 reviews/schemas/review-ledger.schema.json
 reviews/schemas/review-output.schema.json
 reviews/schemas/synthesis-output.schema.json
@@ -203,12 +222,14 @@ reviews/examples/review-output.valid-minimal.json
 reviews/examples/review-output.invalid-missing-cross-cutting.json
 reviews/examples/review-output.invalid-score.json
 reviews/examples/review-output.invalid-missing-provenance.json
+reviews/examples/review-output.invalid-completed-missing-markdown.json
 reviews/examples/review-output.invalid-markdown-artifact-hash.json
 reviews/examples/review-output.invalid-missing-markdown-section.json
 reviews/examples/review-output.invalid-path-traversal.json
 reviews/examples/synthesis-output.valid.json
 reviews/examples/synthesis-output.invalid-stale-reference.json
 reviews/examples/synthesis-output.invalid-missing-final-assessment.json
+reviews/examples/synthesis-output.invalid-included-review-invalid.json
 reviews/examples/review-ledger.valid.json
 reviews/examples/review-ledger.invalid-unclosed-reviewer.json
 reviews/examples/review-ledger.invalid-uncaptured-output.json
@@ -547,8 +568,8 @@ Success criteria:
   any unexpected result. Expected successful output shape:
 
   ```text
-  review-output: 2 valid passed, 6 invalid rejected
-  synthesis-output: 1 valid passed, 2 invalid rejected
+  review-output: 2 valid passed, 7 invalid rejected
+  synthesis-output: 1 valid passed, 3 invalid rejected
   ledger: 1 valid passed, 6 invalid rejected
   all review validators passed
   ```
@@ -568,21 +589,24 @@ Success criteria:
 - Update `reviews/registry.json` with Phase 2 schemas, scripts, examples,
   fixture-count manifest, and validation helper contracts.
 
-## Phase 3: Skill Packaging
+## Phase 3: Skill And Plugin Packaging
+
+Status: complete as root skill entrypoints plus a Codex plugin manifest.
 
 Package the existing workflow as composable Agent Skills-style folders while
-keeping the current Markdown files in place. The skill files should be thin
-activation and procedure wrappers that point back to the registry, manifests,
-templates, and validators.
+keeping the current Markdown files in place. The skill files are thin activation
+and procedure wrappers that point back to the registry, manifests, templates,
+and validators.
 
 Planned files:
 
 ```text
-reviews/skills/plan-review-orchestrator/SKILL.md
-reviews/skills/lens-reviewer/SKILL.md
-reviews/skills/synthesize-review-feedback/SKILL.md
-reviews/skills/rerun-decider/SKILL.md
-reviews/skills/verification-runner/SKILL.md
+.codex-plugin/plugin.json
+skills/plan-review-orchestrator/SKILL.md
+skills/lens-reviewer/SKILL.md
+skills/synthesize-review-feedback/SKILL.md
+skills/rerun-decider/SKILL.md
+skills/verification-runner/SKILL.md
 ```
 
 Skill packaging should define:
@@ -614,6 +638,8 @@ Success criteria:
   mappings.
 
 ## Phase 4: Prompt Assembly
+
+Status: complete as dependency-light local scripts.
 
 Add a repeatable prompt assembly helper.
 
@@ -653,6 +679,8 @@ Success criteria:
   input packet paths.
 
 ## Phase 5: Ledger And Archive Helpers
+
+Status: complete as single-writer local state helpers.
 
 Add simple state helpers, not full autonomous orchestration yet.
 
@@ -729,6 +757,9 @@ Success criteria:
 
 ## Phase 6: Review-Quality Eval Harness
 
+Status: complete as a deterministic fixture-content and prompt-assembly eval
+harness.
+
 Before building a full runner, test whether the added structure improves review
 quality or just burns tokens.
 
@@ -780,6 +811,7 @@ false_positive_blockers: 0
 unsupported_claim_rate: 0.00
 schema_validity: 8/8
 rerun_decision_accuracy: 8/8
+prompt_assertions: 1/1
 recommendation: keep
 ```
 
@@ -792,6 +824,8 @@ Adoption rule:
   platform-specific integrations.
 
 ## Phase 7: Optional Full Orchestration
+
+Status: complete as host-coordinator scaffolding.
 
 Only after the previous phases are useful, consider a callable runner.
 
@@ -830,24 +864,16 @@ surface area:
 - platform-specific tool permission adapters.
 - durable resumable execution when a host runtime offers reliable state APIs.
 
-## Next Implementation Slice
+## Post-Plan Hardening
 
-Start with Phase 2:
+Recommended hardening after the forward plan:
 
-1. Add `review-ledger.schema.json`.
-2. Add `review-output.schema.json`.
-3. Add `synthesis-output.schema.json`.
-4. Add `validation-contracts.mjs` and `validation-helpers.mjs` so schemas,
-   fixtures, and validators share field lists, enum maps, score keys,
-   cross-cutting keys, path checks, hash checks, and error formatting.
-5. Add normalized valid and invalid example artifacts for review output,
-   synthesis output, and ledger records.
-6. Add the generic Markdown artifact fixtures that JSON records will bind to.
-7. Add dependency-light `.mjs` validators for ledger, review output, and
-   synthesis output.
-8. Add `validate-review-fixtures.mjs` as the single local validation command.
-9. Keep implementation small enough that it can run locally without a full agent
-   runtime.
+1. Use the scripts on a fresh real review run and archive it under
+   `reviews/archive/<yyyy-mm-dd>-<target-slug>-<pass-id>/`.
+2. Tighten validator coverage from the first real run's failures or awkward
+   manual steps.
+3. Decide whether the Phase 7 host-coordinator scripts should stay as local
+   scaffolding or become host-specific integrations.
 
-This turns the current composable index into enforceable state without changing
-the working review loop.
+The current implementation turns the composable index into enforceable state
+without requiring a full agent runtime.

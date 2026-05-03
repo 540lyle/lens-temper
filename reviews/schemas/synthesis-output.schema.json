@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "LensTemper Synthesis Output",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "record_id",
+    "pass_id",
+    "target_path",
+    "target_revision",
+    "included_review_record_ids",
+    "superseded_review_record_ids",
+    "finding_decisions",
+    "lens_lock_decisions",
+    "final_assessment",
+    "artifact_path",
+    "markdown_artifact_path",
+    "markdown_artifact_sha"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "record_id": { "type": "string" },
+    "pass_id": { "type": "string" },
+    "target_path": { "type": "string" },
+    "target_revision": { "type": "string" },
+    "included_review_record_ids": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "superseded_review_record_ids": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "finding_decisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "finding_id",
+          "source_lens",
+          "source_review_record_id",
+          "decision",
+          "affects_rerun_scope",
+          "reason"
+        ],
+        "properties": {
+          "finding_id": { "type": "string" },
+          "source_lens": { "type": "string" },
+          "source_review_record_id": { "type": "string" },
+          "decision": { "enum": ["accepted", "rejected", "downgraded", "deferred"] },
+          "severity": { "enum": ["critical", "major", "minor"] },
+          "affects_rerun_scope": { "type": "boolean" },
+          "reason": { "type": "string", "minLength": 1 }
+        },
+        "additionalProperties": true
+      }
+    },
+    "lens_lock_decisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["lens", "lock_state", "rerun_needed", "reason"],
+        "properties": {
+          "lens": { "type": "string" },
+          "lock_state": {
+            "enum": [
+              "active",
+              "failing",
+              "passing_locked",
+              "rerun_required",
+              "converged_locked",
+              "not_affected",
+              "superseded",
+              "error"
+            ]
+          },
+          "rerun_needed": { "type": "boolean" },
+          "reason": { "type": "string", "minLength": 1 }
+        },
+        "additionalProperties": true
+      }
+    },
+    "final_assessment": {
+      "enum": [
+        "Ready to implement",
+        "Ready with minor clarifications",
+        "Needs revision",
+        "Not implementation-ready"
+      ]
+    },
+    "artifact_path": { "type": "string" },
+    "markdown_artifact_path": { "type": "string" },
+    "markdown_artifact_sha": { "type": "string" }
+  },
+  "additionalProperties": true
+}

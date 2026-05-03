@@ -29,6 +29,18 @@ Evaluate the plan from a product behavior and user experience perspective. Focus
 - Are pressed, focus, disabled, and selected states perceptible and accessible across touch, pointer, and keyboard input?
 - Does the plan create surprising, inconsistent, or dead-end behavior?
 
+## Stateful Workflow Ownership
+
+For plans involving restore, load, save, update, delete, reset, deferred apply,
+planner/apply separation, persisted records, or active UI/application state, own
+these checks:
+
+- Can users tell whether load, save, update, delete, reset, overwrite, or retry completed, failed, or is still pending?
+- Does visible UI state match the persisted/application state after success, failure, cancellation, retry, and deferred apply completion?
+- Are stale or transitional states visible enough that users do not save mixed context by accident?
+- Are overwrite, rename, update, reset, and delete meanings distinct from the user's perspective?
+- Does the plan define what the user sees when a restore is superseded by another action?
+
 ## Red Flags
 
 Apply the materiality gate before lowering a score: would this product or UX issue justify changing the plan before implementation? If not, record it as non-blocking polish and do not let it prevent a `5/5`. Treat the list below as examples of issues to watch for, not a checklist that must produce findings.

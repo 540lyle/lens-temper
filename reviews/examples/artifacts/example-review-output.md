@@ -49,6 +49,15 @@ This file shows the expected shape of a completed review. Use it as a reference 
 - Observability / debuggability: [minor] Add a lightweight denied-permission diagnostic log or existing analytics event if one already exists.
 - Compatibility / platform constraints: Not applicable from this lens.
 
+### Stateful Workflow Sweep
+
+- Absence semantics: Not applicable; no stateful workflow behavior in scope.
+- Active state clearing/resync: Not applicable; no stateful workflow behavior in scope.
+- Deferred apply/save race: Not applicable; no stateful workflow behavior in scope.
+- Planner/apply symmetry: Not applicable; no stateful workflow behavior in scope.
+- Snapshot/patch/reference semantics: Not applicable; no stateful workflow behavior in scope.
+- Visible state consistency: Not applicable; no stateful workflow behavior in scope.
+
 ### Scorecard
 
 | Dimension | Score | Notes |
@@ -101,6 +110,15 @@ This second fabricated example shows that a review can legitimately end at `Stro
 - Reliability / rollback: Not applicable from this lens.
 - Observability / debuggability: Not applicable from this lens.
 - Compatibility / platform constraints: No material issue found; the interaction states cover touch, pointer, and keyboard input.
+
+### Stateful Workflow Sweep
+
+- Absence semantics: Not applicable; no stateful workflow behavior in scope.
+- Active state clearing/resync: Not applicable; no stateful workflow behavior in scope.
+- Deferred apply/save race: Not applicable; no stateful workflow behavior in scope.
+- Planner/apply symmetry: Not applicable; no stateful workflow behavior in scope.
+- Snapshot/patch/reference semantics: Not applicable; no stateful workflow behavior in scope.
+- Visible state consistency: Not applicable; no stateful workflow behavior in scope.
 
 ### Scorecard
 
