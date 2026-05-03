@@ -3,7 +3,7 @@
   "id": "implementation",
   "kind": "lens",
   "display_name": "Implementation",
-  "prompt_path": "llm/reviews/lens-implementation.md",
+  "prompt_path": "reviews/lenses/lens-implementation.md",
   "domain_focus": [
     "step sequencing",
     "engineering feasibility",

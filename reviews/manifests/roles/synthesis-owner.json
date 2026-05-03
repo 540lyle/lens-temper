@@ -4,8 +4,8 @@
   "kind": "role",
   "display_name": "Synthesis Owner",
   "source_paths": [
-    "llm/reviews/synthesize-review-feedback.md",
-    "llm/reviews/README.md"
+    "reviews/synthesize-review-feedback.md",
+    "reviews/README.md"
   ],
   "responsibilities": [
     "Merge, deduplicate, and prioritize reviewer feedback.",

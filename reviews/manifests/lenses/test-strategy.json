@@ -3,7 +3,7 @@
   "id": "test-strategy",
   "kind": "lens",
   "display_name": "Test Strategy",
-  "prompt_path": "llm/reviews/lens-test-strategy.md",
+  "prompt_path": "reviews/lenses/lens-test-strategy.md",
   "domain_focus": [
     "unit coverage",
     "integration coverage",

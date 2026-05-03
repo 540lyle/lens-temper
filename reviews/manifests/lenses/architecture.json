@@ -3,7 +3,7 @@
   "id": "architecture",
   "kind": "lens",
   "display_name": "Architecture",
-  "prompt_path": "llm/reviews/lens-architecture.md",
+  "prompt_path": "reviews/lenses/lens-architecture.md",
   "domain_focus": [
     "module boundaries",
     "coupling and cohesion",

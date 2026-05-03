@@ -6,37 +6,37 @@ repository.
 
 Use this packet with:
 
-- `llm/reviews/reviewer-template.md`
+- `reviews/reviewer-template.md`
 - `docs/plans/dashboard-refresh-plan.md` as the `{{proposed_plan}}` input
-- one selected lens file from `llm/reviews/`
+- one selected lens file from `reviews/lenses/`
 
-Save completed per-lens outputs and synthesis outside `llm/reviews/`; use
-`llm/archive/` unless another folder explicitly owns the review history.
+Save completed per-lens outputs and synthesis outside reusable workflow files;
+use `reviews/archive/` unless another folder explicitly owns the review history.
 
 ## Recommended Lens Order
 
 ### First-Pass Lenses
 
-1. `lens-product-ux.md`
+1. `lenses/lens-product-ux.md`
    Reason: the plan changes user-visible hierarchy and interaction states.
-2. `lens-implementation.md`
+2. `lenses/lens-implementation.md`
    Reason: the plan touches shared UI primitives and page-level layout.
-3. `lens-architecture.md`
+3. `lenses/lens-architecture.md`
    Reason: the review should confirm refresh decisions stay in shared seams
    rather than becoming duplicated screen-specific styling.
-4. `lens-test-strategy.md`
+4. `lenses/lens-test-strategy.md`
    Reason: UI refresh work can silently regress compact layouts, keyboard
    navigation, and loading/error states unless validation is explicit.
 
 ### Optional Follow-Up Lens
 
-- `lens-risk.md`
+- `lenses/lens-risk.md`
   Use if the first-pass reviews surface concern about accessibility,
   performance, rollout, or broad shared-component blast radius.
 
 ### Lens To Skip For This Plan
 
-- `lens-data-model.md`
+- `lenses/lens-data-model.md`
   Skip unless the refresh plan expands into persistence, schema, saved views, or
   user preference contracts.
 
@@ -100,7 +100,7 @@ keyboard accessibility.
 
 When running a review:
 
-1. Use `llm/reviews/reviewer-template.md` as the base template.
+1. Use `reviews/reviewer-template.md` as the base template.
 2. Inject the `Feature Request` section from this file into
    `{{feature_request}}`.
 3. Inject the full contents of `docs/plans/dashboard-refresh-plan.md` into
@@ -111,4 +111,4 @@ When running a review:
 6. Inject one lens file into `{{review_lens}}`.
 
 If synthesizing multiple outputs later, use
-`llm/reviews/synthesize-review-feedback.md`.
+`reviews/synthesize-review-feedback.md`.

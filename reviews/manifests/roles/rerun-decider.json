@@ -4,8 +4,8 @@
   "kind": "role",
   "display_name": "Rerun Decider",
   "source_paths": [
-    "llm/reviews/README.md",
-    "llm/reviews/synthesize-review-feedback.md"
+    "reviews/README.md",
+    "reviews/synthesize-review-feedback.md"
   ],
   "responsibilities": [
     "Determine which lenses need another pass after plan edits or synthesis decisions.",

@@ -10,18 +10,18 @@ reviews.
 
 The current system is intentionally Markdown-first:
 
-- `llm/reviews/README.md` defines the review workflow, ledger semantics, lens
+- `reviews/README.md` defines the review workflow, ledger semantics, lens
   locking, rerun rules, and final evidence requirements.
-- `llm/reviews/reviewer-template.md` defines the structured per-lens reviewer
+- `reviews/reviewer-template.md` defines the structured per-lens reviewer
   output.
-- `llm/reviews/synthesize-review-feedback.md` defines the synthesis owner
+- `reviews/synthesize-review-feedback.md` defines the synthesis owner
   output.
-- `llm/reviews/lens-*.md` define the six default review lenses.
-- `llm/reviews/example-review-output.md` provides both fix-required and
-  `Strong` / all-`5/5` examples.
-- `llm/reviews/*-review-inputs.md` are generic fixture packets that show how to
-  assemble review inputs without exposing project-specific implementation
-  details.
+- `reviews/lenses/lens-*.md` define the six default review lenses.
+- `reviews/examples/artifacts/example-review-output.md` provides both
+  fix-required and `Strong` / all-`5/5` examples.
+- `reviews/examples/input-packets/*-review-inputs.md` are generic fixture
+  packets that show how to assemble review inputs without exposing
+  project-specific implementation details.
 
 ## Design Boundary
 
@@ -43,7 +43,7 @@ small, testable pieces of machine-readable structure around it.
 Start with:
 
 ```text
-llm/reviews/README.md
+reviews/README.md
 ```
 
 Then use one reviewer template plus one lens file per review agent.

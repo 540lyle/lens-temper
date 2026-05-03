@@ -3,7 +3,7 @@
   "id": "product-ux",
   "kind": "lens",
   "display_name": "Product & UX",
-  "prompt_path": "llm/reviews/lens-product-ux.md",
+  "prompt_path": "reviews/lenses/lens-product-ux.md",
   "domain_focus": [
     "user-visible behavior",
     "interaction flow",

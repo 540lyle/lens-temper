@@ -24,9 +24,9 @@ Standardize plan review so that:
 7. Lock any lens that reaches all `5/5` scores. The synthesis owner may also lock a lens at all `4/5` or better when every remaining issue is rejected, downgraded, deferred, or non-material.
 
 Store completed review outputs outside this folder unless they are still being actively assembled.
-`llm/reviews/` is for reusable tooling and review-input packets; durable finished outputs or synthesis
-should live in `llm/archive/` or next to the owning plan/doc when that folder explicitly owns review history.
-Default durable review run path: `llm/archive/reviews/<yyyy-mm-dd>-<target-slug>-<pass-id>/`.
+`reviews/` is for reusable tooling and review-input packets; durable finished outputs or synthesis
+should live in `reviews/archive/` or next to the owning plan/doc when that folder explicitly owns review history.
+Default durable review run path: `reviews/archive/<yyyy-mm-dd>-<target-slug>-<pass-id>/`.
 That directory should contain `ledger.json`, `input.packet.md`, `reviews/`, `synthesis.md`, and `final.md`
 when those artifacts are produced. Use an owning plan/doc folder instead when that folder already keeps
 review history next to the plan.
@@ -40,7 +40,7 @@ Required orchestration:
 
 1. Create an agent-run ledger before spawning reviewers. Track lens name, lens file, pass id, target path, deterministic target revision/hash, agent id, status, final output captured, and closed status.
 2. Spawn each lens reviewer with no inherited thread context (`fork_context: false` or platform equivalent).
-3. Give each reviewer the current workspace path, the target plan/spec path, deterministic target revision/hash, pass id, `llm/reviews/reviewer-template.md`, and the exact lens file path.
+3. Give each reviewer the current workspace path, the target plan/spec path, deterministic target revision/hash, pass id, `reviews/reviewer-template.md`, and the exact lens file path.
 4. Instruct each reviewer to read the current files directly from the workspace before reviewing.
 5. Keep reviewer prompts narrow: include the task, file paths, provenance values, and output expectations; do not include prior debate, user conversation, or other agents' findings unless the task is explicitly synthesis. For reruns, a short list of previously adjudicated non-material findings is allowed so fresh reviewers do not reopen already-settled nits.
 6. Wait for each reviewer to produce its final review output, then copy that output into the parent thread or review artifact.
@@ -98,12 +98,12 @@ The standard process intentionally uses six lenses so all default reviewers can 
 
 | Lens | File | Focus |
 |------|------|-------|
-| Architecture | `lens-architecture.md` | Boundaries, coupling, abstraction, ownership |
-| Implementation | `lens-implementation.md` | Sequencing, feasibility, execution clarity |
-| Risk | `lens-risk.md` | Failure modes, rollback, observability |
-| Test Strategy | `lens-test-strategy.md` | Coverage, edge cases, verification |
-| Product & UX | `lens-product-ux.md` | User-visible behavior, states, accessibility |
-| Data Model | `lens-data-model.md` | Schema, migration, storage, contracts |
+| Architecture | `lenses/lens-architecture.md` | Boundaries, coupling, abstraction, ownership |
+| Implementation | `lenses/lens-implementation.md` | Sequencing, feasibility, execution clarity |
+| Risk | `lenses/lens-risk.md` | Failure modes, rollback, observability |
+| Test Strategy | `lenses/lens-test-strategy.md` | Coverage, edge cases, verification |
+| Product & UX | `lenses/lens-product-ux.md` | User-visible behavior, states, accessibility |
+| Data Model | `lenses/lens-data-model.md` | Schema, migration, storage, contracts |
 
 ## Cross-Cutting Sweep
 
@@ -211,9 +211,9 @@ For spawned-agent runs, prefer path-based assembly over pasted content when the 
 - `target_plan`: path to the current plan/spec under review
 - `pass_id`: current pass identifier
 - `target_revision`: deterministic content hash of the target plan/spec, preferably from `git hash-object -- <target_plan>`
-- `template_revision`: deterministic content hash of `llm/reviews/reviewer-template.md`
+- `template_revision`: deterministic content hash of `reviews/reviewer-template.md`
 - `lens_revision`: deterministic content hash of the selected lens file
-- `template`: `llm/reviews/reviewer-template.md`
+- `template`: `reviews/reviewer-template.md`
 - `lens`: one of the lens files listed above
 - `previous_adjudications`: reruns only; short list of already-settled non-material findings
 - `instructions`: read all of those files directly from disk, ignore inherited conversation context, and return only the structured review output

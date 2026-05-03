@@ -4,9 +4,9 @@
   "kind": "role",
   "display_name": "Orchestrator",
   "source_paths": [
-    "llm/reviews/registry.json",
-    "llm/reviews/README.md",
-    "llm/reviews/AGENT.md"
+    "reviews/registry.json",
+    "reviews/README.md",
+    "reviews/AGENT.md"
   ],
   "responsibilities": [
     "Select the smallest lens set that covers the target plan's risk.",

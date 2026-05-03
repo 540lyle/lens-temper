@@ -4,48 +4,48 @@
   "description": "Machine-readable discovery index for the LensTemper Markdown review workflow.",
   "paths_are_relative_to": "repository_root",
   "entrypoints": {
-    "workflow": "llm/reviews/README.md",
-    "agent_instructions": "llm/reviews/AGENT.md",
-    "reviewer_template": "llm/reviews/reviewer-template.md",
-    "synthesis_template": "llm/reviews/synthesize-review-feedback.md",
-    "example_review_output": "llm/reviews/example-review-output.md",
-    "archive_root": "llm/archive/reviews"
+    "workflow": "reviews/README.md",
+    "agent_instructions": "reviews/AGENT.md",
+    "reviewer_template": "reviews/reviewer-template.md",
+    "synthesis_template": "reviews/synthesize-review-feedback.md",
+    "example_review_output": "reviews/examples/artifacts/example-review-output.md",
+    "archive_root": "reviews/archive"
   },
   "current_flow": [
     {
       "id": "select_lenses",
       "availability": "manual",
-      "source_path": "llm/reviews/README.md"
+      "source_path": "reviews/README.md"
     },
     {
       "id": "assemble_review_prompt",
       "availability": "manual",
-      "source_path": "llm/reviews/README.md"
+      "source_path": "reviews/README.md"
     },
     {
       "id": "run_fresh_lens_reviewers",
       "availability": "host_agent",
-      "source_path": "llm/reviews/README.md"
+      "source_path": "reviews/README.md"
     },
     {
       "id": "check_review_outputs",
       "availability": "manual",
-      "source_path": "llm/reviews/reviewer-template.md"
+      "source_path": "reviews/reviewer-template.md"
     },
     {
       "id": "synthesize_feedback",
       "availability": "manual",
-      "source_path": "llm/reviews/synthesize-review-feedback.md"
+      "source_path": "reviews/synthesize-review-feedback.md"
     },
     {
       "id": "decide_reruns_or_completion",
       "availability": "manual",
-      "source_path": "llm/reviews/README.md"
+      "source_path": "reviews/README.md"
     },
     {
       "id": "archive_final_result",
       "availability": "manual",
-      "source_path": "llm/reviews/README.md"
+      "source_path": "reviews/README.md"
     }
   ],
   "planned_runtime_steps": [
@@ -89,45 +89,45 @@
   "lenses": [
     {
       "id": "architecture",
-      "manifest_path": "llm/reviews/manifests/lenses/architecture.json"
+      "manifest_path": "reviews/manifests/lenses/architecture.json"
     },
     {
       "id": "implementation",
-      "manifest_path": "llm/reviews/manifests/lenses/implementation.json"
+      "manifest_path": "reviews/manifests/lenses/implementation.json"
     },
     {
       "id": "risk",
-      "manifest_path": "llm/reviews/manifests/lenses/risk.json"
+      "manifest_path": "reviews/manifests/lenses/risk.json"
     },
     {
       "id": "test-strategy",
-      "manifest_path": "llm/reviews/manifests/lenses/test-strategy.json"
+      "manifest_path": "reviews/manifests/lenses/test-strategy.json"
     },
     {
       "id": "product-ux",
-      "manifest_path": "llm/reviews/manifests/lenses/product-ux.json"
+      "manifest_path": "reviews/manifests/lenses/product-ux.json"
     },
     {
       "id": "data-model",
-      "manifest_path": "llm/reviews/manifests/lenses/data-model.json"
+      "manifest_path": "reviews/manifests/lenses/data-model.json"
     }
   ],
   "roles": [
     {
       "id": "orchestrator",
-      "manifest_path": "llm/reviews/manifests/roles/orchestrator.json"
+      "manifest_path": "reviews/manifests/roles/orchestrator.json"
     },
     {
       "id": "lens-reviewer",
-      "manifest_path": "llm/reviews/manifests/roles/lens-reviewer.json"
+      "manifest_path": "reviews/manifests/roles/lens-reviewer.json"
     },
     {
       "id": "synthesis-owner",
-      "manifest_path": "llm/reviews/manifests/roles/synthesis-owner.json"
+      "manifest_path": "reviews/manifests/roles/synthesis-owner.json"
     },
     {
       "id": "rerun-decider",
-      "manifest_path": "llm/reviews/manifests/roles/rerun-decider.json"
+      "manifest_path": "reviews/manifests/roles/rerun-decider.json"
     }
   ]
 }

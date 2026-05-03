@@ -5,13 +5,13 @@ workflow from repository files instead of prior chat context.
 
 ## Discovery Order
 
-1. Read `llm/reviews/registry.json`.
-2. Read `llm/reviews/README.md` for workflow rules, ledger semantics, lens
+1. Read `reviews/registry.json`.
+2. Read `reviews/README.md` for workflow rules, ledger semantics, lens
    selection, rerun policy, and completion evidence.
-3. Read the selected lens manifests under `llm/reviews/manifests/lenses/`.
-4. Read the selected role manifest under `llm/reviews/manifests/roles/`.
-5. Read `llm/reviews/reviewer-template.md` or
-   `llm/reviews/synthesize-review-feedback.md` only when that role needs it.
+3. Read the selected lens manifests under `reviews/manifests/lenses/`.
+4. Read the selected role manifest under `reviews/manifests/roles/`.
+5. Read `reviews/reviewer-template.md` or
+   `reviews/synthesize-review-feedback.md` only when that role needs it.
 
 ## Safety Rules
 
@@ -34,12 +34,12 @@ workflow from repository files instead of prior chat context.
 ## Output Expectations
 
 - Lens reviewers must return the exact structure from
-  `llm/reviews/reviewer-template.md`.
+  `reviews/reviewer-template.md`.
 - Synthesis owners must return the exact structure from
-  `llm/reviews/synthesize-review-feedback.md`.
-- Orchestrators must report final evidence from `llm/reviews/README.md` before
+  `reviews/synthesize-review-feedback.md`.
+- Orchestrators must report final evidence from `reviews/README.md` before
   declaring a review complete.
 - Orchestrators must include the user-facing completion summary from
-  `llm/reviews/README.md`, including the per-lens score table, final assessment,
+  `reviews/README.md`, including the per-lens score table, final assessment,
   artifact path/storage status, accepted material findings, rerun or lock status,
   and reviewer cleanup/validation evidence.
