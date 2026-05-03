@@ -43,7 +43,7 @@ try {
   const outDir = opts.out || `reviews/archive/${opts.passId}`;
   mkdirSync(join(root, outDir), { recursive: true });
   const ledgerPath = `${outDir}/ledger.json`;
-  runNode(root, ["reviews/scripts/create-ledger.mjs", "--target", opts.target, "--pass-id", opts.passId, "--lens", lenses.join(","), "--out", ledgerPath, "--quiet"]);
+  runNode(root, ["reviews/scripts/create-ledger.mjs", "--target", opts.target, "--pass-id", opts.passId, "--lens", lenses.join(","), "--run-mode", "full", "--out", ledgerPath, "--quiet"]);
   for (const lens of lenses) {
     runNode(root, [
       "reviews/scripts/assemble-review-prompt.mjs",

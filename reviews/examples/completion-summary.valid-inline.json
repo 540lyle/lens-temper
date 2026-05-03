@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "run_mode": "inline",
+  "run_scope": "selected_lenses",
+  "target_path": "docs/plans/FORWARD_PLAN.md",
+  "target_revision": "example-target-revision",
+  "claim_flags": {
+    "completion": false,
+    "lock_state": false,
+    "all_5_lockable": false,
+    "review_complete": false
+  },
+  "summary_text": "Inline LensTemper-style review\nNot independently reviewed\nNo spawned reviewers used\nScores are advisory, not lockable\n"
+}

@@ -12,6 +12,7 @@ import {
   repoRootFrom,
   usage,
   validateLedgerRecord,
+  validateCompletionSummaryRecord,
   validateReviewRecord,
   validateSynthesisRecord
 } from "./validation-helpers.mjs";
@@ -198,6 +199,13 @@ function validateFixture(root, type, repoPath, ledger) {
       artifactPath: repoPath
     });
   }
+  if (type === "completion-summary") {
+    return validateCompletionSummaryRecord(record, {
+      artifactRoot: root,
+      targetRevision: TARGET_REVISION,
+      artifactPath: repoPath
+    });
+  }
   throw new Error(`unknown fixture type ${type}`);
 }
 
@@ -226,7 +234,8 @@ try {
   const groups = [
     ["review-output", discover(root, "review-output", "valid"), discover(root, "review-output", "invalid")],
     ["synthesis-output", discover(root, "synthesis-output", "valid"), discover(root, "synthesis-output", "invalid")],
-    ["ledger", discover(root, "review-ledger", "valid"), discover(root, "review-ledger", "invalid")]
+    ["ledger", discover(root, "review-ledger", "valid"), discover(root, "review-ledger", "invalid")],
+    ["completion-summary", discover(root, "completion-summary", "valid"), discover(root, "completion-summary", "invalid")]
   ];
 
   const summaries = [];

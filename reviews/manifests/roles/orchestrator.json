@@ -11,8 +11,10 @@
   "responsibilities": [
     "Select the smallest lens set that covers the target plan's risk.",
     "Create and maintain review ledger state.",
+    "Set run_mode, run_scope, and execution_mode consistently before reviewers run.",
     "Spawn or otherwise run independent lens reviewers with fresh context.",
     "Ensure reviewer outputs are captured, terminal, and closed.",
+    "Reject lockable or completion claims when completion_validation has not passed.",
     "Hand completed outputs to the synthesis owner.",
     "Archive final review artifacts when the review is complete."
   ],
@@ -31,7 +33,10 @@
   ],
   "validation_rules": [
     "Every selected lens must map to a manifest in registry.json.",
+    "full run_mode requires fresh_spawned_lens_reviewers execution_mode.",
+    "inline and advisory run modes require manual_or_imported execution_mode.",
     "Every active reviewer must report the current target_revision.",
-    "Completed spawned reviewers must have output_captured=true and closed=true."
+    "Completed spawned reviewers must have output_captured=true and closed=true.",
+    "Only full six_lens runs may claim unqualified LensTemper pass completion."
   ]
 }

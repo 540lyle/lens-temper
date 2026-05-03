@@ -23,7 +23,7 @@ const scriptName = "create-ledger.mjs";
 try {
   const opts = parseCommonArgs(process.argv.slice(2));
   if (opts.help) {
-    process.stdout.write(`${usage(scriptName, "--target <path> --pass-id <id> [--lens a,b] [--out <path>] [--json]")}\n`);
+    process.stdout.write(`${usage(scriptName, "--target <path> --pass-id <id> [--lens a,b] [--run-mode inline|advisory|full] [--out <path>] [--json]")}\n`);
     process.exit(EXIT_CODES.ok);
   }
   if (opts.version) {
@@ -46,19 +46,33 @@ try {
     ? opts.lens.split(",").map((item) => item.trim()).filter(Boolean)
     : registry.lenses.map((entry) => entry.id);
   const targetRevision = computeArtifactSha(root, targetPath);
+  const allLensIds = registry.lenses.map((entry) => entry.id);
+  const runMode = opts.runMode || "inline";
+  const runScope = opts.runScope || (selected.length === allLensIds.length && selected.every((lens) => allLensIds.includes(lens)) ? "six_lens" : "selected_lenses");
+  const executionMode = runMode === "full" ? "fresh_spawned_lens_reviewers" : "manual_or_imported";
   const ledger = {
     schema_version: 1,
     pass_id: opts.passId,
     target_path: targetPath,
     target_revision: targetRevision,
     status: "active",
-    execution_mode: "manual_or_imported",
+    run_mode: runMode,
+    run_scope: runScope,
+    execution_mode: executionMode,
     selected_lenses: selected,
     current_review_record_ids: [],
     superseded_review_record_ids: [],
     synthesis_record_ids: [],
     archive_paths: [archiveRunPath(targetPath, opts.passId)],
     artifact_visibility: "public_safe",
+    completion_validation: {
+      validator_name: "validate-completion-summary",
+      validator_contract_version: CONTRACT_VERSION,
+      passed: false,
+      validated_review_record_ids: [],
+      validated_synthesis_record_id: "",
+      failures: []
+    },
     review_record_artifacts: [],
     synthesis_record_artifacts: []
   };

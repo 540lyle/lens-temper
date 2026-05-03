@@ -98,6 +98,10 @@
     {
       "id": "synthesis-output",
       "path": "reviews/schemas/synthesis-output.schema.json"
+    },
+    {
+      "id": "completion-summary",
+      "path": "reviews/schemas/completion-summary.schema.json"
     }
   ],
   "scripts": [
@@ -112,6 +116,10 @@
     {
       "id": "validate-review-fixtures",
       "path": "reviews/scripts/validate-review-fixtures.mjs"
+    },
+    {
+      "id": "validate-completion-summary",
+      "path": "reviews/scripts/validate-completion-summary.mjs"
     },
     {
       "id": "hash-review-target",

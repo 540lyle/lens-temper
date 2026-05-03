@@ -12,9 +12,11 @@
     "lens",
     "lens_revision",
     "attempt",
+    "run_mode",
     "execution_mode",
     "status",
     "artifact_path",
+    "provenance",
     "verdict",
     "material_blockers",
     "cross_cutting_status",
@@ -31,6 +33,9 @@
     "lens": { "type": "string" },
     "lens_revision": { "type": "string" },
     "attempt": { "type": "integer", "minimum": 1 },
+    "run_mode": {
+      "enum": ["full", "inline", "advisory"]
+    },
     "execution_mode": {
       "enum": ["fresh_spawned_lens_reviewers", "manual_or_imported"]
     },
@@ -43,6 +48,32 @@
     "artifact_path": { "type": "string" },
     "markdown_artifact_path": { "type": "string" },
     "markdown_artifact_sha": { "type": "string" },
+    "provenance": {
+      "type": "object",
+      "required": ["input_sources"],
+      "properties": {
+        "input_sources": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["role", "basis", "paths_reviewed", "target_included"],
+            "properties": {
+              "role": { "type": "string" },
+              "basis": {
+                "enum": ["direct_workspace_read", "provided_packet", "imported_archive", "fixture"]
+              },
+              "paths_reviewed": {
+                "type": "array",
+                "items": { "type": "string" }
+              },
+              "target_included": { "type": "boolean" }
+            },
+            "additionalProperties": true
+          }
+        }
+      },
+      "additionalProperties": true
+    },
     "verdict": {
       "enum": ["Strong", "Usable with fixes", "High risk", "Incomplete"]
     },
@@ -95,6 +126,23 @@
         "ship_readiness": { "type": "integer", "minimum": 1, "maximum": 5 }
       },
       "additionalProperties": true
+    },
+    "score_challenges": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "would_make_this_a_4",
+          "why_not_present",
+          "evidence_no_material_issue"
+        ],
+        "properties": {
+          "would_make_this_a_4": { "type": "string", "minLength": 1 },
+          "why_not_present": { "type": "string", "minLength": 1 },
+          "evidence_no_material_issue": { "type": "string", "minLength": 1 }
+        },
+        "additionalProperties": true
+      }
     }
   },
   "allOf": [

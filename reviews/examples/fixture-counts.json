@@ -1,14 +1,18 @@
 {
   "review-output": {
     "valid": 2,
-    "invalid": 7
+    "invalid": 8
   },
   "synthesis-output": {
     "valid": 1,
-    "invalid": 3
+    "invalid": 4
   },
   "ledger": {
     "valid": 1,
-    "invalid": 6
+    "invalid": 7
+  },
+  "completion-summary": {
+    "valid": 2,
+    "invalid": 2
   }
 }

@@ -2,9 +2,11 @@
   "schema_version": 1,
   "record_id": "synthesis-invalid-stale",
   "pass_id": "example-pass",
-  "target_path": "FORWARD_PLAN.md",
+  "target_path": "docs/plans/FORWARD_PLAN.md",
   "target_revision": "example-target-revision",
-  "included_review_record_ids": ["review-stale"],
+  "included_review_record_ids": [
+    "review-stale"
+  ],
   "superseded_review_record_ids": [],
   "finding_decisions": [
     {
@@ -26,5 +28,13 @@
   "final_assessment": "Needs revision",
   "artifact_path": "reviews/examples/synthesis-output.invalid-stale-reference.json",
   "markdown_artifact_path": "reviews/examples/artifacts/synthesis-output.valid.md",
-  "markdown_artifact_sha": "git:cf010010de0681abaf7117f4713e388a111994f9"
+  "markdown_artifact_sha": "git:cf010010de0681abaf7117f4713e388a111994f9",
+  "run_mode": "full",
+  "claim_flags": {
+    "completion": false,
+    "lock_state": false,
+    "all_5_lockable": false,
+    "review_complete": false
+  },
+  "prior_material_findings_context": []
 }

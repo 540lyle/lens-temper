@@ -1,6 +1,6 @@
 # Plan Review System
 
-> Version 1.4
+> Version 1.5
 
 This folder contains reusable review prompts for evaluating implementation plans,
 plus task-specific review input packets that assemble the context for one plan review run.
@@ -21,7 +21,7 @@ Standardize plan review so that:
 4. Collect the structured output.
 5. Repeat with additional lenses or models as needed.
 6. Run `synthesize-review-feedback.md` across all review outputs to produce a consolidated assessment.
-7. Lock any lens that reaches all `5/5` scores. The synthesis owner may also lock a lens at all `4/5` or better when every remaining issue is rejected, downgraded, deferred, or non-material.
+7. Lock lenses only from validated `full` run artifacts. Inline and advisory outputs may guide planning, but their scores are not lockable.
 
 Store completed review outputs outside this folder unless they are still being actively assembled.
 `reviews/` is for reusable tooling and review-input packets; durable finished outputs or synthesis
@@ -30,6 +30,20 @@ Default durable review run path: `reviews/archive/<yyyy-mm-dd>-<target-slug>-<pa
 That directory should contain `ledger.json`, `input.packet.md`, `reviews/`, `synthesis.md`, and `final.md`
 when those artifacts are produced. Use an owning plan/doc folder instead when that folder already keeps
 review history next to the plan.
+
+## Run Modes And Claim Discipline
+
+LensTemper distinguishes review shape from claim authority:
+
+- `run_mode: full`: spawned fresh reviewers with ledger, structured review records, synthesis, cleanup state, and validation evidence.
+- `run_mode: inline`: one-agent LensTemper-style review. Required wording: `Inline LensTemper-style review`, `Not independently reviewed`, `No spawned reviewers used`, and `Scores are advisory, not lockable`.
+- `run_mode: advisory`: quick critique. Required wording: `Advisory LensTemper critique`, `Not a completed LensTemper pass`, `No lock states available`, and `Scores, if present, are advisory only`.
+
+`run_mode` is separate from `execution_mode`. `full` requires `execution_mode: fresh_spawned_lens_reviewers`; `inline` and `advisory` require `execution_mode: manual_or_imported`.
+
+Use `run_scope: six_lens` only when all six manifest-backed lenses are current. Only `full` plus `six_lens` may say unqualified `LensTemper pass complete`. A selected-lens full run must say `Full LensTemper review for selected lenses only`.
+
+Completion and lockable claims are blocked unless the ledger and artifacts prove the run. The completion validator checks structured `claim_flags` and generated text for completion, lock-state, all-5, and review-complete wording.
 
 ## Fresh-Agent Review Runs
 
@@ -55,6 +69,9 @@ Ledger fields:
 | `pass_id` | yes | Groups reviewers spawned for the same review pass. |
 | `target_path` | yes | Plan/spec path under review. |
 | `target_revision` | yes | Deterministic content identifier for the target plan/spec. Prefer `git hash-object -- <target_path>`; use a SHA-256 file hash only when `git hash-object` is unavailable. Do not use timestamps or vague notes for rerunnable reviews. |
+| `run_mode` | yes | Claim authority: `full`, `inline`, or `advisory`. |
+| `run_scope` | yes | `six_lens` or `selected_lenses`. |
+| `completion_validation` | yes | Validation evidence record with validator name/version, pass flag, validated records, and field-level failures. |
 | `lens` | yes | Lens name. |
 | `lens_file` | yes | Exact lens prompt file. |
 | `lens_revision` | recommended | Deterministic content hash of the lens file used for the review. |
@@ -78,10 +95,26 @@ Synthesis owner:
 - Lens reviewers stay independent. They review only their assigned lens and do not coordinate convergence with other reviewers.
 - The synthesis owner may reject or downgrade reviewer feedback that is unsupported, preference-only, duplicated, already addressed, or outside the lens domain. Record per-finding decisions in the synthesis or ledger when they affect rerun scope.
 
+Review-output provenance:
+
+- Review records store input evidence in `provenance.input_sources[]`.
+- Each input source has `role`, `basis`, `paths_reviewed`, and `target_included`.
+- Valid basis values are `direct_workspace_read`, `provided_packet`, `imported_archive`, and `fixture`.
+- Mixed provenance is allowed. For example, an inline target can use `provided_packet` while supporting workflow files use `direct_workspace_read`.
+- Direct workspace paths must be repository-relative, normalized, traversal-free, and existing at validation time.
+- `fixture` basis is valid only on records with `fixture_kind`.
+- Reviewer lifecycle remains top-level: `agent_id`, `closed`, and `output_captured` are not provenance fields.
+
+Score discipline:
+
+- A `5/5` score requires `score_challenges.<dimension>` with `would_make_this_a_4`, `why_not_present`, and `evidence_no_material_issue`.
+- The challenge evidence is machine-readable in JSON. Markdown reviews should include concise score notes when the score supports a lock or completion claim.
+- If prior accepted material findings are relevant, record them in `prior_material_findings_context`; do not infer them by broad archive scanning.
+
 Rerun protocol:
 
-- A lens auto-locks when all six scorecard dimensions are `5/5` and no material blockers remain.
-- A lens may also be marked `converged_locked` when all six scorecard dimensions are `4/5` or better, no accepted material blocker remains, and the synthesis owner records that lower scores are caused only by non-material, rejected, downgraded, deferred, duplicate, or already-addressed feedback.
+- A lens auto-locks only in `full` mode when all six scorecard dimensions are `5/5`, no material blockers remain, and every `5/5` score includes score-challenge evidence.
+- A lens may also be marked `converged_locked` only in `full` mode when all six scorecard dimensions are `4/5` or better, no accepted material blocker remains, and the synthesis owner records that lower scores are caused only by non-material, rejected, downgraded, deferred, duplicate, or already-addressed feedback.
 - Locked lenses are not rerun unless the target plan/spec changes in that lens's domain or the user explicitly asks to reopen that lens.
 - After changing the plan/spec, spawn new fresh agents only for active, failing, or domain-affected lenses. Do not reuse prior reviewer agents for reruns.
 - Before each rerun, add a rerun decision note for every selected lens: `rerun`, `passing_locked`, `converged_locked`, `not_affected`, `superseded`, or `error`, with a short reason.
@@ -91,6 +124,7 @@ Rerun protocol:
 - If one lens finds a defect and the plan/spec changes, close completed reviewers from the prior pass before starting the next pass. Preserve locked lens outputs as current unless the change affects that lens's domain.
 - If the same lens returns repeated non-material or preference-only findings after material fixes, record them as optional polish and stop rerunning that lens.
 - The review is complete when every selected lens is either `passing_locked`, `converged_locked`, or has only accepted non-blocking issues, all material blockers are resolved or explicitly deferred by the synthesis owner, and all spawned agents are closed.
+  Unqualified completion also requires `run_mode: full`, `run_scope: six_lens`, successful `completion_validation`, and no missing current reviewer evidence.
 
 ## Available Lenses
 
@@ -174,6 +208,7 @@ Final evidence before completion:
 - Lock/rerun status for each selected lens, including why any locked lens was not rerun after plan/spec edits.
 - Confirmation that each current reviewer read the current workspace files directly.
 - Confirmation that every spawned reviewer has terminal status and is closed.
+- Run mode, run scope, completion-validation result, and whether scores are lockable or advisory.
 - A concise synthesis listing material fixes applied, accepted non-blocking issues, rejected or downgraded findings that affected rerun scope, and any explicitly deferred risks.
 
 User-facing completion summary:

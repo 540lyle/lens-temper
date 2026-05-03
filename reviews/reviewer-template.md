@@ -12,7 +12,7 @@ When present, treat repository-local agent instructions, review manifests, and
 the referenced plan/spec files as sources of truth. Common source locations may
 include:
 - `AGENTS.md` or a workflow-local `AGENT.md` for agent instructions
-- `/llm` for agent-facing context, prompts, and workflow assets
+- `/reviews` for agent-facing context, prompts, and workflow assets
 - `/docs` for human-facing specifications, requirements, and design context
 
 Use only the files and context referenced in the inputs below. Do not assume a
@@ -20,6 +20,8 @@ specific application stack, repository layout, platform, or product domain unles
 the review packet provides it.
 
 When this review is run by a spawned workspace agent, read the current referenced files directly from disk before reviewing. Do not rely on inherited conversation context, earlier review passes, pasted stale excerpts, or another lens agent's conclusions. If a required file path is missing or unreadable, call that out as a review input problem instead of guessing.
+
+If you are not a spawned fresh reviewer, label the output as advisory in the surrounding handoff. Inline and advisory reviews may use this structure, but their scores are not lockable.
 
 ---
 
@@ -129,6 +131,7 @@ Before producing your final output, verify:
 - Your recommended changes are concrete enough that a developer could act on them without further clarification.
 - Your scores are consistent with the issues you identified.
 - Any score below `5` is backed by a material issue, not by preference-only polish.
+- Any score of `5` has a concise score challenge: what would have made it a `4`, why that issue is not present, and what evidence supports no material issue.
 - The cross-cutting sweep includes all six categories and either names a finding or says `Not applicable from this lens`.
 - For stateful workflows, the stateful workflow sweep is explicitly addressed or marked outside this lens.
 
@@ -204,6 +207,9 @@ For non-stateful plans, write `Not applicable: no stateful workflow behavior in 
 | Testability | x/5 | |
 | Maintainability | x/5 | |
 | Ship Readiness | x/5 | |
+
+For every `5/5` score, include this in the Notes cell or immediately after the table:
+`5/5 challenge: would be 4 if <material issue>; not present because <reason>; evidence: <specific evidence>.`
 
 **Score anchors:**
 - **5** — No material issues found in this dimension. Non-blocking polish may still exist.
