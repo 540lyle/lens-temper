@@ -2,5 +2,5 @@ node_modules/
 dist/
 coverage/
 *.log
-llm/archive/reviews/*/
-!llm/archive/reviews/.gitkeep
+reviews/archive/*/
+!reviews/archive/.gitkeep

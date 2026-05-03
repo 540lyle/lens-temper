@@ -4,8 +4,8 @@
   "kind": "role",
   "display_name": "Lens Reviewer",
   "source_paths": [
-    "llm/reviews/reviewer-template.md",
-    "llm/reviews/manifests/lenses"
+    "reviews/reviewer-template.md",
+    "reviews/manifests/lenses"
   ],
   "responsibilities": [
     "Review the target plan through exactly one assigned lens.",

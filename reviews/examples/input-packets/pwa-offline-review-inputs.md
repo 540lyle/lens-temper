@@ -6,9 +6,9 @@ repository.
 
 Use this packet with:
 
-- `llm/reviews/reviewer-template.md`
-- one selected lens file from `llm/reviews/`
-- `llm/reviews/synthesize-review-feedback.md` after collecting review outputs
+- `reviews/reviewer-template.md`
+- one selected lens file from `reviews/lenses/`
+- `reviews/synthesize-review-feedback.md` after collecting review outputs
 
 ## Feature Request
 
@@ -118,7 +118,7 @@ implementation agent does not need to infer missing behavior.
 
 When running a review:
 
-1. Use `llm/reviews/reviewer-template.md` as the base template.
+1. Use `reviews/reviewer-template.md` as the base template.
 2. Inject the `Feature Request` section into `{{feature_request}}`.
 3. Inject the `Proposed Plan` section into `{{proposed_plan}}`.
 4. Inject the `Relevant Context` section into `{{relevant_context}}`.

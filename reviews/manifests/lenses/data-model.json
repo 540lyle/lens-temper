@@ -3,7 +3,7 @@
   "id": "data-model",
   "kind": "lens",
   "display_name": "Data Model",
-  "prompt_path": "llm/reviews/lens-data-model.md",
+  "prompt_path": "reviews/lenses/lens-data-model.md",
   "domain_focus": [
     "schema changes",
     "migration safety",

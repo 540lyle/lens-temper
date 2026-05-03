@@ -3,7 +3,7 @@
   "id": "risk",
   "kind": "lens",
   "display_name": "Risk",
-  "prompt_path": "llm/reviews/lens-risk.md",
+  "prompt_path": "reviews/lenses/lens-risk.md",
   "domain_focus": [
     "failure modes",
     "rollback",
