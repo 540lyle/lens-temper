@@ -23,7 +23,7 @@ const scriptName = "create-ledger.mjs";
 try {
   const opts = parseCommonArgs(process.argv.slice(2));
   if (opts.help) {
-    process.stdout.write(`${usage(scriptName, "--target <path> --pass-id <id> [--lens a,b] [--run-mode inline|advisory|full] [--out <path>] [--json]")}\n`);
+    process.stdout.write(`${usage(scriptName, "--target <path> --pass-id <id> [--lens a,b] [--run-mode inline|advisory|full] [--execution-mode manual_or_imported|fresh_spawned_lens_reviewers|fresh_spawned_orchestrator] [--out <path>] [--json]")}\n`);
     process.exit(EXIT_CODES.ok);
   }
   if (opts.version) {
@@ -49,7 +49,9 @@ try {
   const allLensIds = registry.lenses.map((entry) => entry.id);
   const runMode = opts.runMode || "inline";
   const runScope = opts.runScope || (selected.length === allLensIds.length && selected.every((lens) => allLensIds.includes(lens)) ? "six_lens" : "selected_lenses");
-  const executionMode = runMode === "full" ? "fresh_spawned_lens_reviewers" : "manual_or_imported";
+  const defaultExecutionMode = runMode === "full" ? "fresh_spawned_lens_reviewers" : "manual_or_imported";
+  const executionMode = opts.executionMode || defaultExecutionMode;
+  const eventsPath = opts.eventsPath || (opts.out ? opts.out.replace(/[^/]+$/, "events.jsonl") : archiveRunPath(targetPath, opts.passId).replace(/\/?$/, "/events.jsonl"));
   const ledger = {
     schema_version: 1,
     pass_id: opts.passId,
@@ -59,6 +61,7 @@ try {
     run_mode: runMode,
     run_scope: runScope,
     execution_mode: executionMode,
+    events_path: eventsPath,
     selected_lenses: selected,
     current_review_record_ids: [],
     superseded_review_record_ids: [],

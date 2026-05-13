@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { appendFileSync, existsSync, readFileSync, statSync } from "node:fs";
 import { dirname, isAbsolute, join, normalize, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
@@ -29,7 +29,8 @@ import {
   SCHEMA_VERSION,
   SCORE_CHALLENGE_KEYS,
   SCORECARD_KEYS,
-  SYNTHESIS_REQUIRED_FIELDS
+  SYNTHESIS_REQUIRED_FIELDS,
+  TRACE_EVENT_NAMES
 } from "./validation-contracts.mjs";
 
 export { CONTRACT_VERSION, EXIT_CODES };
@@ -71,7 +72,9 @@ export function parseCommonArgs(argv) {
     archiveRoot: null,
     changedDomains: "",
     runMode: null,
-    runScope: null
+    runScope: null,
+    executionMode: null,
+    eventsPath: null
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -335,8 +338,8 @@ export function validateRunMode(record, artifactPath, failures, options = {}) {
     validateEnum(record.run_scope, RUN_SCOPES, artifactPath, record, "run_scope", failures);
   }
   if (!record.execution_mode) return;
-  if (record.run_mode === "full" && record.execution_mode !== "fresh_spawned_lens_reviewers") {
-    failures.push(makeFailure(artifactPath, record, "execution_mode", "fresh_spawned_lens_reviewers for full run_mode", record.execution_mode));
+  if (record.run_mode === "full" && !["fresh_spawned_lens_reviewers", "fresh_spawned_orchestrator"].includes(record.execution_mode)) {
+    failures.push(makeFailure(artifactPath, record, "execution_mode", "fresh_spawned_lens_reviewers or fresh_spawned_orchestrator for full run_mode", record.execution_mode));
   }
   if ((record.run_mode === "inline" || record.run_mode === "advisory") && record.execution_mode !== "manual_or_imported") {
     failures.push(makeFailure(artifactPath, record, "execution_mode", "manual_or_imported for inline/advisory run_mode", record.execution_mode));
@@ -531,10 +534,15 @@ function validateCompletionValidation(record, artifactPath, failures) {
     failures.push(makeFailure(artifactPath, record, "completion_validation", "object", validation));
     return;
   }
-  for (const field of ["validator_name", "validator_contract_version", "validated_synthesis_record_id"]) {
+  for (const field of ["validator_name", "validator_contract_version"]) {
     if (typeof validation[field] !== "string" || validation[field].trim().length === 0) {
       failures.push(makeFailure(artifactPath, record, `completion_validation.${field}`, "non-empty string", validation[field]));
     }
+  }
+  if (record.status === "completed" && (typeof validation.validated_synthesis_record_id !== "string" || validation.validated_synthesis_record_id.trim().length === 0)) {
+    failures.push(makeFailure(artifactPath, record, "completion_validation.validated_synthesis_record_id", "non-empty string for completed ledger", validation.validated_synthesis_record_id));
+  } else if (typeof validation.validated_synthesis_record_id !== "string") {
+    failures.push(makeFailure(artifactPath, record, "completion_validation.validated_synthesis_record_id", "string", validation.validated_synthesis_record_id));
   }
   if (typeof validation.passed !== "boolean") {
     failures.push(makeFailure(artifactPath, record, "completion_validation.passed", "boolean", validation.passed));
@@ -581,6 +589,74 @@ export function validateReviewRecord(record, options = {}) {
     if (record.output_captured !== true) failures.push(makeFailure(artifactPath, record, "output_captured", true, record.output_captured));
   }
   return failures;
+}
+
+export function writeRunEvent(root, eventsPath, event, data = {}) {
+  if (!TRACE_EVENT_NAMES.includes(event)) {
+    throw Object.assign(new Error(`unsupported event ${event}`), { exitCode: EXIT_CODES.usage });
+  }
+  if (!isRepoRelativePath(eventsPath)) {
+    throw Object.assign(new Error(`events path must be repository-relative: ${eventsPath}`), { exitCode: EXIT_CODES.usage });
+  }
+  const resolved = resolveRepoPath(root, eventsPath);
+  if (!resolved) {
+    throw Object.assign(new Error(`events path must resolve under repository root: ${eventsPath}`), { exitCode: EXIT_CODES.usage });
+  }
+  const artifactPath = data.artifact_path;
+  if (artifactPath !== undefined && artifactPath !== null && !isRepoRelativePath(artifactPath)) {
+    throw Object.assign(new Error(`event artifact_path must be repository-relative: ${artifactPath}`), { exitCode: EXIT_CODES.usage });
+  }
+  const record = {
+    event,
+    pass_id: data.pass_id,
+    timestamp: data.timestamp || new Date().toISOString(),
+    role: data.role || "orchestrator",
+    target_revision: data.target_revision,
+    artifact_path: artifactPath || null,
+    status: data.status || "created"
+  };
+  appendFileSync(resolved, `${JSON.stringify(record)}\n`, "utf8");
+}
+
+function validateEventsLog(root, ledger, artifactPath, failures) {
+  const eventsPath = ledger.events_path;
+  if (!isRepoRelativePath(eventsPath)) {
+    failures.push(makeFailure(artifactPath, ledger, "events_path", "repository-relative path", eventsPath));
+    return [];
+  }
+  const resolved = resolveRepoPath(root, eventsPath);
+  if (!resolved || !existsSync(resolved)) {
+    failures.push(makeFailure(artifactPath, ledger, "events_path", "existing events.jsonl", eventsPath));
+    return [];
+  }
+  const events = [];
+  for (const [index, line] of readTextFile(resolved).split(/\r?\n/).entries()) {
+    if (!line.trim()) continue;
+    let event;
+    try {
+      event = JSON.parse(line);
+    } catch (error) {
+      failures.push(makeFailure(artifactPath, ledger, `events_path.line_${index + 1}`, "valid JSON object", error.message));
+      continue;
+    }
+    events.push(event);
+    validateEnum(event.event, TRACE_EVENT_NAMES, artifactPath, event, "event", failures);
+    for (const field of ["pass_id", "timestamp", "role", "target_revision", "status"]) {
+      if (typeof event[field] !== "string" || event[field].trim().length === 0) {
+        failures.push(makeFailure(artifactPath, event, field, "non-empty string", event[field]));
+      }
+    }
+    if (event.pass_id !== ledger.pass_id) {
+      failures.push(makeFailure(artifactPath, event, "pass_id", ledger.pass_id, event.pass_id));
+    }
+    if (event.target_revision !== ledger.target_revision) {
+      failures.push(makeFailure(artifactPath, event, "target_revision", ledger.target_revision, event.target_revision));
+    }
+    if (event.artifact_path !== null && event.artifact_path !== undefined && !isRepoRelativePath(event.artifact_path)) {
+      failures.push(makeFailure(artifactPath, event, "artifact_path", "repository-relative path or null", event.artifact_path));
+    }
+  }
+  return events;
 }
 
 export function validateSynthesisRecord(record, options = {}) {
@@ -660,6 +736,18 @@ export function validateLedgerRecord(record, options = {}) {
   validateEnum(record.artifact_visibility, ARTIFACT_VISIBILITY, artifactPath, record, "artifact_visibility", failures);
   validatePathField(root, artifactPath, record, "target_path", failures, { mustExist: false });
   validateCompletionValidation(record, artifactPath, failures);
+  let events = [];
+  if (record.execution_mode === "fresh_spawned_orchestrator") {
+    events = validateEventsLog(root, record, artifactPath, failures);
+  }
+  if (record.status === "completed" && record.execution_mode === "fresh_spawned_orchestrator") {
+    const eventNames = new Set(events.map((event) => event.event));
+    for (const requiredEvent of ["orchestrator_started", "ledger_created", "prompt_packet_created", "validation_passed", "synthesis_completed", "archive_written", "completion_reported"]) {
+      if (!eventNames.has(requiredEvent)) {
+        failures.push(makeFailure(artifactPath, record, "events_path", `event ${requiredEvent}`, "missing"));
+      }
+    }
+  }
   if (options.targetRevision && record.target_revision !== options.targetRevision) {
     failures.push(makeFailure(artifactPath, record, "target_revision", options.targetRevision, record.target_revision));
   }

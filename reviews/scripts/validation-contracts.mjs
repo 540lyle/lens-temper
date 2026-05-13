@@ -50,7 +50,23 @@ export const FINAL_ASSESSMENTS = [
 
 export const EXECUTION_MODES = [
   "fresh_spawned_lens_reviewers",
+  "fresh_spawned_orchestrator",
   "manual_or_imported"
+];
+
+export const TRACE_EVENT_NAMES = [
+  "orchestrator_started",
+  "ledger_created",
+  "prompt_packet_created",
+  "spawn_prompt_created",
+  "reviewer_spawned",
+  "reviewer_completed",
+  "reviewer_closed",
+  "validation_passed",
+  "synthesis_completed",
+  "rerun_selected",
+  "archive_written",
+  "completion_reported"
 ];
 
 export const RUN_MODES = [

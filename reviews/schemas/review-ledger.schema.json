@@ -36,8 +36,9 @@
       "enum": ["six_lens", "selected_lenses"]
     },
     "execution_mode": {
-      "enum": ["fresh_spawned_lens_reviewers", "manual_or_imported"]
+      "enum": ["fresh_spawned_lens_reviewers", "fresh_spawned_orchestrator", "manual_or_imported"]
     },
+    "events_path": { "type": "string" },
     "selected_lenses": {
       "type": "array",
       "items": { "type": "string" }

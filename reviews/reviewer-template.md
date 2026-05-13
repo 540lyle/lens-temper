@@ -77,6 +77,18 @@ Evaluate the proposed plan through the provided lens. Complete every step below.
 5. Identify ambiguity that could cause implementation failure or divergent interpretation.
 6. Suggest specific, implementable improvements.
 
+Implementation-agent guidance check:
+- Assume the next agent receives this plan as its implementation contract.
+- Flag every place where that agent would have to invent behavior instead of
+  following the plan. Treat missing ownership, current-vs-remaining scope,
+  state reset/resync rules, fallback precedence, visible copy or labels,
+  validation pass/fail criteria, rollout gates, and concrete command/API
+  contracts as material when they can cause divergent implementation.
+- Do not give a plan a **Strong** verdict only because its direction is sound.
+  The plan must also be specific enough to guide a competent implementing agent
+  without requiring product, architecture, data-shape, or rollout decisions to
+  be inferred.
+
 Use a materiality gate while reviewing:
 - A material issue is one that would reasonably block implementation or materially affect correctness, validation, architecture, maintainability, rollout, reviewer independence, reproducibility, or ship safety.
 - Preference-only polish, wording preferences, optional refactors, and nice-to-have additions may be mentioned as `[minor]`, but they must not prevent a **Strong** verdict or a `5/5` score when no material issue remains.
@@ -129,6 +141,9 @@ Before producing your final output, verify:
 - Every issue you raised references a specific part of the plan or a specific gap.
 - You have not invented repository details, APIs, or constraints not present in the inputs.
 - Your recommended changes are concrete enough that a developer could act on them without further clarification.
+- You challenged whether the plan is specific enough for an implementation
+  agent to execute without inventing behavior, and you treated unresolved
+  implementation choices as material when they could cause divergent results.
 - Your scores are consistent with the issues you identified.
 - Any score below `5` is backed by a material issue, not by preference-only polish.
 - Any score of `5` has a concise score challenge: what would have made it a `4`, why that issue is not present, and what evidence supports no material issue.

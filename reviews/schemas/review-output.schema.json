@@ -37,7 +37,7 @@
       "enum": ["full", "inline", "advisory"]
     },
     "execution_mode": {
-      "enum": ["fresh_spawned_lens_reviewers", "manual_or_imported"]
+      "enum": ["fresh_spawned_lens_reviewers", "fresh_spawned_orchestrator", "manual_or_imported"]
     },
     "status": {
       "enum": ["completed", "error", "superseded", "stale"]

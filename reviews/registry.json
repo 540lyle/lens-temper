@@ -130,6 +130,14 @@
       "path": "reviews/scripts/assemble-review-prompt.mjs"
     },
     {
+      "id": "assemble-spawn-prompt",
+      "path": "reviews/scripts/assemble-spawn-prompt.mjs"
+    },
+    {
+      "id": "assemble-orchestrator-prompt",
+      "path": "reviews/scripts/assemble-orchestrator-prompt.mjs"
+    },
+    {
       "id": "create-ledger",
       "path": "reviews/scripts/create-ledger.mjs"
     },

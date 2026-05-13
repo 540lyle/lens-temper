@@ -1,6 +1,6 @@
 # Plan Review System
 
-> Version 1.5
+> Version 1.6
 
 This folder contains reusable review prompts for evaluating implementation plans,
 plus task-specific review input packets that assemble the context for one plan review run.
@@ -27,36 +27,40 @@ Store completed review outputs outside this folder unless they are still being a
 `reviews/` is for reusable tooling and review-input packets; durable finished outputs or synthesis
 should live in `reviews/archive/` or next to the owning plan/doc when that folder explicitly owns review history.
 Default durable review run path: `reviews/archive/<yyyy-mm-dd>-<target-slug>-<pass-id>/`.
-That directory should contain `ledger.json`, `input.packet.md`, `reviews/`, `synthesis.md`, and `final.md`
+That directory should contain `ledger.json`, `events.jsonl`, generated prompt packets, `synthesis.md`, and `final.md`
 when those artifacts are produced. Use an owning plan/doc folder instead when that folder already keeps
 review history next to the plan.
 
-## Run Modes And Claim Discipline
+## Run Families And Claim Discipline
 
-LensTemper distinguishes review shape from claim authority:
+LensTemper supports three host-neutral run families:
 
-- `run_mode: full`: spawned fresh reviewers with ledger, structured review records, synthesis, cleanup state, and validation evidence.
-- `run_mode: inline`: one-agent LensTemper-style review. Required wording: `Inline LensTemper-style review`, `Not independently reviewed`, `No spawned reviewers used`, and `Scores are advisory, not lockable`.
-- `run_mode: advisory`: quick critique. Required wording: `Advisory LensTemper critique`, `Not a completed LensTemper pass`, `No lock states available`, and `Scores, if present, are advisory only`.
+- `inline`: current-context advisory review. It maps to `run_mode: inline` and `execution_mode: manual_or_imported`. Required wording: `Inline LensTemper-style review`, `Not independently reviewed`, `No spawned reviewers used`, and `Scores are advisory, not lockable`.
+- `full_hosted`: the current agent owns orchestration and starts fresh lens reviewers through whatever host spawning mechanism exists. It maps to `run_mode: full` and `execution_mode: fresh_spawned_lens_reviewers`.
+- `full_detached`: a fresh orchestrator owns ledger, reviewer prompts, reviewer lifecycle evidence, synthesis, reruns, archive, and completion claims. It maps to `run_mode: full` and `execution_mode: fresh_spawned_orchestrator`.
 
-`run_mode` is separate from `execution_mode`. `full` requires `execution_mode: fresh_spawned_lens_reviewers`; `inline` and `advisory` require `execution_mode: manual_or_imported`.
+`run_mode: advisory` remains available for quick imported critique. It uses `execution_mode: manual_or_imported`; required wording is `Advisory LensTemper critique`, `Not a completed LensTemper pass`, `No lock states available`, and `Scores, if present, are advisory only`.
+
+`run_mode` is separate from `execution_mode`. `full` supports `fresh_spawned_lens_reviewers` and `fresh_spawned_orchestrator`; `inline` and `advisory` require `manual_or_imported`.
 
 Use `run_scope: six_lens` only when all six manifest-backed lenses are current. Only `full` plus `six_lens` may say unqualified `LensTemper pass complete`. A selected-lens full run must say `Full LensTemper review for selected lenses only`.
 
-Completion and lockable claims are blocked unless the ledger and artifacts prove the run. The completion validator checks structured `claim_flags` and generated text for completion, lock-state, all-5, and review-complete wording.
+Completion and lockable claims are blocked unless the ledger and artifacts prove the run. Detached completion also requires agreement among `events.jsonl`, ledger, reviewer outputs, synthesis, and archive evidence. The completion validator checks structured `claim_flags` and generated text for completion, lock-state, all-5, and review-complete wording.
 
 ## Fresh-Agent Review Runs
 
-When running lens reviews through spawned agents, use one fresh agent per lens and make the workspace the source of truth.
+When running `full_hosted` lens reviews through spawned agents, use one fresh agent per lens and make the workspace the source of truth.
 Do not rely on inherited conversation context, stale pasted excerpts, or another lens agent's conclusions.
+
+For `full_detached`, the parent agent acts only as launcher/reporter when the host can start a fresh orchestrator. Generate the platform-neutral orchestrator packet with `reviews/scripts/assemble-orchestrator-prompt.mjs` or `reviews/scripts/run-plan-review.mjs --execution-mode fresh_spawned_orchestrator`, then give that packet to the fresh orchestrator. Host mechanics vary across Codex, Claude, Cursor, and manual CLI environments; LensTemper artifacts stay Markdown/JSONL/JSON and repository-relative.
 
 Required orchestration:
 
 1. Create an agent-run ledger before spawning reviewers. Track lens name, lens file, pass id, target path, deterministic target revision/hash, agent id, status, final output captured, and closed status.
 2. Spawn each lens reviewer with no inherited thread context (`fork_context: false` or platform equivalent).
-3. Give each reviewer the current workspace path, the target plan/spec path, deterministic target revision/hash, pass id, `reviews/reviewer-template.md`, and the exact lens file path.
+3. Start each reviewer in the current repository root, then give it the target plan/spec path, deterministic target revision/hash, pass id, `reviews/reviewer-template.md`, and the exact lens file path as repository-relative paths.
 4. Instruct each reviewer to read the current files directly from the workspace before reviewing.
-5. Keep reviewer prompts narrow: include the task, file paths, provenance values, and output expectations; do not include prior debate, user conversation, or other agents' findings unless the task is explicitly synthesis. For reruns, a short list of previously adjudicated non-material findings is allowed so fresh reviewers do not reopen already-settled nits.
+5. Keep reviewer prompts narrow: include the task, file paths, provenance values, and output expectations; do not include prior debate, user conversation, or other agents' findings unless the task is explicitly synthesis. For reruns, a short list of previously adjudicated non-material findings is allowed so fresh reviewers do not reopen already-settled nits. Generated spawn prompts should use repository-relative paths only; the host should set the reviewer working directory instead of embedding absolute workspace paths in the prompt.
 6. Wait for each reviewer to produce its final review output, then copy that output into the parent thread or review artifact.
 7. Close each completed reviewer immediately after its output is captured. Do not leave completed agents running.
 8. If a reviewer times out, errors, or is superseded by a rerun, close it before spawning a replacement unless its output is still required.
@@ -71,6 +75,8 @@ Ledger fields:
 | `target_revision` | yes | Deterministic content identifier for the target plan/spec. Prefer `git hash-object -- <target_path>`; use a SHA-256 file hash only when `git hash-object` is unavailable. Do not use timestamps or vague notes for rerunnable reviews. |
 | `run_mode` | yes | Claim authority: `full`, `inline`, or `advisory`. |
 | `run_scope` | yes | `six_lens` or `selected_lenses`. |
+| `execution_mode` | yes | `manual_or_imported`, `fresh_spawned_lens_reviewers`, or `fresh_spawned_orchestrator`. |
+| `events_path` | yes for detached | Repository-relative path to the run's `events.jsonl` trace. |
 | `completion_validation` | yes | Validation evidence record with validator name/version, pass flag, validated records, and field-level failures. |
 | `lens` | yes | Lens name. |
 | `lens_file` | yes | Exact lens prompt file. |
@@ -92,6 +98,7 @@ Ledger fields:
 Synthesis owner:
 
 - The parent orchestrator owns the ledger, final synthesis, materiality decisions, lens locking, rerun selection, and final completion decision.
+- In `full_detached`, the fresh orchestrator owns those duties; the parent launcher reports only what the detached artifacts prove.
 - Lens reviewers stay independent. They review only their assigned lens and do not coordinate convergence with other reviewers.
 - The synthesis owner may reject or downgrade reviewer feedback that is unsupported, preference-only, duplicated, already addressed, or outside the lens domain. Record per-finding decisions in the synthesis or ledger when they affect rerun scope.
 
@@ -110,6 +117,7 @@ Score discipline:
 - A `5/5` score requires `score_challenges.<dimension>` with `would_make_this_a_4`, `why_not_present`, and `evidence_no_material_issue`.
 - The challenge evidence is machine-readable in JSON. Markdown reviews should include concise score notes when the score supports a lock or completion claim.
 - If prior accepted material findings are relevant, record them in `prior_material_findings_context`; do not infer them by broad archive scanning.
+- Synthesis may treat reviewer outputs as lockable only when they are validated, current for the target revision, captured into artifacts, and closed. Unvalidated outputs remain advisory/imported and must be labeled that way.
 
 Rerun protocol:
 
@@ -194,6 +202,11 @@ The synthesis template (`synthesize-review-feedback.md`) uses one additional var
 - Critique the plan rather than replacing it unless replacement is necessary.
 - Prefer concrete corrections over vague commentary.
 - Call out missing steps, unsupported assumptions, sequencing problems, and meaningful risks.
+- Review whether the plan is specific enough for a competent implementation
+  agent to execute without inventing behavior. Missing ownership, current-vs-
+  remaining scope, state reset rules, fallback precedence, visible copy or
+  labels, validation pass/fail criteria, rollout gates, and command/API
+  contracts are material when they can cause divergent implementation.
 - Separate material blockers from non-blocking polish. A material blocker is something that would reasonably block implementation because it affects correctness, review convergence, reviewer independence, reproducibility, validation, maintainability, or ship safety.
 - Preference-only polish, wording improvements, or optional refactors must not prevent a `Strong` verdict or `5/5` score when no material issue remains.
 - Reruns are for material blockers, score-lowering gaps, or domain-relevant plan/spec changes. Do not spawn reruns only to chase nits.
@@ -240,9 +253,16 @@ Assemble a single prompt containing:
 
 Then request output in exactly the structure specified in the template.
 
+`reviews/scripts/run-plan-review.mjs` creates two reviewer-facing files per selected lens:
+
+- `<lens>.prompt.md`: the assembled reviewer packet with the target plan, template, lens, constraints, and deterministic revisions.
+- `<lens>.spawn.md`: the compact host-to-subagent handoff prompt. Use this as the spawned agent's initial prompt when the host can start the reviewer in the repository root.
+
+For detached orchestration, `reviews/scripts/assemble-orchestrator-prompt.mjs` emits `<pass-id>.orchestrator.md`. The packet includes target path/revision, run mode, run scope, selected lenses, allowed files, required artifacts, stop conditions, and claim rules. It uses repository-relative paths only. `run-plan-review.mjs --execution-mode fresh_spawned_orchestrator` creates the ledger, event log, orchestrator packet, reviewer packets, and reviewer spawn handoffs in one setup pass.
+
 For spawned-agent runs, prefer path-based assembly over pasted content when the agent has workspace access:
 
-- `workspace`: absolute path to the current worktree
+- `workspace`: host-provided working directory; do not embed absolute workspace paths in generated spawn prompts
 - `target_plan`: path to the current plan/spec under review
 - `pass_id`: current pass identifier
 - `target_revision`: deterministic content hash of the target plan/spec, preferably from `git hash-object -- <target_plan>`
@@ -252,5 +272,7 @@ For spawned-agent runs, prefer path-based assembly over pasted content when the 
 - `lens`: one of the lens files listed above
 - `previous_adjudications`: reruns only; short list of already-settled non-material findings
 - `instructions`: read all of those files directly from disk, ignore inherited conversation context, and return only the structured review output
+
+Generated spawn prompts should be outcome-first: role, goal, success criteria, context, and constraints. They should not duplicate the full review packet, include absolute local paths, or claim six-lens completion for selected-lens runs.
 
 Reject or mark stale any review output whose reported target revision does not match the current target revision, unless the synthesis explicitly includes it as superseded historical context.

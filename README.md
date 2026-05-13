@@ -53,6 +53,10 @@ reviews/README.md
 
 Then use one reviewer template plus one lens file per review agent.
 
+For a high-level view of how the orchestrator, generated prompt packets,
+spawned lens reviewers, synthesis, reruns, and archive state fit together, see
+[docs/agent-flow.md](docs/agent-flow.md).
+
 ## Plugin Layout
 
 LensTemper follows the Superpowers-compatible shape:
