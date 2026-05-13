@@ -50,9 +50,11 @@ function buildSpawnPrompt({
   lensManifestPath,
   lensPromptPath,
   lensRevision,
-  inputPacketPath
+  inputPacketPath,
+  runScope,
+  executionMode
 }) {
-  return `Role: You are the fresh LensTemper ${lensDisplayName} lens reviewer for this selected-lens run.
+  return `Role: You are the fresh LensTemper ${lensDisplayName} lens reviewer for this one-lens handoff.
 
 # Goal
 Review \`${targetPath}\` through the ${lensDisplayName} lens and return a valid LensTemper reviewer-template response.
@@ -72,8 +74,8 @@ Review \`${targetPath}\` through the ${lensDisplayName} lens and return a valid 
 # Context
 Pass ID: \`${passId}\`
 Run mode: \`full\`
-Run scope: \`selected_lenses\`
-Execution mode: \`fresh_spawned_lens_reviewers\`
+Run scope: \`${runScope}\`
+Execution mode: \`${executionMode}\`
 
 Paths:
 - target: \`${targetPath}\`
@@ -148,6 +150,8 @@ try {
   const targetRevision = computeArtifactSha(root, targetPath);
   const templateRevision = computeArtifactSha(root, templatePath);
   const lensRevision = computeArtifactSha(root, lensPromptPath);
+  const runScope = opts.runScope || "selected_lenses";
+  const executionMode = opts.executionMode || "fresh_spawned_lens_reviewers";
   const prompt = buildSpawnPrompt({
     passId: opts.passId,
     targetPath,
@@ -159,7 +163,9 @@ try {
     lensManifestPath: lens.path,
     lensPromptPath,
     lensRevision,
-    inputPacketPath
+    inputPacketPath,
+    runScope,
+    executionMode
   });
 
   if (opts.out) {

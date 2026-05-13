@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "pass_id": "example-detached-pass",
+  "target_path": "docs/plans/FORWARD_PLAN.md",
+  "target_revision": "example-target-revision",
+  "status": "completed",
+  "run_mode": "full",
+  "run_scope": "selected_lenses",
+  "execution_mode": "fresh_spawned_orchestrator",
+  "events_path": "reviews/examples/support/events-detached-malformed.jsonl",
+  "selected_lenses": [
+    "implementation"
+  ],
+  "current_review_record_ids": [
+    "review-detached-implementation-1"
+  ],
+  "superseded_review_record_ids": [],
+  "synthesis_record_ids": [
+    "synthesis-detached-1"
+  ],
+  "archive_paths": [
+    "reviews/archive/example-detached-pass"
+  ],
+  "artifact_visibility": "public_safe",
+  "completion_validation": {
+    "validator_name": "validate-completion-summary",
+    "validator_contract_version": "1.1.0",
+    "passed": true,
+    "validated_review_record_ids": [
+      "review-detached-implementation-1"
+    ],
+    "validated_synthesis_record_id": "synthesis-detached-1",
+    "failures": []
+  },
+  "review_record_artifacts": [
+    {
+      "record_id": "review-detached-implementation-1",
+      "artifact_path": "reviews/examples/review-output.valid-detached.json"
+    }
+  ],
+  "synthesis_record_artifacts": [
+    {
+      "record_id": "synthesis-detached-1",
+      "artifact_path": "reviews/examples/synthesis-output.valid-detached.json"
+    }
+  ]
+}

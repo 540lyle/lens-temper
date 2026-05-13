@@ -86,7 +86,7 @@ Own the LensTemper review pass for \`${targetPath}\` from ledger creation throug
 ${lensRows}
 
 # Allowed Files
-Read and write only repository-relative LensTemper review artifacts for this pass:
+Read only these repository-relative source inputs and workflow definitions:
 - \`${targetPath}\`
 - \`reviews/README.md\`
 - \`reviews/AGENT.md\`
@@ -96,6 +96,11 @@ Read and write only repository-relative LensTemper review artifacts for this pas
 - \`reviews/scripts/*.mjs\`
 - \`reviews/manifests/**/*.json\`
 - \`reviews/lenses/*.md\`
+
+Write only repository-relative run artifacts for this pass:
+- \`${ledgerPath}\`
+- \`${eventsPath}\`
+- \`${orchestratorPath}\`
 - \`${archivePath}/**\`
 
 # Required Artifacts
@@ -179,17 +184,10 @@ try {
   });
   const resolvedOut = resolveRepoPath(root, outPath);
   mkdirSync(dirname(resolvedOut), { recursive: true });
-  writeRunEvent(root, eventsPath, "orchestrator_started", {
-    pass_id: opts.passId,
-    role: "orchestrator",
-    target_revision: targetRevision,
-    artifact_path: outPath,
-    status: "started"
-  });
   writeFileSync(resolvedOut, prompt, "utf8");
   writeRunEvent(root, eventsPath, "prompt_packet_created", {
     pass_id: opts.passId,
-    role: "orchestrator",
+    role: "parent_launcher",
     target_revision: targetRevision,
     artifact_path: outPath,
     status: "created"

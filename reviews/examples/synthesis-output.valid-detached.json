@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "fixture_ledger_path": "reviews/examples/review-ledger.valid-detached-completed.json",
+  "record_id": "synthesis-detached-1",
+  "pass_id": "example-detached-pass",
+  "target_path": "docs/plans/FORWARD_PLAN.md",
+  "target_revision": "example-target-revision",
+  "included_review_record_ids": [
+    "review-detached-implementation-1"
+  ],
+  "superseded_review_record_ids": [],
+  "finding_decisions": [
+    {
+      "finding_id": "detached-lifecycle-valid",
+      "source_lens": "implementation",
+      "source_review_record_id": "review-detached-implementation-1",
+      "decision": "accepted",
+      "severity": "minor",
+      "affects_rerun_scope": false,
+      "reason": "Detached lifecycle evidence is present in the fixture."
+    }
+  ],
+  "lens_lock_decisions": [
+    {
+      "lens": "implementation",
+      "lock_state": "passing_locked",
+      "rerun_needed": false,
+      "reason": "All scores are 5/5 with no material blockers."
+    }
+  ],
+  "final_assessment": "Ready to implement",
+  "artifact_path": "reviews/examples/synthesis-output.valid-detached.json",
+  "markdown_artifact_path": "reviews/examples/artifacts/synthesis-output.valid.md",
+  "markdown_artifact_sha": "git:cf010010de0681abaf7117f4713e388a111994f9",
+  "run_mode": "full",
+  "claim_flags": {
+    "completion": false,
+    "lock_state": true,
+    "all_5_lockable": true,
+    "review_complete": false
+  },
+  "prior_material_findings_context": []
+}

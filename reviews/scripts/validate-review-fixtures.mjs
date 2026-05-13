@@ -93,14 +93,15 @@ function checkSchemaDrift(root) {
         }
       }
     }
-    for (const [state, requiredFields] of Object.entries(contract.conditionalRequired || {})) {
-      const conditional = (schema.allOf || []).find((entry) => entry.if?.properties?.status?.const === state);
+    for (const [condition, requiredFields] of Object.entries(contract.conditionalRequired || {})) {
+      const [field, state] = condition.includes(".") ? condition.split(".", 2) : ["status", condition];
+      const conditional = (schema.allOf || []).find((entry) => entry.if?.properties?.[field]?.const === state);
       const actualRequired = new Set(conditional?.then?.required || []);
       for (const expected of requiredFields) {
         if (!actualRequired.has(expected)) {
           failures.push({
             artifact_path: schemaPath,
-            field: `allOf.status.${state}.required`,
+            field: `allOf.${field}.${state}.required`,
             expected,
             actual: "missing",
             message: "schema missing conditional required field"

@@ -15,6 +15,7 @@ import {
   resolveRepoPath,
   usage
 } from "./validation-helpers.mjs";
+import { EXECUTION_MODES, RUN_MODES, RUN_SCOPES } from "./validation-contracts.mjs";
 
 ensureNode18();
 
@@ -45,13 +46,44 @@ try {
   const selected = opts.lens
     ? opts.lens.split(",").map((item) => item.trim()).filter(Boolean)
     : registry.lenses.map((entry) => entry.id);
+  const knownLenses = new Set(registry.lenses.map((entry) => entry.id));
+  for (const lens of selected) {
+    if (!knownLenses.has(lens)) {
+      process.stderr.write(`validation error: unknown lens ${lens}\n`);
+      process.exit(EXIT_CODES.usage);
+    }
+  }
   const targetRevision = computeArtifactSha(root, targetPath);
   const allLensIds = registry.lenses.map((entry) => entry.id);
   const runMode = opts.runMode || "inline";
+  if (!RUN_MODES.includes(runMode)) {
+    process.stderr.write(`validation error: --run-mode must be one of ${RUN_MODES.join(", ")}\n`);
+    process.exit(EXIT_CODES.usage);
+  }
   const runScope = opts.runScope || (selected.length === allLensIds.length && selected.every((lens) => allLensIds.includes(lens)) ? "six_lens" : "selected_lenses");
+  if (!RUN_SCOPES.includes(runScope)) {
+    process.stderr.write(`validation error: --run-scope must be one of ${RUN_SCOPES.join(", ")}\n`);
+    process.exit(EXIT_CODES.usage);
+  }
   const defaultExecutionMode = runMode === "full" ? "fresh_spawned_lens_reviewers" : "manual_or_imported";
   const executionMode = opts.executionMode || defaultExecutionMode;
+  if (!EXECUTION_MODES.includes(executionMode)) {
+    process.stderr.write(`validation error: --execution-mode must be one of ${EXECUTION_MODES.join(", ")}\n`);
+    process.exit(EXIT_CODES.usage);
+  }
+  if (runMode === "full" && !["fresh_spawned_lens_reviewers", "fresh_spawned_orchestrator"].includes(executionMode)) {
+    process.stderr.write(`validation error: full run mode requires spawned reviewer or detached orchestrator execution\n`);
+    process.exit(EXIT_CODES.usage);
+  }
+  if ((runMode === "inline" || runMode === "advisory") && executionMode !== "manual_or_imported") {
+    process.stderr.write(`validation error: inline/advisory run modes require manual_or_imported execution\n`);
+    process.exit(EXIT_CODES.usage);
+  }
   const eventsPath = opts.eventsPath || (opts.out ? opts.out.replace(/[^/]+$/, "events.jsonl") : archiveRunPath(targetPath, opts.passId).replace(/\/?$/, "/events.jsonl"));
+  if (!isRepoRelativePath(eventsPath)) {
+    process.stderr.write(`validation error: --events-path must be repository-relative\n`);
+    process.exit(EXIT_CODES.usage);
+  }
   const ledger = {
     schema_version: 1,
     pass_id: opts.passId,

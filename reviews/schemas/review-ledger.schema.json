@@ -69,7 +69,6 @@
         "validator_contract_version",
         "passed",
         "validated_review_record_ids",
-        "validated_synthesis_record_id",
         "failures"
       ],
       "properties": {
@@ -122,5 +121,17 @@
       }
     }
   },
-  "additionalProperties": true
+  "additionalProperties": true,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "execution_mode": { "const": "fresh_spawned_orchestrator" }
+        }
+      },
+      "then": {
+        "required": ["events_path"]
+      }
+    }
+  ]
 }

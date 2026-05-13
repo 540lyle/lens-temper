@@ -810,11 +810,14 @@ Expected eval report shape:
 
 ```text
 fixtures: 8
-critical_recall: 7/7
-false_positive_blockers: 0
-unsupported_claim_rate: 0.00
+eval_method: fixture_keyword_smoke
+critical_recall: not_measured
+critical_fixture_keyword_coverage: 7/7
+false_positive_blockers: not_measured
+noncritical_fixture_keyword_matches: 0
+keyword_missing_rate: 0.00
 schema_validity: 8/8
-rerun_decision_accuracy: 8/8
+rerun_decision_accuracy: not_measured
 prompt_assertions: 1/1
 recommendation: keep
 ```

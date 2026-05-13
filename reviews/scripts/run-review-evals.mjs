@@ -84,11 +84,14 @@ try {
   const schemaValid = results.filter((result) => result.valid).length;
   const computed = {
     fixtures: results.length,
-    critical_recall: `${criticalFound}/${criticalTotal}`,
-    false_positive_blockers: falsePositiveBlockers,
-    unsupported_claim_rate: failures.length === 0 ? "0.00" : (failures.length / Math.max(results.length, 1)).toFixed(2),
+    eval_method: "fixture_keyword_smoke",
+    critical_recall: "not_measured",
+    critical_fixture_keyword_coverage: `${criticalFound}/${criticalTotal}`,
+    false_positive_blockers: "not_measured",
+    noncritical_fixture_keyword_matches: falsePositiveBlockers,
+    keyword_missing_rate: failures.length === 0 ? "0.00" : (failures.length / Math.max(results.length, 1)).toFixed(2),
     schema_validity: `${schemaValid}/${results.length}`,
-    rerun_decision_accuracy: `${schemaValid}/${results.length}`,
+    rerun_decision_accuracy: "not_measured",
     prompt_assertions: `${promptResults.filter((result) => result.valid).length}/${promptResults.length}`,
     recommendation: failures.length === 0 && criticalFound === criticalTotal && falsePositiveBlockers === 0 ? "keep" : "revise"
   };
@@ -107,9 +110,12 @@ try {
     process.stdout.write(`${JSON.stringify({ event: "eval_report", ...report })}\n`);
   } else {
     process.stdout.write(`fixtures: ${report.fixtures}\n`);
+    process.stdout.write(`eval_method: ${report.eval_method}\n`);
     process.stdout.write(`critical_recall: ${report.critical_recall}\n`);
+    process.stdout.write(`critical_fixture_keyword_coverage: ${report.critical_fixture_keyword_coverage}\n`);
     process.stdout.write(`false_positive_blockers: ${report.false_positive_blockers}\n`);
-    process.stdout.write(`unsupported_claim_rate: ${report.unsupported_claim_rate}\n`);
+    process.stdout.write(`noncritical_fixture_keyword_matches: ${report.noncritical_fixture_keyword_matches}\n`);
+    process.stdout.write(`keyword_missing_rate: ${report.keyword_missing_rate}\n`);
     process.stdout.write(`schema_validity: ${report.schema_validity}\n`);
     process.stdout.write(`rerun_decision_accuracy: ${report.rerun_decision_accuracy}\n`);
     process.stdout.write(`prompt_assertions: ${report.prompt_assertions}\n`);

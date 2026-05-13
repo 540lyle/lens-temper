@@ -181,7 +181,7 @@ Every review receives these inputs. The template uses `{{double_curly}}` variabl
 |----------|-------------|----------|
 | `{{feature_request}}` | What is being built and why | 1 to 3 paragraphs. Include user-facing goal and success criteria. |
 | `{{pass_id}}` | Identifier for this review pass | Required for spawned-agent runs. Use the same value in every reviewer prompt for one pass. |
-| `{{target_path}}` | Plan/spec file path under review | Required for spawned-agent runs. Prefer a path relative to the workspace plus the absolute workspace path. |
+| `{{target_path}}` | Plan/spec file path under review | Required for spawned-agent runs. Use a repository-relative path; the host provides the workspace root separately. |
 | `{{target_revision}}` | Deterministic content hash for the target plan/spec | Required for spawned-agent runs and reruns. Prefer `git hash-object -- <target_path>`. |
 | `{{template_revision}}` | Deterministic content hash for `reviewer-template.md` | Recommended for stale-output detection. |
 | `{{lens_revision}}` | Deterministic content hash for the lens file | Recommended for stale-output detection. |

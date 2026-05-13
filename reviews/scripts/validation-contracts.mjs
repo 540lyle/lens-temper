@@ -289,8 +289,11 @@ export const SCHEMA_CONTRACTS = {
       "lens_lock_decisions.lock_state": LOCK_STATES
     }
   },
-  "review-ledger.schema.json": {
+    "review-ledger.schema.json": {
     required: LEDGER_REQUIRED_FIELDS,
+    conditionalRequired: {
+      "execution_mode.fresh_spawned_orchestrator": ["events_path"]
+    },
     enums: {
       status: LEDGER_STATUSES,
       run_mode: RUN_MODES,
@@ -299,7 +302,7 @@ export const SCHEMA_CONTRACTS = {
       artifact_visibility: ARTIFACT_VISIBILITY
     },
     nestedRequired: {
-      completion_validation: ["validator_name", "validator_contract_version", "passed", "validated_review_record_ids", "validated_synthesis_record_id", "failures"]
+      completion_validation: ["validator_name", "validator_contract_version", "passed", "validated_review_record_ids", "failures"]
     },
     arrayItemRequired: {
       review_record_artifacts: ["record_id", "artifact_path"],

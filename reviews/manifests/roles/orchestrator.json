@@ -33,10 +33,11 @@
   ],
   "validation_rules": [
     "Every selected lens must map to a manifest in registry.json.",
-    "full run_mode requires fresh_spawned_lens_reviewers execution_mode.",
+    "full run_mode requires fresh_spawned_lens_reviewers or fresh_spawned_orchestrator execution_mode.",
     "inline and advisory run modes require manual_or_imported execution_mode.",
     "Every active reviewer must report the current target_revision.",
-    "Completed spawned reviewers must have output_captured=true and closed=true.",
+    "Completed spawned reviewers must have agent_id present, output_captured=true, and closed=true.",
+    "Completed detached orchestration must include events_path with orchestrator-owned reviewer_spawned, reviewer_completed, and reviewer_closed events for current reviewers.",
     "Only full six_lens runs may claim unqualified LensTemper pass completion."
   ]
 }

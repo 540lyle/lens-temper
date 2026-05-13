@@ -6,9 +6,11 @@ import {
   CONTRACT_VERSION,
   EXIT_CODES,
   ensureNode18,
+  isRepoRelativePath,
   parseCommonArgs,
   readJsonFile,
   repoRootFrom,
+  resolveRepoPath,
   usage,
   writeRunEvent
 } from "./validation-helpers.mjs";
@@ -42,21 +44,21 @@ try {
     ? opts.lens.split(",").map((item) => item.trim()).filter(Boolean)
     : registry.lenses.map((entry) => entry.id);
   const outDir = opts.out || `reviews/archive/${opts.passId}`;
-  mkdirSync(join(root, outDir), { recursive: true });
+  if (!isRepoRelativePath(outDir)) {
+    process.stderr.write(`validation error: --out must be repository-relative\n`);
+    process.exit(EXIT_CODES.usage);
+  }
+  const resolvedOutDir = resolveRepoPath(root, outDir);
+  if (!resolvedOutDir) {
+    process.stderr.write(`validation error: --out must resolve under the repository root\n`);
+    process.exit(EXIT_CODES.usage);
+  }
+  mkdirSync(resolvedOutDir, { recursive: true });
   const ledgerPath = `${outDir}/ledger.json`;
   const eventsPath = `${outDir}/events.jsonl`;
   const executionMode = opts.executionMode || "fresh_spawned_lens_reviewers";
-  writeFileSync(join(root, eventsPath), "", "utf8");
+  writeFileSync(resolveRepoPath(root, eventsPath), "", "utf8");
   const targetRevision = runNode(root, ["reviews/scripts/hash-review-target.mjs", opts.target]).trim();
-  if (executionMode === "fresh_spawned_orchestrator") {
-    writeRunEvent(root, eventsPath, "orchestrator_started", {
-      pass_id: opts.passId,
-      role: "parent_launcher",
-      target_revision: targetRevision,
-      artifact_path: `${outDir}/${opts.passId}.orchestrator.md`,
-      status: "started"
-    });
-  }
   runNode(root, [
     "reviews/scripts/create-ledger.mjs",
     "--target", opts.target,
@@ -101,7 +103,7 @@ try {
     ]);
     writeRunEvent(root, eventsPath, "prompt_packet_created", {
       pass_id: opts.passId,
-      role: executionMode === "fresh_spawned_orchestrator" ? "detached_orchestrator" : "hosted_orchestrator",
+      role: executionMode === "fresh_spawned_orchestrator" ? "parent_launcher" : "hosted_orchestrator",
       target_revision: targetRevision,
       artifact_path: promptPath,
       status: "created"
@@ -112,12 +114,14 @@ try {
       "--lens", lens,
       "--pass-id", opts.passId,
       "--input-packet", promptPath,
+      "--run-scope", lenses.length === registry.lenses.length ? "six_lens" : "selected_lenses",
+      "--execution-mode", executionMode,
       "--out", `${outDir}/${lens}.spawn.md`,
       "--quiet"
     ]);
     writeRunEvent(root, eventsPath, "spawn_prompt_created", {
       pass_id: opts.passId,
-      role: executionMode === "fresh_spawned_orchestrator" ? "detached_orchestrator" : "hosted_orchestrator",
+      role: executionMode === "fresh_spawned_orchestrator" ? "parent_launcher" : "hosted_orchestrator",
       target_revision: targetRevision,
       artifact_path: `${outDir}/${lens}.spawn.md`,
       status: "created"
