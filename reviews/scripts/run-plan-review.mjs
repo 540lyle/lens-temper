@@ -23,6 +23,10 @@ function runNode(root, args) {
   return execFileSync(process.execPath, args, { cwd: root, encoding: "utf8" });
 }
 
+function lensSetEquals(left, right) {
+  return left.size === right.size && [...left].every((item) => right.has(item));
+}
+
 try {
   const opts = parseCommonArgs(process.argv.slice(2));
   if (opts.help) {
@@ -43,6 +47,20 @@ try {
   const lenses = opts.lens
     ? opts.lens.split(",").map((item) => item.trim()).filter(Boolean)
     : registry.lenses.map((entry) => entry.id);
+  const registryLensIds = registry.lenses.map((entry) => entry.id);
+  const registryLensSet = new Set(registryLensIds);
+  const lensSet = new Set(lenses);
+  if (lensSet.size !== lenses.length) {
+    process.stderr.write(`validation error: --lens must not include duplicate lens ids\n`);
+    process.exit(EXIT_CODES.usage);
+  }
+  for (const lens of lenses) {
+    if (!registryLensSet.has(lens)) {
+      process.stderr.write(`validation error: unknown lens ${lens}\n`);
+      process.exit(EXIT_CODES.usage);
+    }
+  }
+  const runScope = lensSetEquals(lensSet, registryLensSet) ? "six_lens" : "selected_lenses";
   const outDir = opts.out || `reviews/archive/${opts.passId}`;
   if (!isRepoRelativePath(outDir)) {
     process.stderr.write(`validation error: --out must be repository-relative\n`);
@@ -114,7 +132,7 @@ try {
       "--lens", lens,
       "--pass-id", opts.passId,
       "--input-packet", promptPath,
-      "--run-scope", lenses.length === registry.lenses.length ? "six_lens" : "selected_lenses",
+      "--run-scope", runScope,
       "--execution-mode", executionMode,
       "--out", `${outDir}/${lens}.spawn.md`,
       "--quiet"

@@ -25,12 +25,20 @@ function resolveSelectedLenses(registry, lensOption) {
     ? lensOption.split(",").map((item) => item.trim()).filter(Boolean)
     : registry.lenses.map((entry) => entry.id);
   const known = new Set(registry.lenses.map((entry) => entry.id));
+  const selectedSet = new Set(selected);
+  if (selectedSet.size !== selected.length) {
+    throw Object.assign(new Error(`--lens must not include duplicate lens ids`), { exitCode: EXIT_CODES.usage });
+  }
   for (const lens of selected) {
     if (!known.has(lens)) {
       throw Object.assign(new Error(`unknown lens ${lens}`), { exitCode: EXIT_CODES.usage });
     }
   }
   return selected;
+}
+
+function lensSetEquals(left, right) {
+  return left.size === right.size && [...left].every((item) => right.has(item));
 }
 
 function buildOrchestratorPrompt({
@@ -158,7 +166,14 @@ try {
   }
   const selectedLenses = resolveSelectedLenses(registry, opts.lens);
   const allLensIds = registry.lenses.map((entry) => entry.id);
-  const runScope = opts.runScope || (selectedLenses.length === allLensIds.length && selectedLenses.every((lens) => allLensIds.includes(lens)) ? "six_lens" : "selected_lenses");
+  const selectedLensSet = new Set(selectedLenses);
+  const allLensSet = new Set(allLensIds);
+  const selectedIsSixLens = lensSetEquals(selectedLensSet, allLensSet);
+  const runScope = opts.runScope || (selectedIsSixLens ? "six_lens" : "selected_lenses");
+  if (runScope === "six_lens" && !selectedIsSixLens) {
+    process.stderr.write(`validation error: six_lens run-scope requires exactly the registry lens set\n`);
+    process.exit(EXIT_CODES.usage);
+  }
   const outPath = opts.out || `reviews/archive/${opts.passId}/${opts.passId}.orchestrator.md`;
   if (!isRepoRelativePath(outPath)) {
     process.stderr.write(`validation error: --out must be repository-relative\n`);

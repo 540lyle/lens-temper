@@ -9,7 +9,7 @@
   },
   "ledger": {
     "valid": 2,
-    "invalid": 10
+    "invalid": 12
   },
   "completion-summary": {
     "valid": 2,

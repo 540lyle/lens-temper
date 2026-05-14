@@ -557,6 +557,68 @@ function validateCompletionValidation(record, artifactPath, failures) {
   }
 }
 
+function setEquals(left, right) {
+  return left.size === right.size && [...left].every((item) => right.has(item));
+}
+
+function validateUniqueArrayItems(record, field, artifactPath, failures) {
+  const values = record[field];
+  if (!Array.isArray(values)) return new Set();
+  const seen = new Set();
+  for (const value of values) {
+    if (seen.has(value)) {
+      failures.push(makeFailure(artifactPath, record, field, "unique values", value));
+    }
+    seen.add(value);
+  }
+  return seen;
+}
+
+function validateLedgerLensScope(root, record, artifactPath, failures) {
+  const registry = readJsonFile(join(root, "reviews", "registry.json"));
+  const registryLensIds = registry.lenses.map((entry) => entry.id);
+  const registryLensSet = new Set(registryLensIds);
+  const selectedLensSet = validateUniqueArrayItems(record, "selected_lenses", artifactPath, failures);
+  for (const lens of record.selected_lenses || []) {
+    if (!registryLensSet.has(lens)) {
+      failures.push(makeFailure(artifactPath, record, "selected_lenses", "known registry lens id", lens));
+    }
+  }
+  if (record.run_scope === "six_lens" && !setEquals(selectedLensSet, registryLensSet)) {
+    failures.push(makeFailure(artifactPath, record, "selected_lenses", `exact registry lens set for six_lens: ${registryLensIds.join(",")}`, (record.selected_lenses || []).join(",")));
+  }
+}
+
+function validateCompletionValidationReferences(record, artifactPath, failures) {
+  if (record.status !== "completed" || record.run_mode !== "full" || record.completion_validation?.passed !== true) return;
+  const currentIds = new Set(record.current_review_record_ids || []);
+  const validatedReviewIds = record.completion_validation.validated_review_record_ids || [];
+  const validatedIds = new Set(validatedReviewIds);
+  if (validatedIds.size !== validatedReviewIds.length) {
+    failures.push(makeFailure(artifactPath, record, "completion_validation.validated_review_record_ids", "unique values", validatedReviewIds.join(",")));
+  }
+  if (!setEquals(validatedIds, currentIds)) {
+    failures.push(makeFailure(
+      artifactPath,
+      record,
+      "completion_validation.validated_review_record_ids",
+      `exact current_review_record_ids: ${[...currentIds].join(",")}`,
+      [...validatedIds].join(",")
+    ));
+  }
+  const synthesisIds = new Set(record.synthesis_record_ids || []);
+  const validatedSynthesisId = record.completion_validation.validated_synthesis_record_id;
+  if (!synthesisIds.has(validatedSynthesisId)) {
+    failures.push(makeFailure(
+      artifactPath,
+      record,
+      "completion_validation.validated_synthesis_record_id",
+      `one of synthesis_record_ids: ${[...synthesisIds].join(",")}`,
+      validatedSynthesisId
+    ));
+  }
+}
+
 export function validateReviewRecord(record, options = {}) {
   const root = options.artifactRoot || repoRootFrom();
   const artifactPath = options.artifactPath || options.inputPath || record.artifact_path || "review-output";
@@ -779,6 +841,8 @@ export function validateLedgerRecord(record, options = {}) {
       failures.push(makeFailure(artifactPath, record, field, "array", record[field]));
     }
   }
+  validateLedgerLensScope(root, record, artifactPath, failures);
+  validateCompletionValidationReferences(record, artifactPath, failures);
   for (const archivePath of record.archive_paths || []) {
     if (!isRepoRelativePath(archivePath)) {
       failures.push(makeFailure(artifactPath, record, "archive_paths", "repository-relative path", archivePath));

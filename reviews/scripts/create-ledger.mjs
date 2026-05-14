@@ -21,6 +21,10 @@ ensureNode18();
 
 const scriptName = "create-ledger.mjs";
 
+function lensSetEquals(left, right) {
+  return left.size === right.size && [...left].every((item) => right.has(item));
+}
+
 try {
   const opts = parseCommonArgs(process.argv.slice(2));
   if (opts.help) {
@@ -47,6 +51,11 @@ try {
     ? opts.lens.split(",").map((item) => item.trim()).filter(Boolean)
     : registry.lenses.map((entry) => entry.id);
   const knownLenses = new Set(registry.lenses.map((entry) => entry.id));
+  const selectedSet = new Set(selected);
+  if (selectedSet.size !== selected.length) {
+    process.stderr.write(`validation error: --lens must not include duplicate lens ids\n`);
+    process.exit(EXIT_CODES.usage);
+  }
   for (const lens of selected) {
     if (!knownLenses.has(lens)) {
       process.stderr.write(`validation error: unknown lens ${lens}\n`);
@@ -60,9 +69,15 @@ try {
     process.stderr.write(`validation error: --run-mode must be one of ${RUN_MODES.join(", ")}\n`);
     process.exit(EXIT_CODES.usage);
   }
-  const runScope = opts.runScope || (selected.length === allLensIds.length && selected.every((lens) => allLensIds.includes(lens)) ? "six_lens" : "selected_lenses");
+  const allLensSet = new Set(allLensIds);
+  const selectedIsSixLens = lensSetEquals(selectedSet, allLensSet);
+  const runScope = opts.runScope || (selectedIsSixLens ? "six_lens" : "selected_lenses");
   if (!RUN_SCOPES.includes(runScope)) {
     process.stderr.write(`validation error: --run-scope must be one of ${RUN_SCOPES.join(", ")}\n`);
+    process.exit(EXIT_CODES.usage);
+  }
+  if (runScope === "six_lens" && !selectedIsSixLens) {
+    process.stderr.write(`validation error: six_lens run-scope requires exactly the registry lens set\n`);
     process.exit(EXIT_CODES.usage);
   }
   const defaultExecutionMode = runMode === "full" ? "fresh_spawned_lens_reviewers" : "manual_or_imported";
