@@ -12,6 +12,8 @@
     "Read current referenced files directly from disk when workspace access is available.",
     "Return only the structured output required by reviewer-template.md.",
     "Complete the cross-cutting sweep without silently skipping categories.",
+    "Provide score challenge evidence for every 5/5 score.",
+    "Report input provenance so JSON records can distinguish direct workspace reads from provided packets.",
     "Avoid inherited context, other reviewers' conclusions, and unsupported repository assumptions."
   ],
   "inputs": [
@@ -38,6 +40,7 @@
     "Output sections must match reviewer-template.md.",
     "Scores must use the six standard dimensions.",
     "Any score below 5/5 must be tied to a material issue.",
+    "Any score of 5/5 must explain why a material score-lowering issue is absent.",
     "The reported target_revision must match the prompt target_revision."
   ]
 }

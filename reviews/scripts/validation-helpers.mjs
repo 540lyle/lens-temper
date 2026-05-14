@@ -1,10 +1,12 @@
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { appendFileSync, existsSync, readFileSync, statSync } from "node:fs";
 import { dirname, isAbsolute, join, normalize, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
 import {
   ARTIFACT_VISIBILITY,
+  CLAIM_FLAG_KEYS,
+  COMPLETION_SUMMARY_REQUIRED_FIELDS,
   CONTRACT_VERSION,
   CROSS_CUTTING_KEYS,
   CROSS_CUTTING_STATUS_VALUES,
@@ -16,14 +18,19 @@ import {
   LEDGER_REQUIRED_FIELDS,
   LEDGER_STATUSES,
   LOCK_STATES,
+  PROVENANCE_BASIS_VALUES,
   REQUIRED_MARKDOWN_SECTIONS,
   REVIEW_COMPLETED_REQUIRED_FIELDS,
   REVIEW_REQUIRED_FIELDS,
   REVIEW_STATUSES,
   REVIEW_VERDICTS,
+  RUN_MODES,
+  RUN_SCOPES,
   SCHEMA_VERSION,
+  SCORE_CHALLENGE_KEYS,
   SCORECARD_KEYS,
-  SYNTHESIS_REQUIRED_FIELDS
+  SYNTHESIS_REQUIRED_FIELDS,
+  TRACE_EVENT_NAMES
 } from "./validation-contracts.mjs";
 
 export { CONTRACT_VERSION, EXIT_CODES };
@@ -63,7 +70,11 @@ export function parseCommonArgs(argv) {
     inputPacket: null,
     final: null,
     archiveRoot: null,
-    changedDomains: ""
+    changedDomains: "",
+    runMode: null,
+    runScope: null,
+    executionMode: null,
+    eventsPath: null
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -321,6 +332,123 @@ export function validateMaterialBlockers(record, artifactPath, failures) {
   }
 }
 
+export function validateRunMode(record, artifactPath, failures, options = {}) {
+  validateEnum(record.run_mode, RUN_MODES, artifactPath, record, "run_mode", failures);
+  if (record.run_scope !== undefined) {
+    validateEnum(record.run_scope, RUN_SCOPES, artifactPath, record, "run_scope", failures);
+  }
+  if (!record.execution_mode) return;
+  if (record.run_mode === "full" && !["fresh_spawned_lens_reviewers", "fresh_spawned_orchestrator"].includes(record.execution_mode)) {
+    failures.push(makeFailure(artifactPath, record, "execution_mode", "fresh_spawned_lens_reviewers or fresh_spawned_orchestrator for full run_mode", record.execution_mode));
+  }
+  if ((record.run_mode === "inline" || record.run_mode === "advisory") && record.execution_mode !== "manual_or_imported") {
+    failures.push(makeFailure(artifactPath, record, "execution_mode", "manual_or_imported for inline/advisory run_mode", record.execution_mode));
+  }
+  if (options.ledger && record.run_mode && record.run_mode !== options.ledger.run_mode) {
+    failures.push(makeFailure(artifactPath, record, "run_mode", `matching ledger run_mode ${options.ledger.run_mode}`, record.run_mode));
+  }
+}
+
+export function validateClaimFlags(record, artifactPath, failures) {
+  const flags = record.claim_flags;
+  if (!flags || typeof flags !== "object" || Array.isArray(flags)) {
+    failures.push(makeFailure(artifactPath, record, "claim_flags", "object", flags));
+    return;
+  }
+  for (const key of CLAIM_FLAG_KEYS) {
+    if (typeof flags[key] !== "boolean") {
+      failures.push(makeFailure(artifactPath, record, `claim_flags.${key}`, "boolean", flags[key]));
+    }
+  }
+  if (record.run_mode === "inline" || record.run_mode === "advisory") {
+    for (const key of CLAIM_FLAG_KEYS) {
+      if (flags[key] === true) {
+        failures.push(makeFailure(artifactPath, record, `claim_flags.${key}`, false, true, "non-full runs cannot make lockable or completion claims"));
+      }
+    }
+  }
+}
+
+export function validateScoreChallenges(record, artifactPath, failures) {
+  const challenges = record.score_challenges || {};
+  if (record.score_challenges !== undefined && (typeof record.score_challenges !== "object" || Array.isArray(record.score_challenges))) {
+    failures.push(makeFailure(artifactPath, record, "score_challenges", "object", record.score_challenges));
+    return;
+  }
+  for (const key of SCORECARD_KEYS) {
+    if (record.scorecard?.[key] !== 5) continue;
+    const challenge = challenges[key];
+    if (!challenge || typeof challenge !== "object" || Array.isArray(challenge)) {
+      failures.push(makeFailure(artifactPath, record, `score_challenges.${key}`, "object for 5/5 score", challenge));
+      continue;
+    }
+    for (const field of SCORE_CHALLENGE_KEYS) {
+      if (typeof challenge[field] !== "string" || challenge[field].trim().length === 0) {
+        failures.push(makeFailure(artifactPath, record, `score_challenges.${key}.${field}`, "non-empty string", challenge[field]));
+      }
+    }
+  }
+}
+
+export function validateProvenance(record, root, artifactPath, failures) {
+  const provenance = record.provenance;
+  if (!provenance || typeof provenance !== "object" || Array.isArray(provenance)) {
+    failures.push(makeFailure(artifactPath, record, "provenance", "object", provenance));
+    return;
+  }
+  const sources = provenance.input_sources;
+  if (!Array.isArray(sources) || sources.length === 0) {
+    failures.push(makeFailure(artifactPath, record, "provenance.input_sources", "non-empty array", sources));
+    return;
+  }
+  let targetIncluded = false;
+  for (const [index, source] of sources.entries()) {
+    const prefix = `provenance.input_sources[${index}]`;
+    if (!source || typeof source !== "object" || Array.isArray(source)) {
+      failures.push(makeFailure(artifactPath, record, prefix, "object", source));
+      continue;
+    }
+    if (typeof source.role !== "string" || source.role.trim().length === 0) {
+      failures.push(makeFailure(artifactPath, record, `${prefix}.role`, "non-empty string", source.role));
+    }
+    validateEnum(source.basis, PROVENANCE_BASIS_VALUES, artifactPath, record, `${prefix}.basis`, failures);
+    if (typeof source.target_included !== "boolean") {
+      failures.push(makeFailure(artifactPath, record, `${prefix}.target_included`, "boolean", source.target_included));
+    }
+    if (source.target_included === true) targetIncluded = true;
+    if (!Array.isArray(source.paths_reviewed)) {
+      failures.push(makeFailure(artifactPath, record, `${prefix}.paths_reviewed`, "array", source.paths_reviewed));
+      continue;
+    }
+    if (source.basis === "direct_workspace_read" && source.paths_reviewed.length === 0) {
+      failures.push(makeFailure(artifactPath, record, `${prefix}.paths_reviewed`, "at least one direct workspace path", "empty"));
+    }
+    if (source.basis !== "direct_workspace_read" && source.paths_reviewed.length > 0) {
+      failures.push(makeFailure(artifactPath, record, `${prefix}.paths_reviewed`, "empty for non-direct input basis", source.paths_reviewed.join("|")));
+    }
+    if (source.basis === "fixture" && !record.fixture_kind) {
+      failures.push(makeFailure(artifactPath, record, `${prefix}.basis`, "fixture_kind present for fixture basis", "missing"));
+    }
+    for (const [pathIndex, repoPath] of source.paths_reviewed.entries()) {
+      const field = `${prefix}.paths_reviewed[${pathIndex}]`;
+      if (!isRepoRelativePath(repoPath)) {
+        failures.push(makeFailure(artifactPath, record, field, "repository-relative path", repoPath));
+        continue;
+      }
+      const resolved = resolveRepoPath(root, repoPath);
+      if (!resolved || !existsSync(resolved)) {
+        failures.push(makeFailure(artifactPath, record, field, "existing path", repoPath));
+      }
+    }
+    if (source.basis === "direct_workspace_read" && source.target_included === true && record.status === "completed" && !source.paths_reviewed.includes(record.target_path)) {
+      failures.push(makeFailure(artifactPath, record, `${prefix}.paths_reviewed`, `includes target_path ${record.target_path}`, source.paths_reviewed.join("|")));
+    }
+  }
+  if (!targetIncluded) {
+    failures.push(makeFailure(artifactPath, record, "provenance.input_sources", "one source with target_included=true", "none"));
+  }
+}
+
 export function validateFindingDecisions(record, artifactPath, failures) {
   if (!Array.isArray(record.finding_decisions)) {
     failures.push(makeFailure(artifactPath, record, "finding_decisions", "array", record.finding_decisions));
@@ -358,6 +486,139 @@ export function validateLensLocks(record, artifactPath, failures) {
   }
 }
 
+function validatePriorMaterialFindings(record, artifactPath, failures) {
+  if (!Array.isArray(record.prior_material_findings_context)) {
+    failures.push(makeFailure(artifactPath, record, "prior_material_findings_context", "array", record.prior_material_findings_context));
+    return;
+  }
+  for (const [index, finding] of record.prior_material_findings_context.entries()) {
+    const prefix = `prior_material_findings_context[${index}]`;
+    for (const field of ["source_record_id", "finding_id", "source_target_path", "source_target_revision"]) {
+      if (typeof finding?.[field] !== "string" || finding[field].trim().length === 0) {
+        failures.push(makeFailure(artifactPath, record, `${prefix}.${field}`, "non-empty string", finding?.[field]));
+      }
+    }
+    validateEnum(finding?.decision, FINDING_DECISIONS, artifactPath, record, `${prefix}.decision`, failures);
+    validateEnum(finding?.severity, FINDING_SEVERITIES, artifactPath, record, `${prefix}.severity`, failures);
+  }
+}
+
+function validateSynthesisLockClaims(record, currentReviewsByLens, artifactPath, failures) {
+  for (const lock of record.lens_lock_decisions || []) {
+    if (!["passing_locked", "converged_locked"].includes(lock.lock_state)) continue;
+    if (record.run_mode !== "full") {
+      failures.push(makeFailure(artifactPath, record, `lens_lock_decisions.${lock.lens}.lock_state`, "full run_mode for lockable state", record.run_mode));
+      continue;
+    }
+    const review = currentReviewsByLens.get(lock.lens);
+    if (!review) {
+      failures.push(makeFailure(artifactPath, record, `lens_lock_decisions.${lock.lens}.source_review`, "current included review for locked lens", "missing"));
+      continue;
+    }
+    if (review.material_blockers?.present !== false) {
+      failures.push(makeFailure(artifactPath, review, "material_blockers.present", false, review.material_blockers?.present));
+    }
+    const scores = SCORECARD_KEYS.map((key) => review.scorecard?.[key]);
+    if (lock.lock_state === "passing_locked" && !scores.every((score) => score === 5)) {
+      failures.push(makeFailure(artifactPath, review, "scorecard", "all scores 5 for passing_locked", JSON.stringify(review.scorecard)));
+    }
+    if (lock.lock_state === "converged_locked" && !scores.every((score) => Number.isInteger(score) && score >= 4)) {
+      failures.push(makeFailure(artifactPath, review, "scorecard", "all scores >=4 for converged_locked", JSON.stringify(review.scorecard)));
+    }
+  }
+}
+
+function validateCompletionValidation(record, artifactPath, failures) {
+  const validation = record.completion_validation;
+  if (!validation || typeof validation !== "object" || Array.isArray(validation)) {
+    failures.push(makeFailure(artifactPath, record, "completion_validation", "object", validation));
+    return;
+  }
+  for (const field of ["validator_name", "validator_contract_version"]) {
+    if (typeof validation[field] !== "string" || validation[field].trim().length === 0) {
+      failures.push(makeFailure(artifactPath, record, `completion_validation.${field}`, "non-empty string", validation[field]));
+    }
+  }
+  if (record.status === "completed" && (typeof validation.validated_synthesis_record_id !== "string" || validation.validated_synthesis_record_id.trim().length === 0)) {
+    failures.push(makeFailure(artifactPath, record, "completion_validation.validated_synthesis_record_id", "non-empty string for completed ledger", validation.validated_synthesis_record_id));
+  } else if (validation.validated_synthesis_record_id !== undefined && typeof validation.validated_synthesis_record_id !== "string") {
+    failures.push(makeFailure(artifactPath, record, "completion_validation.validated_synthesis_record_id", "string", validation.validated_synthesis_record_id));
+  }
+  if (typeof validation.passed !== "boolean") {
+    failures.push(makeFailure(artifactPath, record, "completion_validation.passed", "boolean", validation.passed));
+  }
+  for (const field of ["validated_review_record_ids", "failures"]) {
+    if (!Array.isArray(validation[field])) {
+      failures.push(makeFailure(artifactPath, record, `completion_validation.${field}`, "array", validation[field]));
+    }
+  }
+  if (record.status === "completed" && record.run_mode === "full" && validation.passed !== true) {
+    failures.push(makeFailure(artifactPath, record, "completion_validation.passed", true, validation.passed));
+  }
+}
+
+function setEquals(left, right) {
+  return left.size === right.size && [...left].every((item) => right.has(item));
+}
+
+function validateUniqueArrayItems(record, field, artifactPath, failures) {
+  const values = record[field];
+  if (!Array.isArray(values)) return new Set();
+  const seen = new Set();
+  for (const value of values) {
+    if (seen.has(value)) {
+      failures.push(makeFailure(artifactPath, record, field, "unique values", value));
+    }
+    seen.add(value);
+  }
+  return seen;
+}
+
+function validateLedgerLensScope(root, record, artifactPath, failures) {
+  const registry = readJsonFile(join(root, "reviews", "registry.json"));
+  const registryLensIds = registry.lenses.map((entry) => entry.id);
+  const registryLensSet = new Set(registryLensIds);
+  const selectedLensSet = validateUniqueArrayItems(record, "selected_lenses", artifactPath, failures);
+  for (const lens of record.selected_lenses || []) {
+    if (!registryLensSet.has(lens)) {
+      failures.push(makeFailure(artifactPath, record, "selected_lenses", "known registry lens id", lens));
+    }
+  }
+  if (record.run_scope === "six_lens" && !setEquals(selectedLensSet, registryLensSet)) {
+    failures.push(makeFailure(artifactPath, record, "selected_lenses", `exact registry lens set for six_lens: ${registryLensIds.join(",")}`, (record.selected_lenses || []).join(",")));
+  }
+}
+
+function validateCompletionValidationReferences(record, artifactPath, failures) {
+  if (record.status !== "completed" || record.run_mode !== "full" || record.completion_validation?.passed !== true) return;
+  const currentIds = new Set(record.current_review_record_ids || []);
+  const validatedReviewIds = record.completion_validation.validated_review_record_ids || [];
+  const validatedIds = new Set(validatedReviewIds);
+  if (validatedIds.size !== validatedReviewIds.length) {
+    failures.push(makeFailure(artifactPath, record, "completion_validation.validated_review_record_ids", "unique values", validatedReviewIds.join(",")));
+  }
+  if (!setEquals(validatedIds, currentIds)) {
+    failures.push(makeFailure(
+      artifactPath,
+      record,
+      "completion_validation.validated_review_record_ids",
+      `exact current_review_record_ids: ${[...currentIds].join(",")}`,
+      [...validatedIds].join(",")
+    ));
+  }
+  const synthesisIds = new Set(record.synthesis_record_ids || []);
+  const validatedSynthesisId = record.completion_validation.validated_synthesis_record_id;
+  if (!synthesisIds.has(validatedSynthesisId)) {
+    failures.push(makeFailure(
+      artifactPath,
+      record,
+      "completion_validation.validated_synthesis_record_id",
+      `one of synthesis_record_ids: ${[...synthesisIds].join(",")}`,
+      validatedSynthesisId
+    ));
+  }
+}
+
 export function validateReviewRecord(record, options = {}) {
   const root = options.artifactRoot || repoRootFrom();
   const artifactPath = options.artifactPath || options.inputPath || record.artifact_path || "review-output";
@@ -367,6 +628,7 @@ export function validateReviewRecord(record, options = {}) {
   validateEnum(record.verdict, REVIEW_VERDICTS, artifactPath, record, "verdict", failures);
   validateEnum(record.execution_mode, EXECUTION_MODES, artifactPath, record, "execution_mode", failures);
   validateEnum(record.status, REVIEW_STATUSES, artifactPath, record, "status", failures);
+  validateRunMode(record, artifactPath, failures);
   validatePathField(root, artifactPath, record, "target_path", failures, { mustExist: false });
   validatePathField(root, artifactPath, record, "artifact_path", failures, { mustExist: false });
   if (options.targetRevision && record.target_revision !== options.targetRevision) {
@@ -376,17 +638,102 @@ export function validateReviewRecord(record, options = {}) {
     failures.push(makeFailure(artifactPath, record, "attempt", "positive integer", record.attempt));
   }
   validateScorecard(record, artifactPath, failures);
+  validateScoreChallenges(record, artifactPath, failures);
   validateCrossCutting(record, artifactPath, failures);
   validateMaterialBlockers(record, artifactPath, failures);
+  validateProvenance(record, root, artifactPath, failures);
   const requiresMarkdown = record.status === "completed" || record.fixture_kind !== "schema_only_minimal";
   validateMarkdownBinding(root, artifactPath, record, "review", failures, { required: requiresMarkdown });
 
-  if (record.execution_mode === "fresh_spawned_lens_reviewers" && record.status === "completed") {
+  if (["fresh_spawned_lens_reviewers", "fresh_spawned_orchestrator"].includes(record.execution_mode) && record.status === "completed") {
     if (!record.agent_id) failures.push(makeFailure(artifactPath, record, "agent_id", "present", record.agent_id));
     if (record.closed !== true) failures.push(makeFailure(artifactPath, record, "closed", true, record.closed));
     if (record.output_captured !== true) failures.push(makeFailure(artifactPath, record, "output_captured", true, record.output_captured));
   }
   return failures;
+}
+
+export function writeRunEvent(root, eventsPath, event, data = {}) {
+  if (!TRACE_EVENT_NAMES.includes(event)) {
+    throw Object.assign(new Error(`unsupported event ${event}`), { exitCode: EXIT_CODES.usage });
+  }
+  if (!isRepoRelativePath(eventsPath)) {
+    throw Object.assign(new Error(`events path must be repository-relative: ${eventsPath}`), { exitCode: EXIT_CODES.usage });
+  }
+  const resolved = resolveRepoPath(root, eventsPath);
+  if (!resolved) {
+    throw Object.assign(new Error(`events path must resolve under repository root: ${eventsPath}`), { exitCode: EXIT_CODES.usage });
+  }
+  const artifactPath = data.artifact_path;
+  if (artifactPath !== undefined && artifactPath !== null && !isRepoRelativePath(artifactPath)) {
+    throw Object.assign(new Error(`event artifact_path must be repository-relative: ${artifactPath}`), { exitCode: EXIT_CODES.usage });
+  }
+  const record = {
+    event,
+    pass_id: data.pass_id,
+    timestamp: data.timestamp || new Date().toISOString(),
+    role: data.role || "orchestrator",
+    target_revision: data.target_revision,
+    artifact_path: artifactPath || null,
+    status: data.status || "created"
+  };
+  appendFileSync(resolved, `${JSON.stringify(record)}\n`, "utf8");
+}
+
+function validateEventsLog(root, ledger, artifactPath, failures) {
+  const eventsPath = ledger.events_path;
+  if (!isRepoRelativePath(eventsPath)) {
+    failures.push(makeFailure(artifactPath, ledger, "events_path", "repository-relative path", eventsPath));
+    return [];
+  }
+  const resolved = resolveRepoPath(root, eventsPath);
+  if (!resolved || !existsSync(resolved)) {
+    failures.push(makeFailure(artifactPath, ledger, "events_path", "existing events.jsonl", eventsPath));
+    return [];
+  }
+  const events = [];
+  for (const [index, line] of readTextFile(resolved).split(/\r?\n/).entries()) {
+    if (!line.trim()) continue;
+    let event;
+    try {
+      event = JSON.parse(line);
+    } catch (error) {
+      failures.push(makeFailure(artifactPath, ledger, `events_path.line_${index + 1}`, "valid JSON object", error.message));
+      continue;
+    }
+    events.push(event);
+    validateEnum(event.event, TRACE_EVENT_NAMES, artifactPath, event, "event", failures);
+    for (const field of ["pass_id", "timestamp", "role", "target_revision", "status"]) {
+      if (typeof event[field] !== "string" || event[field].trim().length === 0) {
+        failures.push(makeFailure(artifactPath, event, field, "non-empty string", event[field]));
+      }
+    }
+    if (event.pass_id !== ledger.pass_id) {
+      failures.push(makeFailure(artifactPath, event, "pass_id", ledger.pass_id, event.pass_id));
+    }
+    if (event.target_revision !== ledger.target_revision) {
+      failures.push(makeFailure(artifactPath, event, "target_revision", ledger.target_revision, event.target_revision));
+    }
+    if (event.artifact_path !== null && event.artifact_path !== undefined && !isRepoRelativePath(event.artifact_path)) {
+      failures.push(makeFailure(artifactPath, event, "artifact_path", "repository-relative path or null", event.artifact_path));
+    }
+  }
+  return events;
+}
+
+function eventMatches(event, expected = {}) {
+  for (const [field, value] of Object.entries(expected)) {
+    if (event[field] !== value) return false;
+  }
+  return true;
+}
+
+function requireDetachedEvent(events, artifactPath, record, eventName, expected, failures) {
+  const found = events.some((event) => event.event === eventName && eventMatches(event, expected));
+  if (!found) {
+    const qualifier = Object.entries(expected).map(([key, value]) => `${key}=${value}`).join(", ");
+    failures.push(makeFailure(artifactPath, record, "events_path", `event ${eventName}${qualifier ? ` with ${qualifier}` : ""}`, "missing"));
+  }
 }
 
 export function validateSynthesisRecord(record, options = {}) {
@@ -396,6 +743,8 @@ export function validateSynthesisRecord(record, options = {}) {
   requireFields(record, SYNTHESIS_REQUIRED_FIELDS, artifactPath, failures);
   validateSchemaVersion(record, artifactPath, failures);
   validateEnum(record.final_assessment, FINAL_ASSESSMENTS, artifactPath, record, "final_assessment", failures);
+  validateRunMode(record, artifactPath, failures, { ledger: options.ledger });
+  validateClaimFlags(record, artifactPath, failures);
   validatePathField(root, artifactPath, record, "target_path", failures, { mustExist: false });
   validatePathField(root, artifactPath, record, "artifact_path", failures, { mustExist: false });
   for (const field of ["included_review_record_ids", "superseded_review_record_ids"]) {
@@ -408,11 +757,13 @@ export function validateSynthesisRecord(record, options = {}) {
   }
   validateFindingDecisions(record, artifactPath, failures);
   validateLensLocks(record, artifactPath, failures);
+  validatePriorMaterialFindings(record, artifactPath, failures);
   validateMarkdownBinding(root, artifactPath, record, "synthesis", failures);
 
   if (options.ledger) {
     const currentIds = new Set(options.ledger.current_review_record_ids || []);
     const reviewArtifacts = new Map((options.ledger.review_record_artifacts || []).map((entry) => [entry.record_id, entry.artifact_path]));
+    const currentReviewsByLens = new Map();
     for (const id of record.included_review_record_ids || []) {
       if (!currentIds.has(id)) {
         failures.push(makeFailure(artifactPath, record, "included_review_record_ids", "current ledger review id", id));
@@ -441,7 +792,11 @@ export function validateSynthesisRecord(record, options = {}) {
       if (review.status !== "completed") {
         failures.push(makeFailure(artifactPath, review, "status", "completed included review", review.status));
       }
+      if (review.status === "completed" && review.lens) {
+        currentReviewsByLens.set(review.lens, review);
+      }
     }
+    validateSynthesisLockClaims(record, currentReviewsByLens, artifactPath, failures);
   }
   return failures;
 }
@@ -454,8 +809,30 @@ export function validateLedgerRecord(record, options = {}) {
   validateSchemaVersion(record, artifactPath, failures);
   validateEnum(record.status, LEDGER_STATUSES, artifactPath, record, "status", failures);
   validateEnum(record.execution_mode, EXECUTION_MODES, artifactPath, record, "execution_mode", failures);
+  validateRunMode(record, artifactPath, failures);
   validateEnum(record.artifact_visibility, ARTIFACT_VISIBILITY, artifactPath, record, "artifact_visibility", failures);
   validatePathField(root, artifactPath, record, "target_path", failures, { mustExist: false });
+  validateCompletionValidation(record, artifactPath, failures);
+  let events = [];
+  if (record.execution_mode === "fresh_spawned_orchestrator") {
+    events = validateEventsLog(root, record, artifactPath, failures);
+  }
+  if (record.status === "completed" && record.execution_mode === "fresh_spawned_orchestrator") {
+    requireDetachedEvent(events, artifactPath, record, "orchestrator_started", { role: "orchestrator", status: "started" }, failures);
+    requireDetachedEvent(events, artifactPath, record, "ledger_created", { role: "orchestrator" }, failures);
+    requireDetachedEvent(events, artifactPath, record, "prompt_packet_created", { role: "orchestrator" }, failures);
+    requireDetachedEvent(events, artifactPath, record, "spawn_prompt_created", { role: "orchestrator" }, failures);
+    requireDetachedEvent(events, artifactPath, record, "validation_passed", { role: "orchestrator" }, failures);
+    requireDetachedEvent(events, artifactPath, record, "synthesis_completed", { role: "orchestrator" }, failures);
+    requireDetachedEvent(events, artifactPath, record, "archive_written", { role: "orchestrator" }, failures);
+    requireDetachedEvent(events, artifactPath, record, "completion_reported", { role: "orchestrator" }, failures);
+    for (const reviewId of record.current_review_record_ids || []) {
+      const reviewPath = (record.review_record_artifacts || []).find((entry) => entry.record_id === reviewId)?.artifact_path;
+      requireDetachedEvent(events, artifactPath, record, "reviewer_spawned", { role: "orchestrator", artifact_path: reviewPath }, failures);
+      requireDetachedEvent(events, artifactPath, record, "reviewer_completed", { role: "orchestrator", artifact_path: reviewPath }, failures);
+      requireDetachedEvent(events, artifactPath, record, "reviewer_closed", { role: "orchestrator", artifact_path: reviewPath }, failures);
+    }
+  }
   if (options.targetRevision && record.target_revision !== options.targetRevision) {
     failures.push(makeFailure(artifactPath, record, "target_revision", options.targetRevision, record.target_revision));
   }
@@ -464,6 +841,8 @@ export function validateLedgerRecord(record, options = {}) {
       failures.push(makeFailure(artifactPath, record, field, "array", record[field]));
     }
   }
+  validateLedgerLensScope(root, record, artifactPath, failures);
+  validateCompletionValidationReferences(record, artifactPath, failures);
   for (const archivePath of record.archive_paths || []) {
     if (!isRepoRelativePath(archivePath)) {
       failures.push(makeFailure(artifactPath, record, "archive_paths", "repository-relative path", archivePath));
@@ -474,6 +853,7 @@ export function validateLedgerRecord(record, options = {}) {
   const synthesisArtifacts = new Map((record.synthesis_record_artifacts || []).map((entry) => [entry.record_id, entry.artifact_path]));
   const seenCurrentTuples = new Set();
   const currentIds = new Set(record.current_review_record_ids || []);
+  const currentLenses = new Set();
 
   for (const id of currentIds) {
     const reviewPath = reviewArtifacts.get(id);
@@ -497,14 +877,28 @@ export function validateLedgerRecord(record, options = {}) {
       artifactPath: reviewPath
     });
     failures.push(...reviewFailures);
+    if (review.run_mode !== record.run_mode) {
+      failures.push(makeFailure(artifactPath, review, "run_mode", `matching ledger run_mode ${record.run_mode}`, review.run_mode));
+    }
+    if (review.execution_mode !== record.execution_mode) {
+      failures.push(makeFailure(artifactPath, review, "execution_mode", `matching ledger execution_mode ${record.execution_mode}`, review.execution_mode));
+    }
     if (review.status !== "completed") {
       failures.push(makeFailure(artifactPath, review, "status", "completed current review", review.status));
     }
+    if (review.lens) currentLenses.add(review.lens);
     const tuple = `${review.pass_id}|${review.target_revision}|${review.lens}|${review.attempt}`;
     if (seenCurrentTuples.has(tuple)) {
       failures.push(makeFailure(artifactPath, review, "attempt", "unique current pass/target/lens/attempt", tuple));
     }
     seenCurrentTuples.add(tuple);
+  }
+  if (record.status === "completed" && record.run_mode === "full") {
+    for (const lens of record.selected_lenses || []) {
+      if (!currentLenses.has(lens)) {
+        failures.push(makeFailure(artifactPath, record, "current_review_record_ids", `completed current review for selected lens ${lens}`, "missing"));
+      }
+    }
   }
 
   for (const id of record.synthesis_record_ids || []) {
@@ -531,6 +925,54 @@ export function validateLedgerRecord(record, options = {}) {
     }));
   }
 
+  return failures;
+}
+
+export function validateCompletionSummaryRecord(record, options = {}) {
+  const root = options.artifactRoot || repoRootFrom();
+  const artifactPath = options.artifactPath || options.inputPath || "completion-summary";
+  const failures = [];
+  requireFields(record, COMPLETION_SUMMARY_REQUIRED_FIELDS, artifactPath, failures);
+  validateSchemaVersion(record, artifactPath, failures);
+  validateRunMode(record, artifactPath, failures);
+  validateEnum(record.run_scope, RUN_SCOPES, artifactPath, record, "run_scope", failures);
+  validatePathField(root, artifactPath, record, "target_path", failures, { mustExist: false });
+  if (options.targetRevision && record.target_revision !== options.targetRevision) {
+    failures.push(makeFailure(artifactPath, record, "target_revision", options.targetRevision, record.target_revision));
+  }
+  validateClaimFlags(record, artifactPath, failures);
+
+  const text = String(record.summary_text || "");
+  const forbiddenClaims = [
+    ["completion", /\bLensTemper pass complete\b/i],
+    ["review_complete", /\breview complete\b/i],
+    ["all_5_lockable", /\ball\s*5\/5\b/i],
+    ["lock_state", /\bpassing_locked\b|\bconverged_locked\b/i]
+  ];
+  if (record.run_mode !== "full") {
+    for (const [claimType, pattern] of forbiddenClaims) {
+      if (pattern.test(text)) {
+        failures.push(makeFailure(artifactPath, record, `summary_text.${claimType}`, "no lockable/completion wording for non-full run", "forbidden phrase"));
+      }
+    }
+  }
+  if (record.run_mode === "inline") {
+    for (const phrase of ["Inline LensTemper-style review", "Not independently reviewed", "No spawned reviewers used", "Scores are advisory, not lockable"]) {
+      if (!text.includes(phrase)) {
+        failures.push(makeFailure(artifactPath, record, "summary_text.inline_fallback", phrase, "missing"));
+      }
+    }
+  }
+  if (record.run_mode === "advisory") {
+    for (const phrase of ["Advisory LensTemper critique", "Not a completed LensTemper pass", "No lock states available", "Scores, if present, are advisory only"]) {
+      if (!text.includes(phrase)) {
+        failures.push(makeFailure(artifactPath, record, "summary_text.advisory_fallback", phrase, "missing"));
+      }
+    }
+  }
+  if (record.run_mode === "full" && record.run_scope === "selected_lenses" && text.includes("LensTemper pass complete") && !text.includes("Full LensTemper review for selected lenses only")) {
+    failures.push(makeFailure(artifactPath, record, "summary_text.scope_label", "selected-lens scope label", "missing"));
+  }
   return failures;
 }
 

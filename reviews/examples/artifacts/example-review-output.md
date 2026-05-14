@@ -71,9 +71,9 @@ This file shows the expected shape of a completed review. Use it as a reference 
 
 ---
 
-## Strong / Locking Example
+## Strong Advisory Example
 
-This second fabricated example shows that a review can legitimately end at `Strong` with all `5/5` scores even when the reviewer notes non-blocking polish.
+This second fabricated example shows that a per-lens review can legitimately end at `Strong` with high scores even when the reviewer notes non-blocking polish. A single per-lens output is still advisory; lockable completion requires the full ledger, artifacts, reviewer cleanup status, and validation evidence.
 
 ### Provenance
 
@@ -125,7 +125,7 @@ This second fabricated example shows that a review can legitimately end at `Stro
 | Dimension | Score | Notes |
 |-----------|-------|-------|
 | Correctness | 5/5 | User-visible behavior is defined enough to implement correctly |
-| Completeness | 5/5 | Required UX states and action feedback are covered |
+| Completeness | 4/5 | Required UX states and action feedback are covered; exact success copy remains optional polish |
 | Risk Awareness | 5/5 | Failure and retry paths are specified |
 | Testability | 5/5 | States are concrete enough for UI assertions |
 | Maintainability | 5/5 | Reuses existing UX patterns |

@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "pass_id": "example-pass",
+  "target_path": "docs/plans/FORWARD_PLAN.md",
+  "target_revision": "example-target-revision",
+  "status": "completed",
+  "run_mode": "inline",
+  "run_scope": "selected_lenses",
+  "execution_mode": "fresh_spawned_lens_reviewers",
+  "selected_lenses": [
+    "implementation"
+  ],
+  "current_review_record_ids": [
+    "review-implementation-1"
+  ],
+  "superseded_review_record_ids": [],
+  "synthesis_record_ids": [
+    "synthesis-1"
+  ],
+  "archive_paths": [
+    "reviews/archive/2026-05-03-forward-plan-example-pass"
+  ],
+  "artifact_visibility": "public_safe",
+  "completion_validation": {
+    "validator_name": "validate-completion-summary",
+    "validator_contract_version": "1.1.0",
+    "passed": false,
+    "validated_review_record_ids": [
+      "review-implementation-1"
+    ],
+    "validated_synthesis_record_id": "synthesis-1",
+    "failures": [
+      {
+        "claim_type": "lock_state",
+        "artifact_path": "reviews/examples/review-ledger.invalid-inline-full-mapping.json",
+        "field": "execution_mode",
+        "reason": "inline run_mode must use manual_or_imported execution_mode"
+      }
+    ]
+  },
+  "review_record_artifacts": [
+    {
+      "record_id": "review-implementation-1",
+      "artifact_path": "reviews/examples/review-output.valid-full.json"
+    }
+  ],
+  "synthesis_record_artifacts": [
+    {
+      "record_id": "synthesis-1",
+      "artifact_path": "reviews/examples/synthesis-output.valid.json"
+    }
+  ]
+}

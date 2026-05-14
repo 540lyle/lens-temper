@@ -648,6 +648,7 @@ Planned files:
 ```text
 reviews/scripts/hash-review-target.mjs
 reviews/scripts/assemble-review-prompt.mjs
+reviews/scripts/assemble-spawn-prompt.mjs
 reviews/examples/review-input.packet.md
 ```
 
@@ -675,6 +676,9 @@ Success criteria:
 - The generated prompt includes deterministic provenance.
 - The generated prompt can be validated against the selected lens manifest and
   current target hash before a reviewer sees it.
+- A host subagent spawn prompt can be generated from repository-relative paths
+  without duplicating the full review packet or embedding absolute workspace
+  paths.
 - Update `reviews/registry.json` with prompt assembly scripts and example
   input packet paths.
 
@@ -805,12 +809,15 @@ Metrics:
 Expected eval report shape:
 
 ```text
-fixtures: 8
-critical_recall: 7/7
-false_positive_blockers: 0
-unsupported_claim_rate: 0.00
-schema_validity: 8/8
-rerun_decision_accuracy: 8/8
+fixtures: 15
+eval_method: fixture_keyword_smoke
+critical_recall: not_measured
+critical_fixture_keyword_coverage: 14/14
+false_positive_blockers: not_measured
+noncritical_fixture_keyword_matches: 0
+keyword_missing_rate: 0.00
+schema_validity: 15/15
+rerun_decision_accuracy: not_measured
 prompt_assertions: 1/1
 recommendation: keep
 ```
@@ -847,6 +854,7 @@ The callable runner should remain a coordinator around:
 
 - registry discovery
 - deterministic prompt assembly
+- repository-relative subagent spawn handoff prompt generation
 - JSON ledger updates
 - validators
 - archive helpers

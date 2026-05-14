@@ -2,7 +2,7 @@
 
 - Pass ID: example-pass
 - Lens: implementation
-- Target Path: FORWARD_PLAN.md
+- Target Path: docs/plans/FORWARD_PLAN.md
 - Target Revision: example-target-revision
 - Template Revision: example-template-revision
 - Lens Revision: example-lens-revision
@@ -56,3 +56,8 @@
 | Testability | 5/5 | No material issue. |
 | Maintainability | 5/5 | No material issue. |
 | Ship Readiness | 5/5 | No material issue. |
+
+5/5 challenge evidence: each dimension would drop to 4/5 if a material issue
+blocked implementation, validation, or ship readiness. The fixture has no
+accepted material blockers, and the validator examples demonstrate the expected
+schema and runtime-state evidence.

@@ -49,7 +49,9 @@ You are a senior technical lead consolidating feedback from multiple plan review
     - `rejected`: unsupported, duplicate, out of domain, or contradicted by the plan/context.
     - `downgraded`: valid concern but non-blocking polish or lower severity than reported.
     - `deferred`: valid material risk accepted by the human/synthesis owner for later handling.
-12. Decide lens lock/rerun status from material findings, not score averages. A lens can be `passing_locked` at all `5/5`, `converged_locked` at all `4/5` or better with no accepted material blockers, or `rerun_required` when accepted material issues remain in that lens domain.
+12. Decide lens lock/rerun status from material findings and validated review records, not score averages. A lens can be `passing_locked` only in `run_mode: full` when a current valid review record has all `5/5`, no material blockers, valid provenance, and score-challenge evidence for every `5/5`. A lens can be `converged_locked` only in `run_mode: full` at all `4/5` or better with no accepted material blockers. Inline and advisory synthesis may say issues appear resolved, but must not invent per-lens scores or lock states.
+13. Use `claim_flags` for completion, lock-state, all-5 lockability, and review-complete claims. Do not set those flags unless the ledger and referenced records support them.
+14. If prior accepted material findings affect all-5 confidence, record them in `prior_material_findings_context` with explicit source records. Do not infer them by scanning unrelated archives.
 
 ---
 

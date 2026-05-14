@@ -23,7 +23,7 @@ The current system is intentionally Markdown-first:
   output.
 - `reviews/lenses/lens-*.md` define the six default review lenses.
 - `reviews/examples/artifacts/example-review-output.md` provides both
-  fix-required and `Strong` / all-`5/5` examples.
+  fix-required and high-confidence advisory examples.
 - `reviews/examples/input-packets/*-review-inputs.md` are generic fixture
   packets that show how to assemble review inputs without exposing
   project-specific implementation details.
@@ -52,6 +52,10 @@ reviews/README.md
 ```
 
 Then use one reviewer template plus one lens file per review agent.
+
+For a high-level view of how the orchestrator, generated prompt packets,
+spawned lens reviewers, synthesis, reruns, and archive state fit together, see
+[docs/agent-flow.md](docs/agent-flow.md).
 
 ## Plugin Layout
 
@@ -93,4 +97,4 @@ Common helpers:
 
 ## Forward Plan
 
-See `FORWARD_PLAN.md`.
+See `docs/plans/FORWARD_PLAN.md`.

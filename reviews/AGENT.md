@@ -30,6 +30,8 @@ workflow from repository files instead of prior chat context.
 - Record deterministic target, template, and lens revisions when running
   spawned or repeatable reviews.
 - Close spawned reviewers after output capture.
+- Label run mode honestly. Inline and advisory reviews cannot claim completed
+  LensTemper passes, lock states, or lockable all-5 scores.
 
 ## Output Expectations
 
@@ -39,6 +41,8 @@ workflow from repository files instead of prior chat context.
   `reviews/synthesize-review-feedback.md`.
 - Orchestrators must report final evidence from `reviews/README.md` before
   declaring a review complete.
+- Orchestrators must validate completion and claim language before reporting
+  lockable or complete status.
 - Orchestrators must include the user-facing completion summary from
   `reviews/README.md`, including the per-lens score table, final assessment,
   artifact path/storage status, accepted material findings, rerun or lock status,

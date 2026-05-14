@@ -12,6 +12,7 @@ import {
   repoRootFrom,
   usage,
   validateLedgerRecord,
+  validateCompletionSummaryRecord,
   validateReviewRecord,
   validateSynthesisRecord
 } from "./validation-helpers.mjs";
@@ -92,14 +93,15 @@ function checkSchemaDrift(root) {
         }
       }
     }
-    for (const [state, requiredFields] of Object.entries(contract.conditionalRequired || {})) {
-      const conditional = (schema.allOf || []).find((entry) => entry.if?.properties?.status?.const === state);
+    for (const [condition, requiredFields] of Object.entries(contract.conditionalRequired || {})) {
+      const [field, state] = condition.includes(".") ? condition.split(".", 2) : ["status", condition];
+      const conditional = (schema.allOf || []).find((entry) => entry.if?.properties?.[field]?.const === state);
       const actualRequired = new Set(conditional?.then?.required || []);
       for (const expected of requiredFields) {
         if (!actualRequired.has(expected)) {
           failures.push({
             artifact_path: schemaPath,
-            field: `allOf.status.${state}.required`,
+            field: `allOf.${field}.${state}.required`,
             expected,
             actual: "missing",
             message: "schema missing conditional required field"
@@ -198,6 +200,13 @@ function validateFixture(root, type, repoPath, ledger) {
       artifactPath: repoPath
     });
   }
+  if (type === "completion-summary") {
+    return validateCompletionSummaryRecord(record, {
+      artifactRoot: root,
+      targetRevision: TARGET_REVISION,
+      artifactPath: repoPath
+    });
+  }
   throw new Error(`unknown fixture type ${type}`);
 }
 
@@ -226,7 +235,8 @@ try {
   const groups = [
     ["review-output", discover(root, "review-output", "valid"), discover(root, "review-output", "invalid")],
     ["synthesis-output", discover(root, "synthesis-output", "valid"), discover(root, "synthesis-output", "invalid")],
-    ["ledger", discover(root, "review-ledger", "valid"), discover(root, "review-ledger", "invalid")]
+    ["ledger", discover(root, "review-ledger", "valid"), discover(root, "review-ledger", "invalid")],
+    ["completion-summary", discover(root, "completion-summary", "valid"), discover(root, "completion-summary", "invalid")]
   ];
 
   const summaries = [];

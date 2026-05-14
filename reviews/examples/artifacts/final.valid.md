@@ -1,6 +1,6 @@
 Final assessment: Ready to implement
 
-Target: FORWARD_PLAN.md at example-target-revision
+Target: docs/plans/FORWARD_PLAN.md at example-target-revision
 
 Artifact storage: reviews/archive/example-pass/
 

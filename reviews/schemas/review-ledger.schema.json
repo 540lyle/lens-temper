@@ -8,6 +8,8 @@
     "target_path",
     "target_revision",
     "status",
+    "run_mode",
+    "run_scope",
     "execution_mode",
     "selected_lenses",
     "current_review_record_ids",
@@ -15,6 +17,7 @@
     "synthesis_record_ids",
     "archive_paths",
     "artifact_visibility",
+    "completion_validation",
     "review_record_artifacts",
     "synthesis_record_artifacts"
   ],
@@ -26,9 +29,16 @@
     "status": {
       "enum": ["active", "completed", "error", "superseded", "stale"]
     },
-    "execution_mode": {
-      "enum": ["fresh_spawned_lens_reviewers", "manual_or_imported"]
+    "run_mode": {
+      "enum": ["full", "inline", "advisory"]
     },
+    "run_scope": {
+      "enum": ["six_lens", "selected_lenses"]
+    },
+    "execution_mode": {
+      "enum": ["fresh_spawned_lens_reviewers", "fresh_spawned_orchestrator", "manual_or_imported"]
+    },
+    "events_path": { "type": "string" },
     "selected_lenses": {
       "type": "array",
       "items": { "type": "string" }
@@ -51,6 +61,40 @@
     },
     "artifact_visibility": {
       "enum": ["public_safe", "private_local_only"]
+    },
+    "completion_validation": {
+      "type": "object",
+      "required": [
+        "validator_name",
+        "validator_contract_version",
+        "passed",
+        "validated_review_record_ids",
+        "failures"
+      ],
+      "properties": {
+        "validator_name": { "type": "string" },
+        "validator_contract_version": { "type": "string" },
+        "passed": { "type": "boolean" },
+        "validated_review_record_ids": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "validated_synthesis_record_id": { "type": "string" },
+        "failures": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "claim_type": { "type": "string" },
+              "artifact_path": { "type": "string" },
+              "field": { "type": "string" },
+              "reason": { "type": "string" }
+            },
+            "additionalProperties": true
+          }
+        }
+      },
+      "additionalProperties": true
     },
     "review_record_artifacts": {
       "type": "array",
@@ -77,5 +121,17 @@
       }
     }
   },
-  "additionalProperties": true
+  "additionalProperties": true,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "execution_mode": { "const": "fresh_spawned_orchestrator" }
+        }
+      },
+      "then": {
+        "required": ["events_path"]
+      }
+    }
+  ]
 }

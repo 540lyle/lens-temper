@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "LensTemper Completion Summary",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "run_mode",
+    "run_scope",
+    "target_path",
+    "target_revision",
+    "claim_flags",
+    "summary_text"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "run_mode": {
+      "enum": ["full", "inline", "advisory"]
+    },
+    "run_scope": {
+      "enum": ["six_lens", "selected_lenses"]
+    },
+    "target_path": { "type": "string" },
+    "target_revision": { "type": "string" },
+    "claim_flags": {
+      "type": "object",
+      "required": ["completion", "lock_state", "all_5_lockable", "review_complete"],
+      "properties": {
+        "completion": { "type": "boolean" },
+        "lock_state": { "type": "boolean" },
+        "all_5_lockable": { "type": "boolean" },
+        "review_complete": { "type": "boolean" }
+      },
+      "additionalProperties": true
+    },
+    "summary_text": { "type": "string" }
+  },
+  "additionalProperties": true
+}

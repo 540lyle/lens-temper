@@ -11,6 +11,7 @@ import {
   repoRootFrom,
   resolveRepoPath,
   usage,
+  validateCompletionSummaryRecord,
   validateReviewRecord
 } from "./validation-helpers.mjs";
 
@@ -54,6 +55,25 @@ function collectLensScores(root, ledger) {
 
 function asMarkdown(ledger, synthesis, synthesisPath, lensScores) {
   const lines = [];
+  if (ledger.run_mode === "inline") {
+    lines.push("Inline LensTemper-style review");
+    lines.push("Not independently reviewed");
+    lines.push("No spawned reviewers used");
+    lines.push("Scores are advisory, not lockable");
+    lines.push("");
+  } else if (ledger.run_mode === "advisory") {
+    lines.push("Advisory LensTemper critique");
+    lines.push("Not a completed LensTemper pass");
+    lines.push("No lock states available");
+    lines.push("Scores, if present, are advisory only");
+    lines.push("");
+  } else if (ledger.run_mode === "full" && ledger.run_scope === "selected_lenses") {
+    lines.push("Full LensTemper review for selected lenses only");
+    lines.push("");
+  } else if (ledger.run_mode === "full" && ledger.run_scope === "six_lens") {
+    lines.push("LensTemper pass complete");
+    lines.push("");
+  }
   lines.push(`Final assessment: ${synthesis.final_assessment || "not recorded"}`);
   lines.push(`Target: ${ledger.target_path} at ${ledger.target_revision}`);
   lines.push(`Artifact storage: ${(ledger.archive_paths || []).join(", ") || "not archived"}`);
@@ -103,9 +123,18 @@ try {
   const synthesis = readJsonFile(opts.synthesis);
   const lensScores = collectLensScores(root, ledger);
   const summary = {
+    schema_version: 1,
+    run_mode: ledger.run_mode,
+    run_scope: ledger.run_scope,
     final_assessment: synthesis.final_assessment,
     target_path: ledger.target_path,
     target_revision: ledger.target_revision,
+    claim_flags: synthesis.claim_flags || {
+      completion: false,
+      lock_state: false,
+      all_5_lockable: false,
+      review_complete: false
+    },
     artifact_storage: ledger.archive_paths || [],
     lens_scores: lensScores,
     accepted_findings: (synthesis.finding_decisions || []).filter((entry) => entry.decision === "accepted"),
@@ -113,6 +142,17 @@ try {
     verification_evidence: "reviewer outputs captured and validators passed"
   };
   const text = asMarkdown(ledger, synthesis, opts.synthesis, lensScores);
+  summary.summary_text = text;
+  const summaryFailures = validateCompletionSummaryRecord(summary, {
+    artifactRoot: root,
+    targetRevision: ledger.target_revision,
+    artifactPath: "emit-completion-summary"
+  });
+  if (summaryFailures.length > 0) {
+    process.stderr.write(summaryFailures.map((failure) => `${failure.artifact_path} field=${failure.field} expected=${failure.expected} actual=${failure.actual}`).join("\n"));
+    process.stderr.write("\n");
+    process.exit(EXIT_CODES.validation);
+  }
   if (opts.out) {
     if (!isRepoRelativePath(opts.out)) {
       process.stderr.write(`validation error: --out must be repository-relative\n`);
