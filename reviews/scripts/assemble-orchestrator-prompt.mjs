@@ -108,6 +108,11 @@ ${requiredArtifacts.map((path) => `- \`${path}\``).join("\n")}
 
 # Event Log
 Append one JSON object per line to \`${eventsPath}\`. Every event must include \`pass_id\`, \`timestamp\`, \`role\`, \`target_revision\`, optional repository-relative \`artifact_path\`, and \`status\`.
+
+For this packet, emit all orchestrator-owned events with \`role: \"orchestrator\"\`. Leave any launcher-authored setup events intact (they may use \`role: \"parent_launcher\"\`).
+
+Include \`artifact_path\` whenever the event refers to a concrete artifact (prompt packets, spawn prompts, reviewer outputs, synthesis, archive evidence, or completion summary).
+
 Use these event names when they occur: \`orchestrator_started\`, \`ledger_created\`, \`prompt_packet_created\`, \`spawn_prompt_created\`, \`reviewer_spawned\`, \`reviewer_completed\`, \`reviewer_closed\`, \`validation_passed\`, \`synthesis_completed\`, \`rerun_selected\`, \`archive_written\`, \`completion_reported\`.
 
 # Stop Conditions
