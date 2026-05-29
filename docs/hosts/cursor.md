@@ -1,8 +1,9 @@
 # Cursor Host Guide
 
-Cursor support is advisory/reference in this package version. The Cursor adapter
-helps users run LensTemper-shaped reviews in Cursor, but it does not by itself
-prove fresh reviewer isolation or lockable LensTemper completion.
+Cursor support is conditional full when a detached run proves fresh reviewer
+isolation and artifact validation; otherwise Cursor support is
+advisory/reference. The Cursor adapter helps users run LensTemper-shaped reviews
+inside Cursor, but it does not by itself prove lockable LensTemper completion.
 
 ## Advisory Quick Start
 
@@ -14,8 +15,8 @@ prove fresh reviewer isolation or lockable LensTemper completion.
 5. If Cursor exposes `skills/`, start normal review requests through
    `skills/start-plan-review/SKILL.md`; if it does not, use the rule-only
    advisory prompt below.
-6. Confirm the output is labeled advisory/reference and does not claim full
-   LensTemper completion.
+6. Confirm any non-gated output is labeled advisory/reference and does not
+   claim full LensTemper completion.
 
 For host installation details, see `docs/INSTALL.md#cursor`.
 
@@ -26,7 +27,11 @@ For host installation details, see `docs/INSTALL.md#cursor`.
   LensTemper-shaped review.
 - Skill-assisted advisory: use `skills/start-plan-review/SKILL.md` when Cursor
   has loaded the skill folders. This may help assemble per-lens prompts, but it
-  remains advisory in Cursor until the full-review experiment passes.
+  remains advisory/reference until the conditional full gates below pass.
+- Conditional full: launch a detached orchestrator subagent and have that
+  orchestrator spawn one independent reviewer per selected lens. Save
+  validator-backed artifacts and run the isolation falsification check before
+  making any full-support claim.
 - Legacy alias: `skills/plan-review-orchestrator/SKILL.md` forwards old
   invocations to `start-plan-review`.
 
@@ -105,35 +110,57 @@ advisory outputs are manually checked against this section and
 `reviews/reviewer-template.md`; `validate-review-fixtures.mjs` validates repo
 fixtures, not arbitrary live Cursor Markdown.
 
-## Full-Review Experiment
+## Conditional Full Gates
 
-Cursor Background Agents may become a possible full-review backend, but that is
-an experiment, not current support. Do not claim full Cursor support until a
-run proves all of the following:
+Cursor Background Agents can satisfy the conditional full gate only through a
+detached experiment that proves all of the following:
 
-- One fresh isolated reviewer is launched per selected lens.
+- A parent launcher creates the archive directory and launches a detached
+  orchestrator subagent.
+- The detached orchestrator launches one fresh reviewer per selected lens.
 - Reviewers do not inherit the parent chat context. Include an isolation
   falsification test, such as a parent-chat-only secret, and fail the run if any
-  reviewer output references it.
+  reviewer output or archive artifact references it.
 - Each reviewer reads the target, `reviews/registry.json`, selected lens prompt,
   selected lens manifest entry, and `reviews/reviewer-template.md` from the
   LensTemper package root.
-- Per-lens outputs are persisted as review artifacts, with one artifact for
-  each selected lens.
-- `ledger.json` and `events.jsonl` are produced or an equivalent Cursor host
-  evidence log records reviewer spawn identity, target revision, lens set,
-  validator stdout, and validator stderr.
+- Per-lens outputs are persisted as `*.review.json` and `*.review.md`, with one
+  artifact pair for each selected lens.
+- `ledger.json` and `events.jsonl` are produced. Events must record reviewer
+  spawn identity, completion, validation, synthesis, rerun selection, and close
+  events.
+- `ledger.json` records the real archive path; archive path consistency is
+  required between `ledger.archive_paths`, saved artifacts, and the completion
+  summary.
 - `node reviews/scripts/validate-review-output.mjs` passes for each JSON review
-  artifact, if JSON artifacts are produced.
+  artifact.
 - `node reviews/scripts/validate-ledger.mjs` passes for the run ledger.
 - `node reviews/scripts/validate-synthesis-output.mjs` passes for synthesis.
+- `node reviews/scripts/decide-reruns.mjs` records rerun or lock decisions.
+- `node reviews/scripts/emit-completion-summary.mjs --out <run>/completion-summary.json`
+  writes `completion-summary.json`.
 - `node reviews/scripts/validate-completion-summary.mjs` passes for final
   completion metadata.
 - `node reviews/scripts/validate-review-fixtures.mjs` still passes for the repo
   fixture suite after any host-support changes.
 
-If any experiment step fails, keep Cursor support advisory/reference and archive
-the failed evidence as a local run artifact rather than a package candidate.
+If any gate fails, keep the run advisory/reference and archive the failed
+evidence as a local artifact rather than a package candidate.
+
+## Background Agents Experiment Prompt
+
+```text
+Run a full LensTemper review of docs/plans/my-plan.md with the orchestrator as a
+detached subagent. The orchestrator must spawn one independent lens reviewer per
+selected lens, persist JSON and Markdown artifacts, produce ledger.json and
+events.jsonl, run synthesis, run decide-reruns, emit completion-summary.json,
+and validate the run. Do not claim full support unless the parent launcher also
+passes the parent-chat-only secret isolation scan across the archive.
+```
+
+Do not include any parent-only isolation token in orchestrator prompts, reviewer
+prompts, packets, ledgers, events, or summaries. The parent launcher performs
+the post-run scan and reports pass/fail.
 
 ## Maintainer Checks
 

@@ -80,9 +80,14 @@ replacement for the portable `skills/` and `reviews/` package.
 For advisory use, keep the LensTemper package root in the workspace and read
 `docs/hosts/cursor.md`, `reviews/README.md`, and the selected lens files. For
 skill-picker use, use the host's current skill-loading mechanism for `skills/`
-while keeping `reviews/` available at the package root. Do not claim a lockable
-full LensTemper pass in Cursor until fresh reviewer isolation and artifact
-validation are verified.
+while keeping `reviews/` available at the package root.
+
+Cursor can be treated as conditional full only for a detached run that launches
+one fresh reviewer per lens, saves JSON review artifacts, produces
+`ledger.json`, `events.jsonl`, synthesis, rerun decisions, and
+`completion-summary.json`, passes the relevant validators, and passes a
+parent-chat-only secret isolation scan. If any gate is missing, label the run
+advisory/reference.
 
 ## Copilot
 

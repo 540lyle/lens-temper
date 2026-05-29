@@ -26,7 +26,7 @@ const DISALLOWED_PACKAGE_PATTERNS = [
   /(^|\/)worktree-cache(\/|$)/
 ];
 
-const ADVISORY_HOSTS = ["cursor", "copilot"];
+const ADVISORY_HOSTS = ["copilot"];
 
 const REQUIRED_GITIGNORE_LINES = [
   ["node_modules/", "node_modules/ is not ignored"],
@@ -220,8 +220,19 @@ function checkReadmeHostClaims(root, failures) {
   if (!/Host Support Matrix/i.test(readme)) {
     failures.push(failure("README.md", "host_support_matrix", "present", "missing", "README missing Host Support Matrix"));
   }
+  const cursorRow = readme.match(/^\|\s*Cursor\s*\|(?<support>[^|]+)\|(?<requirements>[^|]+)\|/im);
+  if (cursorRow) {
+    const cursorSupport = cursorRow.groups?.support?.trim() || "";
+    const cursorRequirements = cursorRow.groups?.requirements?.trim() || "";
+    if (/\bfull\b/i.test(cursorSupport) && !/\bconditional\b/i.test(cursorSupport)) {
+      failures.push(failure("README.md", "cursor", "conditional full, not unconditional full", cursorRow[0].trim(), "README claims unconditional full support for conditional host"));
+    }
+    if (!/conditional\s+full/i.test(cursorSupport) || !/advisory\/reference|advisory/i.test(cursorRequirements)) {
+      failures.push(failure("README.md", "cursor", "conditional full with advisory/reference fallback", cursorRow[0].trim(), "README missing Cursor conditional-full support caveat"));
+    }
+  }
   for (const host of ADVISORY_HOSTS) {
-    const hostLinePattern = new RegExp(`^.*\\b${host}\\b.*$`, "gim");
+    const hostLinePattern = new RegExp(`^\\|\\s*${host}\\s*\\|.*$`, "gim");
     const lines = readme.match(hostLinePattern) || [];
     for (const line of lines) {
       if (/\bfull\b/i.test(line) && !/\badvisory\b|\breference\b/i.test(line)) {
@@ -273,7 +284,7 @@ function checkHostSupportMatrix(manifest, failures) {
     "claude-code": "full",
     codex: "full",
     "claude-desktop-claude-ai": "conditional",
-    cursor: "advisory",
+    cursor: "conditional",
     copilot: "advisory"
   })) {
     if (matrix[host]?.status !== expectedStatus) {
@@ -322,27 +333,36 @@ function checkCursorAdapter(root, manifest, failures) {
   if (pathIsFile(root, cursorGuidePath)) {
     const cursorGuide = readText(root, cursorGuidePath, failures);
     for (const requiredGuideText of [
-      "Cursor support is advisory/reference",
+      /Cursor support is\s+conditional full/,
+      /otherwise Cursor support is\s+advisory\/reference/,
       "Advisory Quick Start",
       "Entrypoints",
       "Advisory Verification Checklist",
+      "Conditional Full Gates",
       "Background Agents",
       "experiment",
-      "fresh reviewer isolation",
+      /fresh reviewer\s+isolation/,
       "reviews/registry.json",
       "reviews/manifests/lenses/",
       "lens-<slug>.md",
       "parent-chat-only secret",
       "ledger.json",
       "events.jsonl",
+      "completion-summary.json",
       "validate-review-fixtures.mjs",
       "validate-review-output.mjs",
       "validate-ledger.mjs",
       "validate-synthesis-output.mjs",
+      "decide-reruns.mjs",
+      "emit-completion-summary.mjs",
+      "archive path consistency",
       "validate-completion-summary.mjs"
     ]) {
-      if (!cursorGuide.includes(requiredGuideText)) {
-        failures.push(failure(cursorGuidePath, "required_guidance", requiredGuideText, "missing", "Cursor host guide missing required advisory guidance"));
+      const found = typeof requiredGuideText === "string"
+        ? cursorGuide.includes(requiredGuideText)
+        : requiredGuideText.test(cursorGuide);
+      if (!found) {
+        failures.push(failure(cursorGuidePath, "required_guidance", String(requiredGuideText), "missing", "Cursor host guide missing required advisory guidance"));
       }
     }
   }

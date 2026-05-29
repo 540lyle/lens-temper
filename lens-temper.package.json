@@ -61,12 +61,18 @@
       ]
     },
     "cursor": {
-      "status": "advisory",
+      "status": "conditional",
       "adapter": ".cursor/rules/lens-temper.mdc",
       "requirements": [
         "skills/",
         "reviews/",
-        ".cursor/rules/lens-temper.mdc (advisory)"
+        ".cursor/rules/lens-temper.mdc",
+        "detached orchestrator subagent",
+        "one fresh reviewer per selected lens",
+        "parent-chat-only secret isolation falsification",
+        "per-lens JSON review artifacts",
+        "ledger.json and events.jsonl",
+        "synthesis, rerun, and completion-summary validators"
       ]
     },
     "copilot": {
@@ -92,7 +98,7 @@
     {
       "host": "cursor",
       "path": ".cursor/rules/lens-temper.mdc",
-      "support": "advisory"
+      "support": "conditional"
     },
     {
       "host": "copilot",

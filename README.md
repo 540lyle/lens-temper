@@ -309,9 +309,10 @@ node reviews/scripts/run-review-evals.mjs
 ```
 
 `run-plan-review.mjs` prepares ledgers and prompt packets. Reviewer execution is
-still provided by the host, such as Codex subagents, Claude subagents, or another
-verified fresh-agent mechanism. Cursor and Copilot adapters are advisory until
-their host isolation and artifact flow are verified.
+still provided by the host, such as Codex subagents, Claude subagents, Cursor
+Background Agents, or another verified fresh-agent mechanism. Cursor is
+conditional full only when its run proves fresh reviewer isolation and artifact
+validation; Copilot remains advisory/reference.
 
 ## Installing As A Skill
 
@@ -338,7 +339,7 @@ Each host loads the same source tree through its own mechanism:
 
 - `.claude-plugin/plugin.json` for Claude Code plugins.
 - `.codex-plugin/plugin.json` for Codex.
-- `.cursor/rules/lens-temper.mdc` as a Cursor advisory/reference adapter.
+- `.cursor/rules/lens-temper.mdc` as a Cursor conditional/advisory adapter.
 - `.github/copilot-instructions.md` or `AGENTS.md` as a Copilot
   advisory/reference adapter.
 - `skills/` as standalone skill folders where the host supports that layout,
@@ -355,7 +356,7 @@ slightly differently.
 | Claude Code | Full review supported | Plugin plus Claude Code `Agent` tool, with `skills/` and `reviews/` available together. |
 | Codex | Full review supported when fresh subagents are available | Plugin/skills plus `spawn_agent` with fresh reviewers, with `skills/` and `reviews/` available together. |
 | Claude Desktop / Claude.ai | Conditional | Needs packaged `reviews/` resources and verified fresh reviewer isolation before claiming full review support. |
-| Cursor | Advisory/reference | `.cursor/rules/lens-temper.mdc` is a requestable reference adapter; see `docs/hosts/cursor.md`. Full review support waits on verified fresh reviewer isolation and artifact flow. |
+| Cursor | Conditional full | Requires detached orchestration, fresh reviewer isolation, JSON artifacts, ledger/events, synthesis/rerun/completion validators, and a parent-chat-only secret scan; otherwise advisory/reference. See `docs/hosts/cursor.md`. |
 | Copilot | Advisory/reference | Use `.github/copilot-instructions.md` or `AGENTS.md` for reference guidance only. |
 
 ### Claude Code (CLI)
@@ -451,9 +452,10 @@ so the workflow contracts, lenses, manifests, and validators resolve.
 
 For Cursor, `.cursor/rules/lens-temper.mdc` is requestable claim discipline and
 workflow guidance, not a replacement for the portable skills. See
-`docs/hosts/cursor.md` for prompt examples and the Background Agents experiment.
-Advisory means the workflow can guide review, but no lockable full-pass claim is
-valid until fresh reviewer isolation and artifact validation are verified.
+`docs/hosts/cursor.md` for prompt examples and the Background Agents path.
+Cursor output is full only for a detached run that produces validator-backed
+artifacts and passes the parent-chat-only isolation scan; otherwise it remains
+advisory/reference.
 
 Plain CLI or manual hosts can still drive the workflow by reading
 `reviews/README.md` and assembling prompts with the scripts under

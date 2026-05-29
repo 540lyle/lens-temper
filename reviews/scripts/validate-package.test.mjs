@@ -32,8 +32,16 @@ const BASE_PACKAGE = {
       requirements: ["packaged reviews/", "fresh reviewer isolation"]
     },
     cursor: {
-      status: "advisory",
-      adapter: ".cursor/rules/lens-temper.mdc"
+      status: "conditional",
+      adapter: ".cursor/rules/lens-temper.mdc",
+      requirements: [
+        "detached orchestrator subagent",
+        "one fresh reviewer per lens",
+        "parent-chat-only secret isolation falsification",
+        "per-lens JSON review artifacts",
+        "ledger.json and events.jsonl",
+        "synthesis and completion-summary validators"
+      ]
     },
     copilot: {
       status: "advisory",
@@ -54,7 +62,7 @@ const BASE_PACKAGE = {
     {
       host: "cursor",
       path: ".cursor/rules/lens-temper.mdc",
-      support: "advisory"
+      support: "conditional"
     },
     {
       host: "copilot",
@@ -96,7 +104,7 @@ function makeFixture({ packagePatch = {}, readme = defaultReadme(), registryPath
   write(root, "skills/start-plan-review/SKILL.md", "---\nname: start-plan-review\n---\nRead reviews/README.md before running.\n");
   write(root, "docs/hosts/cursor.md", `# Cursor Host Guide
 
-Cursor support is advisory/reference. Use .cursor/rules/lens-temper.mdc as an Agent Requested rule, read reviews/README.md, reviews/registry.json, selected reviews/lenses/ files, reviews/manifests/lenses/ entries, and reviews/reviewer-template.md, and label output advisory/reference. Cursor Background Agents remain an experiment until fresh reviewer isolation and artifact validation are verified with validate-review-fixtures.mjs, validate-review-output.mjs, validate-ledger.mjs, validate-synthesis-output.mjs, and validate-completion-summary.mjs. The guide includes Advisory Quick Start, Entrypoints, Advisory Verification Checklist, lens-<slug>.md, parent-chat-only secret, ledger.json, and events.jsonl.
+Cursor support is conditional full when a detached run proves fresh reviewer isolation and artifact validation; otherwise Cursor support is advisory/reference. Use .cursor/rules/lens-temper.mdc as an Agent Requested rule, read reviews/README.md, reviews/registry.json, selected reviews/lenses/ files, reviews/manifests/lenses/ entries, and reviews/reviewer-template.md, and label non-gated output advisory/reference. Cursor Background Agents can satisfy the conditional full gate only after an experiment proves fresh reviewer isolation with validate-review-fixtures.mjs, validate-review-output.mjs, validate-ledger.mjs, validate-synthesis-output.mjs, decide-reruns.mjs, emit-completion-summary.mjs, and validate-completion-summary.mjs. The guide includes Advisory Quick Start, Entrypoints, Advisory Verification Checklist, Conditional Full Gates, lens-<slug>.md, parent-chat-only secret, ledger.json, events.jsonl, completion-summary.json, and archive path consistency.
 `);
   write(root, "reviews/scripts/validate-package.mjs", "#!/usr/bin/env node\n");
   write(root, "reviews/README.md", "# Reviews\n");
@@ -137,7 +145,7 @@ function defaultReadme() {
 | Claude Code | Full review supported | Plugin plus Agent tool. |
 | Codex | Full review supported | Plugin/skills plus spawn_agent. |
 | Claude Desktop / Claude.ai | Conditional | Needs packaged reviews/ resources and verified fresh reviewer isolation. |
-| Cursor | Advisory/reference | Until .cursor/rules adapter exists. |
+| Cursor | Conditional full | Requires detached orchestration, fresh reviewer isolation, artifact validation, and parent-chat-only secret scan; otherwise advisory/reference. |
 | Copilot | Advisory/reference | Via .github/copilot-instructions.md or AGENTS.md. |
 
 ## Packaging Rule
@@ -315,9 +323,20 @@ test("reports missing validate-package registry script", () => {
   }
 });
 
-test("reports unsupported full support claims for Cursor or Copilot", () => {
+test("reports unconditional full support claims for Cursor", () => {
   const root = makeFixture({
-    readme: defaultReadme().replace("Cursor | Advisory/reference", "Cursor | Full support")
+    readme: defaultReadme().replace("Cursor | Conditional full", "Cursor | Full support")
+  });
+  try {
+    assert(messages(validatePackageRoot(root)).some((message) => message.includes("README claims unconditional full support for conditional host")));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("reports unsupported full support claims for Copilot", () => {
+  const root = makeFixture({
+    readme: defaultReadme().replace("Copilot | Advisory/reference", "Copilot | Full support")
   });
   try {
     assert(messages(validatePackageRoot(root)).some((message) => message.includes("README claims full support for advisory host")));
@@ -417,7 +436,7 @@ test("reports disallowed files under package candidate directories", () => {
 test("reports manifest target support drift", () => {
   const root = makeFixture({
     packagePatch: {
-      manifestTargets: BASE_PACKAGE.manifestTargets.map((target) => target.host === "cursor" ? { ...target, support: "full" } : target)
+      manifestTargets: BASE_PACKAGE.manifestTargets.map((target) => target.host === "cursor" ? { ...target, support: "advisory" } : target)
     }
   });
   try {
