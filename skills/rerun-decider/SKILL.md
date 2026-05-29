@@ -1,12 +1,13 @@
 ---
 name: rerun-decider
-description: Use after plan edits or synthesis decisions to decide which LensTemper lenses need another pass.
+description: Use after a LensTemper review and later plan edits when the task is only to decide which completed or affected lenses need another pass.
 ---
 
 # LensTemper Rerun Decider
 
 Use `reviews/scripts/decide-reruns.mjs` when a ledger exists. Otherwise follow
-the rerun protocol in `reviews/README.md` from the plugin or repository root.
+the rerun protocol in `reviews/README.md` from the skill package or repository
+root.
 
 ## Inputs
 

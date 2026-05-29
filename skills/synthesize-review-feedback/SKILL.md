@@ -1,13 +1,13 @@
 ---
 name: synthesize-review-feedback
-description: Use when consolidating multiple LensTemper lens review outputs into decisions, rerun status, and final readiness.
+description: Use after LensTemper reviewer outputs already exist and the task is only to consolidate findings, decisions, rerun status, or final readiness.
 ---
 
 # LensTemper Synthesis Owner
 
 Use `reviews/synthesize-review-feedback.md` as the output contract and
-`reviews/README.md` for lock, rerun, and materiality rules from the plugin or
-repository root.
+`reviews/README.md` for lock, rerun, and materiality rules from the skill
+package or repository root.
 
 ## Inputs
 

@@ -1,13 +1,13 @@
 ---
 name: lens-reviewer
-description: Use when reviewing one implementation plan through exactly one LensTemper lens.
+description: Use only for a spawned LensTemper reviewer assigned to exactly one lens; do not use as the starting skill for normal user-requested reviews.
 ---
 
 # LensTemper Lens Reviewer
 
 Read `reviews/reviewer-template.md`, the assigned lens prompt under
 `reviews/lenses/`, and the assigned lens manifest under
-`reviews/manifests/lenses/` from the plugin or repository root.
+`reviews/manifests/lenses/` from the skill package or repository root.
 
 ## Tool Posture
 

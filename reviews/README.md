@@ -17,11 +17,12 @@ Standardize plan review so that:
 
 1. Generate a candidate implementation plan.
 2. Assemble the required inputs.
-3. Inject `reviewer-template.md` and one lens file into your model of choice.
-4. Collect the structured output.
-5. Repeat with additional lenses or models as needed.
-6. Run `synthesize-review-feedback.md` across all review outputs to produce a consolidated assessment.
-7. Lock lenses only from validated `full` run artifacts. Inline and advisory outputs may guide planning, but their scores are not lockable.
+3. Run a full LensTemper review by default: spawn one fresh reviewer per
+   selected lens with no inherited thread context (`fork_context: false` or
+   platform equivalent).
+4. Collect the structured output from each spawned reviewer.
+5. Run `synthesize-review-feedback.md` across all review outputs to produce a consolidated assessment.
+6. Lock lenses only from validated `full` run artifacts. Inline and advisory outputs may guide planning, but their scores are not lockable.
 
 Store completed review outputs outside this folder unless they are still being actively assembled.
 `reviews/` is for reusable tooling and review-input packets; durable finished outputs or synthesis
@@ -35,6 +36,11 @@ review history next to the plan.
 
 LensTemper supports three host-neutral run families:
 
+- Default assumption: a request to "run LensTemper", "review with
+  LensTemper", or "run a full LensTemper review" means `full_hosted` or
+  `full_detached`. Do not perform an inline/advisory substitute unless the user
+  explicitly asks for inline or advisory review. If fresh subagents cannot be
+  spawned, stop and report that the full review could not be completed.
 - `inline`: current-context advisory review. It maps to `run_mode: inline` and `execution_mode: manual_or_imported`. Required wording: `Inline LensTemper-style review`, `Not independently reviewed`, `No spawned reviewers used`, and `Scores are advisory, not lockable`.
 - `full_hosted`: the current agent owns orchestration and starts fresh lens reviewers through whatever host spawning mechanism exists. It maps to `run_mode: full` and `execution_mode: fresh_spawned_lens_reviewers`.
 - `full_detached`: a fresh orchestrator owns ledger, reviewer prompts, reviewer lifecycle evidence, synthesis, reruns, archive, and completion claims. It maps to `run_mode: full` and `execution_mode: fresh_spawned_orchestrator`.
@@ -51,6 +57,20 @@ Completion and lockable claims are blocked unless the ledger and artifacts prove
 
 When running `full_hosted` lens reviews through spawned agents, use one fresh agent per lens and make the workspace the source of truth.
 Do not rely on inherited conversation context, stale pasted excerpts, or another lens agent's conclusions.
+Host mechanisms for fresh reviewers:
+
+- Codex: `spawn_agent` with `fork_context: false`, one agent per selected lens.
+- Claude Code: invoke the `Agent` (Task) tool once per selected lens. Each
+  Agent invocation is already a fresh subagent with isolated context, so no
+  fork flag is needed.
+- Claude Desktop / Claude.ai: use only if the host can launch fresh, isolated
+  reviewer agents and can provide the `reviews/` workflow resources. Otherwise
+  treat the run as inline/advisory.
+- Cursor and other skill-aware hosts: use the host's independent-agent
+  mechanism that does not inherit the parent thread.
+
+If that host mechanism is unavailable, do not continue as inline/advisory
+unless the user explicitly requested that lower-rigor mode.
 
 For `full_detached`, the parent agent acts only as launcher/reporter when the host can start a fresh orchestrator. Generate the platform-neutral orchestrator packet with `reviews/scripts/assemble-orchestrator-prompt.mjs` or `reviews/scripts/run-plan-review.mjs --execution-mode fresh_spawned_orchestrator`, then give that packet to the fresh orchestrator. Host mechanics vary across Codex, Claude, Cursor, and manual CLI environments; LensTemper artifacts stay Markdown/JSONL/JSON and repository-relative.
 

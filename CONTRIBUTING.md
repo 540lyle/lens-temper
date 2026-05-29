@@ -13,6 +13,7 @@ Before opening a change:
 Useful checks:
 
 ```powershell
+node reviews/scripts/validate-package.mjs
 node reviews/scripts/validate-review-fixtures.mjs
 node reviews/scripts/run-review-evals.mjs
 Get-ChildItem reviews/scripts -Filter *.mjs | ForEach-Object { node --check $_.FullName }

@@ -37,9 +37,12 @@ The reusable workflow baseline is in place:
 - `reviews/AGENT.md` defines discovery order and review safety rules.
 - `reviews/reviewer-template.md` and the six lens prompts now carry the
   stateful-workflow sweep directly in the operational reviewer prompt path.
-- `.codex-plugin/plugin.json` and root `skills/` entrypoints make the workflow
-  installable as a Codex plugin while staying compatible with other
-  Agent Skills-style hosts.
+- Root `skills/` entrypoints make the workflow installable as a portable skill
+  package across Codex, Claude Code, Cursor, and other Agent Skills-style hosts.
+  `.claude-plugin/plugin.json` and `.codex-plugin/plugin.json` are per-host
+  compatibility manifests, not the primary product shape. Claude Desktop /
+  Claude.ai support requires a packaged skill that includes the shared
+  `reviews/` workflow resources and a verified fresh-reviewer mechanism.
 
 The project is still Markdown-first. The registry, manifests, validators,
 helpers, skills, and evals wrap the existing files; they do not require a host
@@ -88,7 +91,7 @@ reviews/manifests/roles/orchestrator.json
 reviews/manifests/roles/lens-reviewer.json
 reviews/manifests/roles/synthesis-owner.json
 reviews/manifests/roles/rerun-decider.json
-skills/plan-review-orchestrator/SKILL.md
+skills/start-plan-review/SKILL.md
 skills/lens-reviewer/SKILL.md
 skills/synthesize-review-feedback/SKILL.md
 skills/rerun-decider/SKILL.md
@@ -589,9 +592,12 @@ Success criteria:
 - Update `reviews/registry.json` with Phase 2 schemas, scripts, examples,
   fixture-count manifest, and validation helper contracts.
 
-## Phase 3: Skill And Plugin Packaging
+## Phase 3: Skill Packaging And Host Compatibility
 
-Status: complete as root skill entrypoints plus a Codex plugin manifest.
+Status: complete as root skill entrypoints plus per-host compatibility manifests
+(`.claude-plugin/plugin.json` for Claude Code, `.codex-plugin/plugin.json` for
+Codex). Other skill-aware hosts can load `skills/` directly when they can also
+provide the shared `reviews/` workflow resources.
 
 Package the existing workflow as composable Agent Skills-style folders while
 keeping the current Markdown files in place. The skill files are thin activation
@@ -602,7 +608,8 @@ Planned files:
 
 ```text
 .codex-plugin/plugin.json
-skills/plan-review-orchestrator/SKILL.md
+.claude-plugin/plugin.json
+skills/start-plan-review/SKILL.md
 skills/lens-reviewer/SKILL.md
 skills/synthesize-review-feedback/SKILL.md
 skills/rerun-decider/SKILL.md

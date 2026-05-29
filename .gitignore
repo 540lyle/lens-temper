@@ -2,5 +2,8 @@ node_modules/
 dist/
 coverage/
 *.log
+.claude/
+.codex/
+.cache/
 reviews/archive/*/
 !reviews/archive/.gitkeep

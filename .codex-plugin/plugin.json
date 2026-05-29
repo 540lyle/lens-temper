@@ -1,7 +1,7 @@
 {
   "name": "lens-temper",
-  "version": "0.1.0",
-  "description": "LensTemper review workflow skills for structured implementation-plan reviews, validation, synthesis, reruns, and archival evidence.",
+  "version": "0.1.1",
+  "description": "LensTemper runs structured spec-driven development reviews with fresh reviewer subagents and lens-specific synthesis.",
   "author": {
     "name": "LensTemper maintainers"
   },
@@ -19,8 +19,8 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "LensTemper",
-    "shortDescription": "Structured lens reviews for implementation plans",
-    "longDescription": "Use LensTemper to run independent lens reviews, validate review artifacts, synthesize findings, decide reruns, and archive final review evidence.",
+    "shortDescription": "Spec reviews with fresh lens reviewers",
+    "longDescription": "Use LensTemper to review specs, implementation plans, and design proposals through independent lenses. Start with the Start Plan Review skill for normal use; specialist skills are for one-lens reviewing, synthesis, reruns, and validation evidence.",
     "developerName": "LensTemper maintainers",
     "category": "Coding",
     "capabilities": [
@@ -29,8 +29,8 @@
       "Write"
     ],
     "defaultPrompt": [
-      "Review this implementation plan with LensTemper.",
-      "Run a structured lens review for this plan."
+      "Use LensTemper to run a full review of this spec.",
+      "Use LensTemper to review this plan with selected lenses."
     ],
     "websiteURL": "https://github.com/540lyle/lens-temper",
     "privacyPolicyURL": "https://github.com/540lyle/lens-temper/blob/main/docs/PRIVACY.md",

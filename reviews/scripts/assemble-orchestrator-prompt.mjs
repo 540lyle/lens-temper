@@ -125,6 +125,9 @@ Use these event names when they occur: \`orchestrator_started\`, \`ledger_create
 
 # Stop Conditions
 - Stop and report input failure if the target path or target revision differs from this packet.
+- Stop before review if the host cannot spawn fresh subagents for the selected
+  lenses. Do not perform an inline/advisory substitute unless the user
+  explicitly requested inline or advisory mode.
 - Stop before synthesis if any current reviewer output is missing, stale, unvalidated, uncaptured, or not closed.
 - Stop before completion if the ledger, events log, reviewer outputs, synthesis, and archive evidence disagree.
 - Stop before completion if selected lens scope is confused with a six-lens pass.
