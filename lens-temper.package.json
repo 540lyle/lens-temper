@@ -121,6 +121,7 @@
     "reviews/examples/",
     "reviews/evals/",
     "docs/INSTALL.md",
+    "docs/hosts/cursor.md",
     "docs/PRIVACY.md",
     "docs/TERMS.md",
     "docs/agent-flow.md",

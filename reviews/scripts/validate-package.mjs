@@ -13,6 +13,7 @@ const DISALLOWED_PACKAGE_PATTERNS = [
   /^\.claude(\/|$)/,
   /^\.codex(\/|$)/,
   /^\.git(\/|$)/,
+  /^\.cursor\/skills(\/|$)/,
   /^node_modules(\/|$)/,
   /^dist(\/|$)/,
   /^coverage(\/|$)/,
@@ -35,6 +36,7 @@ const REQUIRED_GITIGNORE_LINES = [
   [".claude/", ".claude/ is not ignored"],
   [".codex/", ".codex/ is not ignored"],
   [".cache/", ".cache/ is not ignored"],
+  [".cursor/skills/", ".cursor/skills/ is not ignored"],
   ["reviews/archive/*/", "reviews/archive/*/ is not ignored"],
   ["!reviews/archive/.gitkeep", "reviews/archive/.gitkeep exception is missing"]
 ];
@@ -112,6 +114,14 @@ function pathIsDirectory(root, repoPath) {
 function packageCandidateIsDisallowed(repoPath) {
   const normalized = normalizeRepoPath(repoPath).replace(/\/$/, "");
   return DISALLOWED_PACKAGE_PATTERNS.some((pattern) => pattern.test(normalized));
+}
+
+function packageCandidatesCover(packageCandidates, targetPath) {
+  const target = normalizeRepoPath(targetPath);
+  return packageCandidates.some((candidate) => {
+    const normalizedCandidate = normalizeRepoPath(candidate).replace(/\/$/, "");
+    return target === normalizedCandidate || target.startsWith(`${normalizedCandidate}/`);
+  });
 }
 
 function walkFiles(root, repoPath) {
@@ -272,6 +282,72 @@ function checkHostSupportMatrix(manifest, failures) {
   }
 }
 
+function checkCursorAdapter(root, manifest, failures) {
+  const cursorRulePath = ".cursor/rules/lens-temper.mdc";
+  const cursorGuidePath = "docs/hosts/cursor.md";
+  const packageCandidates = (manifest.packageCandidates || []).map(normalizeRepoPath);
+
+  if (!packageCandidatesCover(packageCandidates, cursorGuidePath)) {
+    failures.push(failure("lens-temper.package.json", "packageCandidates", cursorGuidePath, "missing", "Cursor host guide is not included in package candidates"));
+  }
+  if (!pathIsFile(root, cursorGuidePath)) {
+    failures.push(failure(cursorGuidePath, "file", "existing file", "missing", "Cursor host guide is missing"));
+  }
+
+  if (!pathIsFile(root, cursorRulePath)) {
+    failures.push(failure(cursorRulePath, "file", "existing file", "missing", "Cursor adapter is missing"));
+    return;
+  }
+
+  const cursorRule = readText(root, cursorRulePath, failures);
+  if (/^\s*alwaysApply:\s*true\s*$/im.test(cursorRule)) {
+    failures.push(failure(cursorRulePath, "alwaysApply", "false", "true", "Cursor rule must be requestable, not always applied"));
+  }
+  if (!/^\s*alwaysApply:\s*false\s*$/im.test(cursorRule)) {
+    failures.push(failure(cursorRulePath, "alwaysApply", "false", "missing", "Cursor rule must declare requestable application"));
+  }
+
+  for (const requiredReference of [
+    "docs/hosts/cursor.md",
+    "reviews/README.md",
+    "reviews/lenses/",
+    "reviews/reviewer-template.md",
+    "advisory/reference"
+  ]) {
+    if (!cursorRule.includes(requiredReference)) {
+      failures.push(failure(cursorRulePath, "required_reference", requiredReference, "missing", "Cursor adapter missing required advisory reference"));
+    }
+  }
+
+  if (pathIsFile(root, cursorGuidePath)) {
+    const cursorGuide = readText(root, cursorGuidePath, failures);
+    for (const requiredGuideText of [
+      "Cursor support is advisory/reference",
+      "Advisory Quick Start",
+      "Entrypoints",
+      "Advisory Verification Checklist",
+      "Background Agents",
+      "experiment",
+      "fresh reviewer isolation",
+      "reviews/registry.json",
+      "reviews/manifests/lenses/",
+      "lens-<slug>.md",
+      "parent-chat-only secret",
+      "ledger.json",
+      "events.jsonl",
+      "validate-review-fixtures.mjs",
+      "validate-review-output.mjs",
+      "validate-ledger.mjs",
+      "validate-synthesis-output.mjs",
+      "validate-completion-summary.mjs"
+    ]) {
+      if (!cursorGuide.includes(requiredGuideText)) {
+        failures.push(failure(cursorGuidePath, "required_guidance", requiredGuideText, "missing", "Cursor host guide missing required advisory guidance"));
+      }
+    }
+  }
+}
+
 function checkIgnoredLocalArtifacts(root, manifest, failures) {
   const gitignore = readText(root, ".gitignore", failures);
   const gitignoreLines = gitignore.split(/\r?\n/).map((line) => line.trim());
@@ -301,19 +377,12 @@ function checkIgnoredLocalArtifacts(root, manifest, failures) {
     }
   }
 
-  const coversCandidate = (targetPath) => {
-    const target = normalizeRepoPath(targetPath);
-    return packageCandidates.some((candidate) => {
-      const normalizedCandidate = candidate.replace(/\/$/, "");
-      return target === normalizedCandidate || target.startsWith(`${normalizedCandidate}/`);
-    });
-  };
   const matrix = manifest.hostSupportMatrix || {};
   for (const target of manifest.manifestTargets || []) {
     if (!pathIsFile(root, target.path)) {
       failures.push(failure("lens-temper.package.json", `manifestTargets.${target.host || "unknown"}.path`, "existing file", target.path, "manifest target path does not exist"));
     }
-    if (!coversCandidate(target.path)) {
+    if (!packageCandidatesCover(packageCandidates, target.path)) {
       failures.push(failure("lens-temper.package.json", `manifestTargets.${target.host || "unknown"}.path`, "listed package candidate", target.path, "manifest target is not included in package candidates"));
     }
     const expectedSupport = matrix[target.host]?.status;
@@ -335,6 +404,7 @@ export function validatePackageRoot(root = repoRootFrom()) {
   checkReadmeVersionExamples(root, manifest, failures);
   checkFullReviewDowngradeLanguage(root, failures);
   checkHostSupportMatrix(manifest, failures);
+  checkCursorAdapter(root, manifest, failures);
   checkIgnoredLocalArtifacts(root, manifest, failures);
   return failures;
 }

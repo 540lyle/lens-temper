@@ -74,14 +74,15 @@ version segment may lag the plugin manifest version.
 
 Cursor can use project rules from `.cursor/rules/`, and `AGENTS.md` is a
 supported instruction format. The included `.cursor/rules/lens-temper.mdc`
-adapter is claim discipline and workflow guidance; it is not a replacement for
-the portable `skills/` and `reviews/` package.
+adapter is requestable claim discipline and workflow guidance; it is not a
+replacement for the portable `skills/` and `reviews/` package.
 
 For advisory use, keep the LensTemper package root in the workspace and read
-`reviews/README.md` plus the selected lens files. For skill-picker use, use the
-host's current skill-loading mechanism for `skills/` while keeping `reviews/`
-available at the package root. Do not claim a lockable full LensTemper pass in
-Cursor until fresh reviewer isolation and artifact validation are verified.
+`docs/hosts/cursor.md`, `reviews/README.md`, and the selected lens files. For
+skill-picker use, use the host's current skill-loading mechanism for `skills/`
+while keeping `reviews/` available at the package root. Do not claim a lockable
+full LensTemper pass in Cursor until fresh reviewer isolation and artifact
+validation are verified.
 
 ## Copilot
 

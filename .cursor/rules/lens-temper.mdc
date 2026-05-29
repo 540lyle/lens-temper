@@ -1,6 +1,6 @@
 ---
-description: LensTemper advisory adapter for plan/spec review claim discipline.
-alwaysApply: true
+description: Use when the user asks Cursor for an advisory LensTemper review of a plan, spec, proposal, or implementation approach.
+alwaysApply: false
 ---
 
 # LensTemper Advisory Adapter
@@ -8,15 +8,16 @@ alwaysApply: true
 LensTemper is available in this repository as a portable skill package, not as a
 native Cursor full-review adapter.
 
-Use this rule as reference guidance only:
+Use this rule only when the user asks for LensTemper, a LensTemper-style review,
+or an advisory plan/spec review through Cursor.
 
-- Read `README.md` for host support limits.
-- Treat `skills/` and `reviews/` as a single package for full LensTemper use.
-- For skill-picker use, load or link `skills/` through Cursor's current
-  supported mechanism while keeping `reviews/` at the LensTemper package root.
-- Do not claim a full LensTemper review in Cursor unless fresh reviewer
-  isolation and the packaged `reviews/` resources are verified for that run.
-- For advisory review, read `reviews/README.md`, the selected lens prompt under
-  `reviews/lenses/`, and `reviews/reviewer-template.md`.
-- Label Cursor-only output as advisory/reference unless a separate adapter
-  proves fresh reviewer isolation and artifact validation.
+Required references:
+
+- `docs/hosts/cursor.md`
+- `reviews/README.md`
+- selected lens prompts under `reviews/lenses/`
+- `reviews/reviewer-template.md`
+
+Cursor-only output must be labeled advisory/reference. Do not claim full
+LensTemper completion unless a separate Cursor adapter proves fresh reviewer
+isolation, per-lens artifacts, validator pass, synthesis pass, and rerun status.

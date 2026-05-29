@@ -69,6 +69,7 @@ const BASE_PACKAGE = {
     ".codex-plugin/plugin.json",
     "skills/",
     "reviews/",
+    "docs/hosts/cursor.md",
     ".cursor/rules/lens-temper.mdc",
     ".github/copilot-instructions.md"
   ]
@@ -89,10 +90,14 @@ function makeFixture({ packagePatch = {}, readme = defaultReadme(), registryPath
   write(root, "lens-temper.package.json", `${JSON.stringify(manifest, null, 2)}\n`);
   write(root, ".claude-plugin/plugin.json", `${JSON.stringify({ name: "lens-temper", version: "0.1.1" }, null, 2)}\n`);
   write(root, ".codex-plugin/plugin.json", `${JSON.stringify({ name: "lens-temper", version: "0.1.1" }, null, 2)}\n`);
-  write(root, ".gitignore", "node_modules/\ndist/\ncoverage/\n*.log\n.claude/\n.codex/\n.cache/\nreviews/archive/*/\n!reviews/archive/.gitkeep\n");
+  write(root, ".gitignore", "node_modules/\ndist/\ncoverage/\n*.log\n.claude/\n.codex/\n.cache/\n.cursor/skills/\nreviews/archive/*/\n!reviews/archive/.gitkeep\n");
   write(root, "README.md", readme);
   write(root, "docs/INSTALL.md", "# Installing LensTemper\n");
   write(root, "skills/start-plan-review/SKILL.md", "---\nname: start-plan-review\n---\nRead reviews/README.md before running.\n");
+  write(root, "docs/hosts/cursor.md", `# Cursor Host Guide
+
+Cursor support is advisory/reference. Use .cursor/rules/lens-temper.mdc as an Agent Requested rule, read reviews/README.md, reviews/registry.json, selected reviews/lenses/ files, reviews/manifests/lenses/ entries, and reviews/reviewer-template.md, and label output advisory/reference. Cursor Background Agents remain an experiment until fresh reviewer isolation and artifact validation are verified with validate-review-fixtures.mjs, validate-review-output.mjs, validate-ledger.mjs, validate-synthesis-output.mjs, and validate-completion-summary.mjs. The guide includes Advisory Quick Start, Entrypoints, Advisory Verification Checklist, lens-<slug>.md, parent-chat-only secret, ledger.json, and events.jsonl.
+`);
   write(root, "reviews/scripts/validate-package.mjs", "#!/usr/bin/env node\n");
   write(root, "reviews/README.md", "# Reviews\n");
   write(root, "reviews/registry.json", `${JSON.stringify({
@@ -109,7 +114,15 @@ function makeFixture({ packagePatch = {}, readme = defaultReadme(), registryPath
       }
     ]
   }, null, 2)}\n`);
-  write(root, ".cursor/rules/lens-temper.mdc", "# LensTemper Cursor advisory adapter\n");
+  write(root, ".cursor/rules/lens-temper.mdc", `---
+description: Use when the user asks Cursor for an advisory LensTemper review.
+alwaysApply: false
+---
+
+# LensTemper Cursor Advisory Adapter
+
+Read docs/hosts/cursor.md, reviews/README.md, selected reviews/lenses/ files, and reviews/reviewer-template.md. Label Cursor-only output advisory/reference.
+`);
   write(root, ".github/copilot-instructions.md", "# LensTemper Copilot advisory adapter\n");
   return root;
 }
@@ -199,6 +212,7 @@ test("reports missing local artifact ignore rules", () => {
   write(root, ".gitignore", ".claude/\nnode_modules/\n");
   try {
     assert(messages(validatePackageRoot(root)).some((message) => message.includes(".codex/ is not ignored")));
+    assert(messages(validatePackageRoot(root)).some((message) => message.includes(".cursor/skills/ is not ignored")));
     assert(messages(validatePackageRoot(root)).some((message) => message.includes("reviews/archive/*/ is not ignored")));
   } finally {
     rmSync(root, { recursive: true, force: true });
@@ -312,6 +326,68 @@ test("reports unsupported full support claims for Cursor or Copilot", () => {
   }
 });
 
+test("reports always-on Cursor advisory rules", () => {
+  const root = makeFixture();
+  write(root, ".cursor/rules/lens-temper.mdc", `---
+description: LensTemper advisory adapter.
+alwaysApply: true
+---
+
+# LensTemper Cursor Advisory Adapter
+
+Read docs/hosts/cursor.md, reviews/README.md, selected reviews/lenses/ files, and reviews/reviewer-template.md. Label Cursor-only output advisory/reference.
+`);
+  try {
+    assert(messages(validatePackageRoot(root)).some((message) => message.includes("Cursor rule must be requestable, not always applied")));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("reports missing Cursor host guide", () => {
+  const root = makeFixture({
+    packagePatch: {
+      packageCandidates: BASE_PACKAGE.packageCandidates.filter((candidate) => candidate !== "docs/hosts/cursor.md")
+    }
+  });
+  try {
+    assert(messages(validatePackageRoot(root)).some((message) => message.includes("Cursor host guide is not included in package candidates")));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("reports Cursor adapter missing advisory workflow references", () => {
+  const root = makeFixture();
+  write(root, ".cursor/rules/lens-temper.mdc", `---
+description: Use when the user asks Cursor for an advisory LensTemper review.
+alwaysApply: false
+---
+
+# LensTemper Cursor Advisory Adapter
+
+General LensTemper reminder.
+`);
+  try {
+    assert(messages(validatePackageRoot(root)).some((message) => message.includes("Cursor adapter missing required advisory reference")));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("reports Cursor host guide missing execution details", () => {
+  const root = makeFixture();
+  write(root, "docs/hosts/cursor.md", `# Cursor Host Guide
+
+Cursor support is advisory/reference. Cursor Background Agents remain an experiment until fresh reviewer isolation and artifact validation are verified with validate-review-fixtures.mjs.
+`);
+  try {
+    assert(messages(validatePackageRoot(root)).some((message) => message.includes("Cursor host guide missing required advisory guidance")));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("reports missing package candidates", () => {
   const root = makeFixture({
     packagePatch: {
@@ -357,6 +433,22 @@ test("reports host cache or worktree package candidates", () => {
       packageCandidates: [
         ...BASE_PACKAGE.packageCandidates,
         ".claude/settings.local.json"
+      ]
+    }
+  });
+  try {
+    assert(messages(validatePackageRoot(root)).some((message) => message.includes("package candidate includes host cache or local artifact")));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("reports Cursor skill junction package candidates", () => {
+  const root = makeFixture({
+    packagePatch: {
+      packageCandidates: [
+        ...BASE_PACKAGE.packageCandidates,
+        ".cursor/skills/start-plan-review"
       ]
     }
   });

@@ -355,7 +355,7 @@ slightly differently.
 | Claude Code | Full review supported | Plugin plus Claude Code `Agent` tool, with `skills/` and `reviews/` available together. |
 | Codex | Full review supported when fresh subagents are available | Plugin/skills plus `spawn_agent` with fresh reviewers, with `skills/` and `reviews/` available together. |
 | Claude Desktop / Claude.ai | Conditional | Needs packaged `reviews/` resources and verified fresh reviewer isolation before claiming full review support. |
-| Cursor | Advisory/reference | `.cursor/rules/lens-temper.mdc` is a reference adapter; full review support waits on verified fresh reviewer isolation and artifact flow. |
+| Cursor | Advisory/reference | `.cursor/rules/lens-temper.mdc` is a requestable reference adapter; see `docs/hosts/cursor.md`. Full review support waits on verified fresh reviewer isolation and artifact flow. |
 | Copilot | Advisory/reference | Use `.github/copilot-instructions.md` or `AGENTS.md` for reference guidance only. |
 
 ### Claude Code (CLI)
@@ -449,10 +449,11 @@ Skill-aware hosts can load `skills/` directly via their native mechanism when
 the full package is available in the workspace. Keep `reviews/` beside `skills/`
 so the workflow contracts, lenses, manifests, and validators resolve.
 
-For Cursor, `.cursor/rules/lens-temper.mdc` is claim discipline and workflow
-guidance, not a replacement for the portable skills. Advisory means the workflow
-can guide review, but no lockable full-pass claim is valid until fresh reviewer
-isolation and artifact validation are verified.
+For Cursor, `.cursor/rules/lens-temper.mdc` is requestable claim discipline and
+workflow guidance, not a replacement for the portable skills. See
+`docs/hosts/cursor.md` for prompt examples and the Background Agents experiment.
+Advisory means the workflow can guide review, but no lockable full-pass claim is
+valid until fresh reviewer isolation and artifact validation are verified.
 
 Plain CLI or manual hosts can still drive the workflow by reading
 `reviews/README.md` and assembling prompts with the scripts under
