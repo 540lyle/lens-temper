@@ -16,7 +16,9 @@ Required references:
 
 - `docs/hosts/cursor.md`
 - `reviews/README.md`
+- `reviews/registry.json`
 - selected lens prompts under `reviews/lenses/`
+- selected lens manifests under `reviews/manifests/lenses/`
 - `reviews/reviewer-template.md`
 
 Cursor-only output must be labeled advisory/reference unless the run uses a

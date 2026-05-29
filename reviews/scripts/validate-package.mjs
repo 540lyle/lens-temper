@@ -321,7 +321,9 @@ function checkCursorAdapter(root, manifest, failures) {
   for (const requiredReference of [
     "docs/hosts/cursor.md",
     "reviews/README.md",
+    "reviews/registry.json",
     "reviews/lenses/",
+    "reviews/manifests/lenses/",
     "reviews/reviewer-template.md",
     "advisory/reference"
   ]) {

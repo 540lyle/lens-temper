@@ -129,7 +129,7 @@ alwaysApply: false
 
 # LensTemper Cursor Advisory Adapter
 
-Read docs/hosts/cursor.md, reviews/README.md, selected reviews/lenses/ files, and reviews/reviewer-template.md. Label Cursor-only output advisory/reference.
+Read docs/hosts/cursor.md, reviews/README.md, reviews/registry.json, selected reviews/lenses/ files, reviews/manifests/lenses/ entries, and reviews/reviewer-template.md. Label Cursor-only output advisory/reference.
 `);
   write(root, ".github/copilot-instructions.md", "# LensTemper Copilot advisory adapter\n");
   return root;
