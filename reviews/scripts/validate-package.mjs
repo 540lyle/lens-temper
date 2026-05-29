@@ -81,6 +81,7 @@ function normalizeRepoPath(value) {
 function isSafeRepoRelativePath(value) {
   const normalized = normalizeRepoPath(value);
   if (!normalized || normalized === ".") return false;
+  if (normalized.split("/").some((segment) => segment === "." || segment === "..")) return false;
   if (normalized.includes("../") || normalized.startsWith("../")) return false;
   if (normalized.includes("/./") || normalized.startsWith("./")) return false;
   if (isAbsolute(normalized) || /^[A-Za-z]:/.test(normalized)) return false;
@@ -259,11 +260,13 @@ function checkReadmeVersionExamples(root, manifest, failures) {
 function checkFullReviewDowngradeLanguage(root, failures) {
   const silentDowngradePatterns = [
     /\bif (?:it|that|spawn_agent|fresh[^.]{0,80}) (?:is )?unavailable,\s*use inline\/advisory mode\b/i,
-    /\bwithout that,\s*use inline\/advisory mode\b/i
+    /\bwithout that,\s*use inline\/advisory mode\b/i,
+    /\botherwise\s+treat the run as inline\/advisory\b/i
   ];
   const paths = [
     "README.md",
     "docs/INSTALL.md",
+    "reviews/README.md",
     ...walkFiles(root, "skills").filter((repoPath) => repoPath.endsWith("/SKILL.md"))
   ];
   for (const repoPath of paths) {
@@ -382,6 +385,10 @@ function checkIgnoredLocalArtifacts(root, manifest, failures) {
   const packageCandidates = (manifest.packageCandidates || []).map(normalizeRepoPath);
   for (const repoPath of manifest.packageCandidates || []) {
     const normalized = normalizeRepoPath(repoPath);
+    if (!isSafeRepoRelativePath(normalized)) {
+      failures.push(failure("lens-temper.package.json", "packageCandidates", "safe repository-relative path", repoPath, "package candidate contains unsafe path segment"));
+      continue;
+    }
     if (packageCandidateIsDisallowed(normalized)) {
       failures.push(failure("lens-temper.package.json", "packageCandidates", "portable source only", repoPath, "package candidate includes host cache or local artifact"));
       continue;

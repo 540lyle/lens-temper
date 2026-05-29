@@ -139,7 +139,7 @@ try {
     lens_scores: lensScores,
     accepted_findings: (synthesis.finding_decisions || []).filter((entry) => entry.decision === "accepted"),
     rerun_or_lock_status: synthesis.lens_lock_decisions || [],
-    verification_evidence: "reviewer outputs captured and validators passed"
+    verification_evidence: "reviewer outputs captured, review records validated, synthesis emitted"
   };
   const text = asMarkdown(ledger, synthesis, opts.synthesis, lensScores);
   summary.summary_text = text;

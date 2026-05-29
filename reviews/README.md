@@ -64,8 +64,9 @@ Host mechanisms for fresh reviewers:
   Agent invocation is already a fresh subagent with isolated context, so no
   fork flag is needed.
 - Claude Desktop / Claude.ai: use only if the host can launch fresh, isolated
-  reviewer agents and can provide the `reviews/` workflow resources. Otherwise
-  treat the run as inline/advisory.
+  reviewer agents and can provide the `reviews/` workflow resources. If it
+  cannot, stop the full-review request and report that the host requirements
+  are not met unless the user explicitly asks for advisory mode.
 - Cursor and other skill-aware hosts: use the host's independent-agent
   mechanism that does not inherit the parent thread.
 

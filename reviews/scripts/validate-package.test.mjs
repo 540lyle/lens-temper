@@ -227,6 +227,23 @@ test("reports missing local artifact ignore rules", () => {
   }
 });
 
+test("reports package candidates with unsafe dot path segments", () => {
+  const root = makeFixture({
+    packagePatch: {
+      packageCandidates: [
+        ...BASE_PACKAGE.packageCandidates,
+        "reviews/..",
+        "skills/."
+      ]
+    }
+  });
+  try {
+    assert(messages(validatePackageRoot(root)).some((message) => message.includes("package candidate contains unsafe path segment")));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("reports silent full-review downgrades to advisory mode", () => {
   const root = makeFixture({
     readme: `${defaultReadme()}
@@ -234,6 +251,21 @@ test("reports silent full-review downgrades to advisory mode", () => {
 Full reviews require spawn_agent; if that is unavailable, use inline/advisory mode instead of claiming a full pass.
 `
   });
+  try {
+    assert(messages(validatePackageRoot(root)).some((message) => message.includes("docs allow silent inline/advisory downgrade")));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("reports silent full-review downgrades in review workflow docs", () => {
+  const root = makeFixture();
+  write(root, "reviews/README.md", `# Reviews
+
+Claude Desktop / Claude.ai: use only if the host can launch fresh, isolated
+reviewer agents and can provide the reviews/ workflow resources. Otherwise
+treat the run as inline/advisory.
+`);
   try {
     assert(messages(validatePackageRoot(root)).some((message) => message.includes("docs allow silent inline/advisory downgrade")));
   } finally {

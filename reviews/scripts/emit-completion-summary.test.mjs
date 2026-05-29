@@ -37,6 +37,8 @@ test("--out ending in .json writes a valid completion-summary JSON record", () =
     assert.equal(summary.schema_version, 1);
     assert.equal(summary.target_revision, "example-target-revision");
     assert.equal(summary.run_mode, "full");
+    assert.doesNotMatch(summary.verification_evidence, /validators passed/i);
+    assert.match(summary.verification_evidence, /review records validated/i);
     execFileSync(node, [
       "reviews/scripts/validate-completion-summary.mjs",
       outPath,
