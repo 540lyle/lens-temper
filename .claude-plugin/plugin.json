@@ -1,0 +1,19 @@
+{
+  "name": "lens-temper",
+  "version": "0.1.1",
+  "description": "LensTemper runs structured spec-driven development reviews with fresh reviewer subagents and lens-specific synthesis.",
+  "author": {
+    "name": "LensTemper maintainers"
+  },
+  "homepage": "https://github.com/540lyle/lens-temper",
+  "repository": "https://github.com/540lyle/lens-temper",
+  "license": "MIT",
+  "keywords": [
+    "code-review",
+    "plan-review",
+    "skills",
+    "validation",
+    "synthesis",
+    "workflow"
+  ]
+}

@@ -1,0 +1,138 @@
+{
+  "name": "lens-temper",
+  "version": "0.1.1",
+  "description": "LensTemper runs structured spec-driven development reviews with fresh reviewer subagents and lens-specific synthesis.",
+  "skills": [
+    {
+      "id": "start-plan-review",
+      "path": "skills/start-plan-review/SKILL.md"
+    },
+    {
+      "id": "plan-review-orchestrator",
+      "path": "skills/plan-review-orchestrator/SKILL.md"
+    },
+    {
+      "id": "lens-reviewer",
+      "path": "skills/lens-reviewer/SKILL.md"
+    },
+    {
+      "id": "synthesize-review-feedback",
+      "path": "skills/synthesize-review-feedback/SKILL.md"
+    },
+    {
+      "id": "rerun-decider",
+      "path": "skills/rerun-decider/SKILL.md"
+    },
+    {
+      "id": "verification-runner",
+      "path": "skills/verification-runner/SKILL.md"
+    }
+  ],
+  "requiredSharedResources": [
+    "reviews/"
+  ],
+  "hostSupportMatrix": {
+    "claude-code": {
+      "status": "full",
+      "adapter": ".claude-plugin/plugin.json",
+      "requirements": [
+        "skills/",
+        "reviews/",
+        "Claude Code Agent tool"
+      ]
+    },
+    "codex": {
+      "status": "full",
+      "adapter": ".codex-plugin/plugin.json",
+      "requirements": [
+        "skills/",
+        "reviews/",
+        "spawn_agent or equivalent fresh subagent support",
+        "fork_context false for spawned reviewers"
+      ]
+    },
+    "claude-desktop-claude-ai": {
+      "status": "conditional",
+      "adapter": "packaged skill bundle",
+      "requirements": [
+        "one or more packaged skill folders rooted at SKILL.md",
+        "referenced reviews/ resources bundled or otherwise readable",
+        "verified fresh reviewer isolation"
+      ]
+    },
+    "cursor": {
+      "status": "conditional",
+      "adapter": ".cursor/rules/lens-temper.mdc",
+      "requirements": [
+        "skills/",
+        "reviews/",
+        ".cursor/rules/lens-temper.mdc",
+        "detached orchestrator subagent",
+        "one fresh reviewer per selected lens",
+        "parent-chat-only secret isolation falsification",
+        "per-lens JSON review artifacts",
+        "ledger.json and events.jsonl",
+        "synthesis, rerun, and completion-summary validators"
+      ]
+    },
+    "copilot": {
+      "status": "advisory",
+      "adapter": ".github/copilot-instructions.md",
+      "requirements": [
+        "reviews/",
+        ".github/copilot-instructions.md or AGENTS.md"
+      ]
+    }
+  },
+  "manifestTargets": [
+    {
+      "host": "claude-code",
+      "path": ".claude-plugin/plugin.json",
+      "support": "full"
+    },
+    {
+      "host": "codex",
+      "path": ".codex-plugin/plugin.json",
+      "support": "full"
+    },
+    {
+      "host": "cursor",
+      "path": ".cursor/rules/lens-temper.mdc",
+      "support": "conditional"
+    },
+    {
+      "host": "copilot",
+      "path": ".github/copilot-instructions.md",
+      "support": "advisory"
+    }
+  ],
+  "packageCandidates": [
+    "README.md",
+    "LICENSE",
+    "CONTRIBUTING.md",
+    "SECURITY.md",
+    "lens-temper.package.json",
+    ".claude-plugin/plugin.json",
+    ".codex-plugin/plugin.json",
+    "skills/",
+    "reviews/README.md",
+    "reviews/AGENT.md",
+    "reviews/reviewer-template.md",
+    "reviews/synthesize-review-feedback.md",
+    "reviews/registry.json",
+    "reviews/lenses/",
+    "reviews/manifests/",
+    "reviews/schemas/",
+    "reviews/scripts/",
+    "reviews/examples/",
+    "reviews/evals/",
+    "docs/INSTALL.md",
+    "docs/hosts/cursor.md",
+    "docs/PRIVACY.md",
+    "docs/TERMS.md",
+    "docs/agent-flow.md",
+    "docs/PUBLISHING_CHECKLIST.md",
+    ".cursor/rules/lens-temper.mdc",
+    ".github/copilot-instructions.md"
+  ]
+}

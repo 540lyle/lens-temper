@@ -10,11 +10,16 @@
   per-lens output is lockable.
 - [x] Move the internal forward plan out of the repository root.
 - [x] Remove ignored local review-run archives from the working copy.
+- [ ] Verify platform-specific installation notes for Codex active-cache
+  discovery, Claude Code, Claude Desktop / Claude.ai, Cursor, and Copilot.
+- [ ] Validate registry, package metadata, manifest targets, package candidates,
+  and nested artifact exclusions stay in sync.
+- [ ] Confirm ignored local artifacts are absent from package candidates with
+  `git status --ignored --short --untracked-files=all` and
+  `node reviews/scripts/validate-package.mjs`.
 
 ## Remaining Public-Release Work
 
-- [ ] Add platform-specific installation notes for Codex, Claude Code, and
-  Cursor.
 - [ ] Add CI that runs fixture validation, evals, and script syntax checks.
 - [ ] Decide whether to add marketplace submission assets such as screenshots
   or platform-specific manifests.

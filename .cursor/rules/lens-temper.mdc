@@ -1,0 +1,27 @@
+---
+description: Use when the user asks Cursor for a LensTemper review of a plan, spec, proposal, or implementation approach.
+alwaysApply: false
+---
+
+# LensTemper Advisory Adapter
+
+LensTemper is available in this repository as a portable skill package. Cursor
+support is conditional full only when the run satisfies `docs/hosts/cursor.md`;
+otherwise it is advisory/reference.
+
+Use this rule only when the user asks for LensTemper, a LensTemper-style review,
+or an advisory plan/spec review through Cursor.
+
+Required references:
+
+- `docs/hosts/cursor.md`
+- `reviews/README.md`
+- `reviews/registry.json`
+- selected lens prompts under `reviews/lenses/`
+- selected lens manifests under `reviews/manifests/lenses/`
+- `reviews/reviewer-template.md`
+
+Cursor-only output must be labeled advisory/reference unless the run uses a
+detached orchestrator, fresh per-lens reviewers, per-lens JSON artifacts,
+`ledger.json`, `events.jsonl`, synthesis, rerun decisions,
+`completion-summary.json`, validators, and a parent-chat-only isolation scan.

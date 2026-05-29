@@ -1,6 +1,6 @@
 ---
 name: verification-runner
-description: Use when executing validation commands, shell checks, or repository tests requested by LensTemper reviewers or orchestrators.
+description: Use only when a LensTemper orchestrator or reviewer requests validation commands, shell checks, or repository tests as review evidence.
 ---
 
 # LensTemper Verification Runner

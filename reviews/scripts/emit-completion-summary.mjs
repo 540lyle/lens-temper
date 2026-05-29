@@ -106,7 +106,7 @@ function asMarkdown(ledger, synthesis, synthesisPath, lensScores) {
 try {
   const opts = parseCommonArgs(process.argv.slice(2));
   if (opts.help) {
-    process.stdout.write(`${usage(scriptName, "--ledger <ledger-json> --synthesis <synthesis-json> [--out <path>] [--json] [--quiet]")}\n`);
+    process.stdout.write(`${usage(scriptName, "--ledger <ledger-json> --synthesis <synthesis-json> [--out <path.md|path.json>] [--json] [--quiet]")}\n`);
     process.exit(EXIT_CODES.ok);
   }
   if (opts.version) {
@@ -114,7 +114,7 @@ try {
     process.exit(EXIT_CODES.ok);
   }
   if (!opts.ledger || !opts.synthesis) {
-    process.stderr.write(`${usage(scriptName, "--ledger <ledger-json> --synthesis <synthesis-json> [--out <path>]")}\n`);
+    process.stderr.write(`${usage(scriptName, "--ledger <ledger-json> --synthesis <synthesis-json> [--out <path.md|path.json>]")}\n`);
     process.stderr.write(`validation error: missing --ledger or --synthesis\n`);
     process.exit(EXIT_CODES.usage);
   }
@@ -139,7 +139,7 @@ try {
     lens_scores: lensScores,
     accepted_findings: (synthesis.finding_decisions || []).filter((entry) => entry.decision === "accepted"),
     rerun_or_lock_status: synthesis.lens_lock_decisions || [],
-    verification_evidence: "reviewer outputs captured and validators passed"
+    verification_evidence: "reviewer outputs captured, review records validated, synthesis emitted"
   };
   const text = asMarkdown(ledger, synthesis, opts.synthesis, lensScores);
   summary.summary_text = text;
@@ -160,7 +160,8 @@ try {
     }
     const outPath = resolveRepoPath(root, opts.out);
     mkdirSync(dirname(outPath), { recursive: true });
-    writeFileSync(outPath, text, "utf8");
+    const writesJson = opts.json || opts.out.toLowerCase().endsWith(".json");
+    writeFileSync(outPath, writesJson ? `${JSON.stringify(summary, null, 2)}\n` : text, "utf8");
     if (!opts.quiet) process.stdout.write(`wrote ${opts.out}\n`);
   } else if (opts.json) {
     process.stdout.write(`${JSON.stringify(summary)}\n`);
@@ -168,7 +169,7 @@ try {
     process.stdout.write(text);
   }
 } catch (error) {
-  process.stderr.write(`${usage(scriptName, "--ledger <ledger-json> --synthesis <synthesis-json> [--out <path>]")}\n`);
+  process.stderr.write(`${usage(scriptName, "--ledger <ledger-json> --synthesis <synthesis-json> [--out <path.md|path.json>]")}\n`);
   process.stderr.write(`validation error: ${error.message}\n`);
   process.exit(error.exitCode || EXIT_CODES.internal);
 }

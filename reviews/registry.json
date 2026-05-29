@@ -118,6 +118,10 @@
       "path": "reviews/scripts/validate-review-fixtures.mjs"
     },
     {
+      "id": "validate-package",
+      "path": "reviews/scripts/validate-package.mjs"
+    },
+    {
       "id": "validate-completion-summary",
       "path": "reviews/scripts/validate-completion-summary.mjs"
     },
@@ -200,6 +204,10 @@
   ],
   "skills": [
     {
+      "id": "start-plan-review",
+      "path": "skills/start-plan-review/SKILL.md"
+    },
+    {
       "id": "plan-review-orchestrator",
       "path": "skills/plan-review-orchestrator/SKILL.md"
     },
@@ -223,7 +231,7 @@
   "role_skill_mappings": [
     {
       "role": "orchestrator",
-      "skill": "plan-review-orchestrator"
+      "skill": "start-plan-review"
     },
     {
       "role": "lens-reviewer",

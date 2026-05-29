@@ -1,7 +1,7 @@
 # Privacy Policy
 
-LensTemper is a local, repository-distributed review workflow. The plugin and
-skills in this repository do not run a hosted service, set cookies, collect
+LensTemper is a local, repository-distributed review workflow. The skill package
+in this repository does not run a hosted service, set cookies, collect
 telemetry, or transmit data to LensTemper maintainers.
 
 Agents using LensTemper may read the plan, source files, review artifacts, and
