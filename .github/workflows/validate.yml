@@ -1,0 +1,43 @@
+name: Validate
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    name: LensTemper package checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Check script syntax
+        run: |
+          for file in reviews/scripts/*.mjs; do
+            node --check "$file"
+          done
+
+      - name: Run script unit tests
+        run: node --test reviews/scripts/*.test.mjs
+
+      - name: Validate package metadata
+        run: node reviews/scripts/validate-package.mjs
+
+      - name: Validate review fixtures
+        run: node reviews/scripts/validate-review-fixtures.mjs
+
+      - name: Run review evaluator fixtures
+        run: node reviews/scripts/run-review-evals.mjs
