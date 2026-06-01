@@ -280,6 +280,7 @@ Do not spawn reviewers.
 ## Repository Layout
 
 ```text
+.agents/plugins/marketplace.json Codex repo marketplace catalog
 .claude-plugin/plugin.json      Claude Code plugin metadata
 .codex-plugin/plugin.json       Codex plugin metadata
 skills/                         Portable skill entrypoints (host-neutral)
@@ -421,28 +422,13 @@ your Desktop/web skill bundle includes both.
 
 ### Codex
 
-Codex reads `.codex-plugin/plugin.json` and the root `skills/` directory. Full
-LensTemper reviews also require `spawn_agent` or an equivalent fresh-subagent
-tool. If that is unavailable, a full review cannot be completed; only run
-inline/advisory mode when the user explicitly asks for a non-lockable advisory
-pass.
-
-If you edit a local checkout that Codex has cached, refresh the active installed
-cache path. On Windows, discover the installed path first:
-
-```powershell
-Get-ChildItem "$env:USERPROFILE\.codex\plugins\cache\local\lens-temper" -Directory
-```
-
-Then mirror into the directory Codex is actually using:
-
-```powershell
-robocopy <path-to-checkout> <installed-cache-path> /MIR /XD .git .claude .codex .cache node_modules dist coverage reviews\archive /XF *.log /NFL /NDL /NJH /NJS /NP
-```
-
-Use your actual checkout and installed-skill paths. The cache location may
-differ by Codex version and platform, and its directory version segment may lag
-the plugin manifest version.
+Codex installs should use the repo marketplace catalog in
+`.agents/plugins/marketplace.json`; see [docs/INSTALL.md](docs/INSTALL.md) for
+the current install and update commands. Codex reads `.codex-plugin/plugin.json`
+and the root `skills/` directory. Full LensTemper reviews also require
+`spawn_agent` or an equivalent fresh-subagent tool. If that is unavailable, a
+full review cannot be completed; only run inline/advisory mode when the user
+explicitly asks for a non-lockable advisory pass.
 
 ### Cursor, plain CLI, and other hosts
 

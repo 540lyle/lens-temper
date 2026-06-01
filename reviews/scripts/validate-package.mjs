@@ -257,6 +257,73 @@ function checkReadmeVersionExamples(root, manifest, failures) {
   }
 }
 
+function checkMarketplaceMetadata(root, manifest, failures) {
+  const marketplacePath = ".agents/plugins/marketplace.json";
+  const packageCandidates = (manifest.packageCandidates || []).map(normalizeRepoPath);
+
+  if (!packageCandidatesCover(packageCandidates, marketplacePath)) {
+    failures.push(failure("lens-temper.package.json", "packageCandidates", marketplacePath, "missing", "marketplace metadata is not included in package candidates"));
+  }
+
+  if (!pathIsFile(root, marketplacePath)) {
+    failures.push(failure(marketplacePath, "file", "existing file", "missing", "Codex repo marketplace metadata is missing"));
+    return;
+  }
+
+  const marketplace = readJson(root, marketplacePath, failures);
+  if (!marketplace) return;
+  if (marketplace.name !== "lens-temper") {
+    failures.push(failure(marketplacePath, "name", "lens-temper", marketplace.name, "marketplace top-level name is wrong"));
+  }
+
+  if (!Array.isArray(marketplace.plugins)) {
+    failures.push(failure(marketplacePath, "plugins", "array with lens-temper plugin", marketplace.plugins || "missing", "marketplace plugins must be an array"));
+    return;
+  }
+
+  const plugin = marketplace.plugins.find((candidate) => candidate?.name === "lens-temper");
+  if (!plugin) {
+    failures.push(failure(marketplacePath, "plugins", "plugin named lens-temper", marketplace.plugins || [], "marketplace does not expose lens-temper plugin"));
+    return;
+  }
+
+  if (!plugin.source || plugin.source.source !== "local" || plugin.source.path !== "./") {
+    failures.push(failure(marketplacePath, "plugins.lens-temper.source", "{ source: local, path: ./ }", plugin.source || "missing", "marketplace plugin source must point at this package root"));
+  }
+  if (!plugin.policy?.installation) {
+    failures.push(failure(marketplacePath, "plugins.lens-temper.policy.installation", "explicit policy", "missing", "marketplace plugin lacks installation policy"));
+  }
+  if (!plugin.policy?.authentication) {
+    failures.push(failure(marketplacePath, "plugins.lens-temper.policy.authentication", "explicit policy", "missing", "marketplace plugin lacks authentication policy"));
+  }
+  if (!plugin.category) {
+    failures.push(failure(marketplacePath, "plugins.lens-temper.category", "explicit category", "missing", "marketplace plugin lacks category"));
+  }
+}
+
+function checkInstallDocMarketplaceOrder(root, failures) {
+  const installDocPath = "docs/INSTALL.md";
+  if (!pathIsFile(root, installDocPath)) return;
+  const installDoc = readText(root, installDocPath, failures);
+  const codexIndex = installDoc.search(/^##\s+Codex\s*$/im);
+  const marketplaceIndex = installDoc.search(/codex\s+plugin\s+marketplace\s+add/i);
+  const pluginInstallIndex = installDoc.search(/codex\s+plugin\s+add\s+lens-temper@lens-temper/i);
+  const fallbackIndex = installDoc.search(/^##\s+Local Development Fallback\s*$/im);
+  const cacheCopyIndex = installDoc.search(/\brobocopy\b|cached local plugin copy|installed-cache-path/i);
+
+  if (marketplaceIndex < 0 || (codexIndex >= 0 && marketplaceIndex < codexIndex) || (fallbackIndex >= 0 && marketplaceIndex > fallbackIndex)) {
+    failures.push(failure(installDocPath, "codex_marketplace_install", "marketplace install before local development fallback", "missing or after fallback", "install doc must present Codex marketplace install before local development fallback"));
+  }
+
+  if (pluginInstallIndex < 0 || (fallbackIndex >= 0 && pluginInstallIndex > fallbackIndex)) {
+    failures.push(failure(installDocPath, "codex_plugin_install", "codex plugin add lens-temper@lens-temper before local development fallback", "missing or after fallback", "install doc must include Codex plugin install command"));
+  }
+
+  if (cacheCopyIndex >= 0 && (fallbackIndex < 0 || cacheCopyIndex < fallbackIndex)) {
+    failures.push(failure(installDocPath, "codex_cache_copy_fallback", "cache-copy guidance under Local Development Fallback", "outside fallback", "Codex cache-copy guidance must be labeled as local development fallback"));
+  }
+}
+
 function checkFullReviewDowngradeLanguage(root, failures) {
   const silentDowngradePatterns = [
     /\bif (?:it|that|spawn_agent|fresh[^.]{0,80}) (?:is )?unavailable,\s*use inline\/advisory mode\b/i,
@@ -431,6 +498,8 @@ export function validatePackageRoot(root = repoRootFrom()) {
   checkReviewsResourceRule(root, manifest, failures);
   checkReadmeHostClaims(root, failures);
   checkReadmeVersionExamples(root, manifest, failures);
+  checkMarketplaceMetadata(root, manifest, failures);
+  checkInstallDocMarketplaceOrder(root, failures);
   checkFullReviewDowngradeLanguage(root, failures);
   checkHostSupportMatrix(manifest, failures);
   checkCursorAdapter(root, manifest, failures);

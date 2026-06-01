@@ -75,11 +75,33 @@ const BASE_PACKAGE = {
     "lens-temper.package.json",
     ".claude-plugin/plugin.json",
     ".codex-plugin/plugin.json",
+    ".agents/plugins/marketplace.json",
     "skills/",
     "reviews/",
     "docs/hosts/cursor.md",
     ".cursor/rules/lens-temper.mdc",
     ".github/copilot-instructions.md"
+  ]
+};
+
+const VALID_MARKETPLACE = {
+  name: "lens-temper",
+  interface: {
+    displayName: "LensTemper"
+  },
+  plugins: [
+    {
+      name: "lens-temper",
+      source: {
+        source: "local",
+        path: "./"
+      },
+      policy: {
+        installation: "AVAILABLE",
+        authentication: "ON_INSTALL"
+      },
+      category: "Coding"
+    }
   ]
 };
 
@@ -89,7 +111,13 @@ function write(root, repoPath, content) {
   writeFileSync(fullPath, content, "utf8");
 }
 
-function makeFixture({ packagePatch = {}, readme = defaultReadme(), registryPath = "skills/start-plan-review/SKILL.md" } = {}) {
+function makeFixture({
+  packagePatch = {},
+  readme = defaultReadme(),
+  installDoc = defaultInstallDoc(),
+  registryPath = "skills/start-plan-review/SKILL.md",
+  marketplace = VALID_MARKETPLACE
+} = {}) {
   const root = mkdtempSync(join(tmpdir(), "lens-temper-package-"));
   const manifest = {
     ...BASE_PACKAGE,
@@ -100,7 +128,10 @@ function makeFixture({ packagePatch = {}, readme = defaultReadme(), registryPath
   write(root, ".codex-plugin/plugin.json", `${JSON.stringify({ name: "lens-temper", version: "0.1.1" }, null, 2)}\n`);
   write(root, ".gitignore", "node_modules/\ndist/\ncoverage/\n*.log\n.claude/\n.codex/\n.cache/\n.cursor/skills/\nreviews/archive/*/\n!reviews/archive/.gitkeep\n");
   write(root, "README.md", readme);
-  write(root, "docs/INSTALL.md", "# Installing LensTemper\n");
+  write(root, "docs/INSTALL.md", installDoc);
+  if (marketplace) {
+    write(root, ".agents/plugins/marketplace.json", `${JSON.stringify(marketplace, null, 2)}\n`);
+  }
   write(root, "skills/start-plan-review/SKILL.md", "---\nname: start-plan-review\n---\nRead reviews/README.md before running.\n");
   write(root, "docs/hosts/cursor.md", `# Cursor Host Guide
 
@@ -158,6 +189,32 @@ are host adapters.
 `;
 }
 
+function defaultInstallDoc() {
+  return `# Installing LensTemper
+
+## Codex
+
+Register this repository marketplace, then install LensTemper:
+
+\`\`\`bash
+codex plugin marketplace add <path-to-lens-temper-checkout>
+codex plugin add lens-temper@lens-temper
+\`\`\`
+
+For development users, install from a checkout of \`main\`. For stable users,
+install from a checkout of a release tag such as \`v0.1.1\`.
+
+## Local Development Fallback
+
+If Codex is using a cached local plugin copy, refresh the active installed cache
+path after edits.
+
+\`\`\`powershell
+robocopy <path-to-checkout> <installed-cache-path> /MIR /XD .git .claude .codex .cache node_modules dist coverage reviews\\archive /XF *.log /NFL /NDL /NJH /NJS /NP
+\`\`\`
+`;
+}
+
 function messages(failures) {
   return failures.map((failure) => failure.message);
 }
@@ -210,6 +267,141 @@ robocopy <path-to-checkout> $env:USERPROFILE\\.codex\\plugins\\cache\\local\\len
 `);
   try {
     assert(messages(validatePackageRoot(root)).some((message) => message.includes("install doc hardcodes Codex cache version path")));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("reports missing Codex repo marketplace metadata", () => {
+  const root = makeFixture({ marketplace: null });
+  try {
+    assert(messages(validatePackageRoot(root)).some((message) => message.includes("Codex repo marketplace metadata is missing")));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("reports marketplace metadata without required policy and category", () => {
+  const root = makeFixture({
+    marketplace: {
+      name: "lens-temper",
+      plugins: [
+        {
+          name: "lens-temper",
+          source: {
+            source: "local",
+            path: "./"
+          }
+        }
+      ]
+    }
+  });
+  try {
+    const validationMessages = messages(validatePackageRoot(root));
+    assert(validationMessages.some((message) => message.includes("marketplace plugin lacks installation policy")));
+    assert(validationMessages.some((message) => message.includes("marketplace plugin lacks authentication policy")));
+    assert(validationMessages.some((message) => message.includes("marketplace plugin lacks category")));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("reports marketplace metadata without a plugin list", () => {
+  const root = makeFixture({
+    marketplace: {
+      name: "lens-temper",
+      plugins: {
+        name: "lens-temper"
+      }
+    }
+  });
+  try {
+    assert(messages(validatePackageRoot(root)).some((message) => message.includes("marketplace plugins must be an array")));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("reports package candidates missing marketplace file", () => {
+  const root = makeFixture({
+    packagePatch: {
+      packageCandidates: BASE_PACKAGE.packageCandidates.filter((candidate) => candidate !== ".agents/plugins/marketplace.json")
+    }
+  });
+  try {
+    assert(messages(validatePackageRoot(root)).some((message) => message.includes("marketplace metadata is not included in package candidates")));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("reports install docs that do not present Codex marketplace install first", () => {
+  const root = makeFixture({
+    installDoc: `# Installing LensTemper
+
+## Codex
+
+## Local Development Fallback
+
+\`\`\`powershell
+robocopy <path-to-checkout> <installed-cache-path> /MIR
+\`\`\`
+
+\`\`\`bash
+codex plugin marketplace add <path-to-lens-temper-checkout>
+\`\`\`
+`
+  });
+  try {
+    assert(messages(validatePackageRoot(root)).some((message) => message.includes("install doc must present Codex marketplace install before local development fallback")));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("reports install docs missing Codex plugin install command", () => {
+  const root = makeFixture({
+    installDoc: `# Installing LensTemper
+
+## Codex
+
+\`\`\`bash
+codex plugin marketplace add <path-to-lens-temper-checkout>
+\`\`\`
+
+## Local Development Fallback
+
+\`\`\`powershell
+robocopy <path-to-checkout> <installed-cache-path> /MIR
+\`\`\`
+`
+  });
+  try {
+    assert(messages(validatePackageRoot(root)).some((message) => message.includes("install doc must include Codex plugin install command")));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("reports Codex cache-copy guidance outside local development fallback", () => {
+  const root = makeFixture({
+    installDoc: `# Installing LensTemper
+
+## Codex
+
+Register this repository marketplace:
+
+\`\`\`bash
+codex plugin marketplace add <path-to-lens-temper-checkout>
+\`\`\`
+
+\`\`\`powershell
+robocopy <path-to-checkout> <installed-cache-path> /MIR
+\`\`\`
+`
+  });
+  try {
+    assert(messages(validatePackageRoot(root)).some((message) => message.includes("Codex cache-copy guidance must be labeled as local development fallback")));
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

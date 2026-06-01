@@ -18,6 +18,9 @@ node reviews/scripts/validate-package.mjs
 The package root is valid when `skills/`, `reviews/`,
 `lens-temper.package.json`, and the host adapter you use are present.
 
+For Codex repo marketplace installs, the package root also includes
+`.agents/plugins/marketplace.json`.
+
 ## Claude Code
 
 Load the repository as a local plugin:
@@ -48,14 +51,47 @@ pass.
 
 ## Codex
 
+### Repo Marketplace Install
+
+Register this repository marketplace, then install LensTemper from it:
+
+```bash
+git clone https://github.com/540lyle/lens-temper.git
+cd lens-temper
+node reviews/scripts/validate-package.mjs
+codex plugin marketplace add <path-to-lens-temper-checkout>
+codex plugin add lens-temper@lens-temper
+```
+
+Development users should install from a checkout of `main`. Stable users should
+install from a checkout of a release tag such as `v0.1.1`.
+
 Codex reads `.codex-plugin/plugin.json` and the root `skills/` directory. Full
 LensTemper reviews also require `spawn_agent` or an equivalent fresh-subagent
 tool. If that is unavailable, a full review cannot be completed; only run
 inline/advisory mode when the user explicitly asks for a non-lockable advisory
 pass.
 
-If Codex is using a cached local plugin copy, refresh the active installed cache
-path after edits. On Windows, discover the installed path first:
+### Repo Marketplace Update
+
+Update the marketplace source, validate it, then reinstall from the registered
+marketplace:
+
+```bash
+cd <path-to-lens-temper-checkout>
+git pull --ff-only
+node reviews/scripts/validate-package.mjs
+codex plugin add lens-temper@lens-temper
+```
+
+After updating, start a new thread, reload the host, or restart Codex if cached
+plugin metadata or skill descriptions do not refresh immediately.
+
+## Local Development Fallback
+
+Use this only when Codex is using a cached local plugin copy that must be
+refreshed directly during local development. On Windows, discover the installed
+path first:
 
 ```powershell
 Get-ChildItem "$env:USERPROFILE\.codex\plugins\cache\local\lens-temper" -Directory
