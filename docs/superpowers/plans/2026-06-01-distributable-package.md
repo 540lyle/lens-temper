@@ -4,7 +4,7 @@
 
 **Goal:** Make LensTemper installable and refreshable as a Codex repo marketplace package while keeping `skills/` plus `reviews/` as the portable package source.
 
-**Architecture:** Add a repo-root Codex marketplace catalog at `.agents/plugins/marketplace.json` that points at the repository root plugin with a local `source.path` of `"./"`. Update install, publishing, README, package manifest, and package validator code so marketplace distribution becomes the primary documented Codex path and drift is caught in tests.
+**Architecture:** Add a repo-root Codex marketplace catalog at `.agents/plugins/marketplace.json` that points at a packaged child Codex plugin payload in `plugins/lens-temper/`. Update install, publishing, README, package manifest, and package validator code so marketplace distribution becomes the primary documented Codex path and drift is caught in tests.
 
 **Tech Stack:** Node.js ESM scripts, `node:test`, JSON package metadata, Codex plugin manifest metadata, Markdown install/publishing docs.
 
@@ -14,14 +14,14 @@
 
 - The bundled Codex plugin-creator reference and installed marketplace examples use marketplace roots containing `.agents/plugins/marketplace.json` plus sibling plugin source paths such as `./plugins/browser`.
 - No local bundled reference or official OpenAI web result found during planning verified the prompt's `source.source: "git-subdir"` shape. Do not use `git-subdir` in this PR unless a current Codex CLI/docs check proves support.
-- Because LensTemper's plugin root is the repository root, the repo marketplace entry should use `source: { "source": "local", "path": "./" }`.
+- Codex CLI marketplace discovery requires the marketplace entry to point at a child plugin directory. A root entry using `source.path: "./"` was tested and was not discoverable as `lens-temper@lens-temper`.
 - The local shell could not run `codex plugin --help`; `codex.exe` returned "Access is denied". Treat install command wording as documentation derived from bundled plugin-creator docs, and verify with a working Codex CLI before release if possible.
 - Codex official/curated marketplace publication is separate from this repo marketplace distribution work.
 
 ## File Structure
 
 - Create `.agents/plugins/marketplace.json`: Codex repo marketplace catalog for this repository.
-- Modify `lens-temper.package.json`: add the marketplace file to `packageCandidates`.
+- Modify `lens-temper.package.json`: add the marketplace file and packaged Codex payload to `packageCandidates`.
 - Modify `reviews/scripts/validate-package.mjs`: add marketplace metadata, package candidate, install-doc ordering, fallback-label, and version-sync checks.
 - Modify `reviews/scripts/validate-package.test.mjs`: add focused fixtures for the new validator checks.
 - Modify `docs/INSTALL.md`: make Codex marketplace install primary and move cache-copy instructions under `Local Development Fallback`.
@@ -50,7 +50,7 @@ Create `.agents/plugins/marketplace.json` with this exact content:
       "name": "lens-temper",
       "source": {
         "source": "local",
-        "path": "./"
+        "path": "./plugins/lens-temper"
       },
       "policy": {
         "installation": "AVAILABLE",
@@ -101,7 +101,7 @@ const VALID_MARKETPLACE = {
       name: "lens-temper",
       source: {
         source: "local",
-        path: "./"
+        path: "./plugins/lens-temper"
       },
       policy: {
         installation: "AVAILABLE",
@@ -213,7 +213,7 @@ test("reports marketplace metadata without required policy and category", () => 
           name: "lens-temper",
           source: {
             source: "local",
-            path: "./"
+            path: "./plugins/lens-temper"
           }
         }
       ]
@@ -350,8 +350,8 @@ function checkCodexMarketplace(root, manifest, failures) {
   if (plugin.source?.source !== "local") {
     failures.push(failure(MARKETPLACE_PATH, "plugins.lens-temper.source.source", "local", plugin.source?.source, "marketplace plugin source must be local for repo distribution"));
   }
-  if (plugin.source?.path !== "./") {
-    failures.push(failure(MARKETPLACE_PATH, "plugins.lens-temper.source.path", "./", plugin.source?.path, "marketplace plugin source must point at this repository package root"));
+  if (plugin.source?.path !== "./plugins/lens-temper") {
+    failures.push(failure(MARKETPLACE_PATH, "plugins.lens-temper.source.path", "./plugins/lens-temper", plugin.source?.path, "marketplace plugin source must point at the packaged Codex plugin payload"));
   }
   if (!plugin.policy?.installation) {
     failures.push(failure(MARKETPLACE_PATH, "plugins.lens-temper.policy.installation", "explicit policy", plugin.policy?.installation, "marketplace plugin missing installation policy"));
@@ -634,10 +634,11 @@ Add this section after `## Current Cleanup`:
 - [x] Bump `lens-temper.package.json`, `.codex-plugin/plugin.json`, and
   `.claude-plugin/plugin.json` to the same semantic version.
 - [x] Verify `.agents/plugins/marketplace.json` exposes `lens-temper` with
-  `source.source: "local"`, `source.path: "./"`, explicit
+  `source.source: "local"`, `source.path: "./plugins/lens-temper"`, explicit
   `policy.installation`, explicit `policy.authentication`, and `category`.
 - [x] Verify `lens-temper.package.json` includes
-  `.agents/plugins/marketplace.json` in `packageCandidates`.
+  `.agents/plugins/marketplace.json` and `plugins/lens-temper/` in
+  `packageCandidates`.
 - [x] Verify `docs/INSTALL.md` presents Codex repo marketplace install before
   local cache-copy fallback instructions.
 - [x] Run the full validation suite:
@@ -760,4 +761,4 @@ Caveat:
 
 - Spec coverage: The plan covers marketplace metadata, install docs, README, publishing checklist, package manifest, validator checks, validator tests, and final verification. It explicitly preserves host-support caveats and avoids review workflow behavior changes.
 - Placeholder scan: No `TBD`, `TODO`, or unspecified "add tests" steps are used; concrete file paths, command lines, and expected outcomes are provided.
-- Type consistency: The marketplace path is consistently `.agents/plugins/marketplace.json`; the marketplace source is consistently `{ "source": "local", "path": "./" }`; the install command pair is consistently `codex plugin marketplace add <path-to-lens-temper-checkout>` and `codex plugin add lens-temper@lens-temper`.
+- Type consistency: The marketplace path is consistently `.agents/plugins/marketplace.json`; the marketplace source is consistently `{ "source": "local", "path": "./plugins/lens-temper" }`; the install command pair is consistently `codex plugin marketplace add <path-to-lens-temper-checkout>` and `codex plugin add lens-temper@lens-temper`.

@@ -8,7 +8,7 @@
       "name": "lens-temper",
       "source": {
         "source": "local",
-        "path": "./"
+        "path": "./plugins/lens-temper"
       },
       "policy": {
         "installation": "AVAILABLE",

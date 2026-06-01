@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "fixture_ledger_path": "reviews/examples/review-ledger.invalid-unclosed-reviewer.json",
+  "record_id": "synthesis-invalid-included-review",
+  "pass_id": "example-pass",
+  "target_path": "docs/plans/FORWARD_PLAN.md",
+  "target_revision": "example-target-revision",
+  "included_review_record_ids": [
+    "review-unclosed"
+  ],
+  "superseded_review_record_ids": [],
+  "finding_decisions": [
+    {
+      "finding_id": "included-review-invalid",
+      "source_lens": "implementation",
+      "source_review_record_id": "review-unclosed",
+      "decision": "accepted",
+      "severity": "major",
+      "affects_rerun_scope": true,
+      "reason": "Fixture intentionally includes a current review whose reviewer is not closed."
+    }
+  ],
+  "lens_lock_decisions": [
+    {
+      "lens": "implementation",
+      "lock_state": "rerun_required",
+      "rerun_needed": true,
+      "reason": "Included review artifact is not valid for synthesis completion."
+    }
+  ],
+  "final_assessment": "Needs revision",
+  "artifact_path": "reviews/examples/synthesis-output.invalid-included-review-invalid.json",
+  "markdown_artifact_path": "reviews/examples/artifacts/synthesis-output.valid.md",
+  "markdown_artifact_sha": "git:cf010010de0681abaf7117f4713e388a111994f9",
+  "run_mode": "full",
+  "claim_flags": {
+    "completion": false,
+    "lock_state": false,
+    "all_5_lockable": false,
+    "review_complete": false
+  },
+  "prior_material_findings_context": []
+}

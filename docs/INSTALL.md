@@ -19,7 +19,8 @@ The package root is valid when `skills/`, `reviews/`,
 `lens-temper.package.json`, and the host adapter you use are present.
 
 For Codex repo marketplace installs, the package root also includes
-`.agents/plugins/marketplace.json`.
+`.agents/plugins/marketplace.json` and a packaged Codex plugin payload under
+`plugins/lens-temper/`.
 
 ## Claude Code
 
@@ -66,11 +67,11 @@ codex plugin add lens-temper@lens-temper
 Development users should install from a checkout of `main`. Stable users should
 install from a checkout of a release tag such as `v0.1.1`.
 
-Codex reads `.codex-plugin/plugin.json` and the root `skills/` directory. Full
-LensTemper reviews also require `spawn_agent` or an equivalent fresh-subagent
-tool. If that is unavailable, a full review cannot be completed; only run
-inline/advisory mode when the user explicitly asks for a non-lockable advisory
-pass.
+Codex installs from `plugins/lens-temper/`, which contains the Codex plugin
+manifest plus packaged `skills/` and `reviews/` resources. Full LensTemper
+reviews also require `spawn_agent` or an equivalent fresh-subagent tool. If that
+is unavailable, a full review cannot be completed; only run inline/advisory
+mode when the user explicitly asks for a non-lockable advisory pass.
 
 ### Repo Marketplace Update
 

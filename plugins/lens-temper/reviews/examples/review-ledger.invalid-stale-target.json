@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "pass_id": "example-pass",
+  "target_path": "docs/plans/FORWARD_PLAN.md",
+  "target_revision": "stale-target-revision",
+  "status": "active",
+  "execution_mode": "fresh_spawned_lens_reviewers",
+  "selected_lenses": [
+    "implementation"
+  ],
+  "current_review_record_ids": [
+    "review-implementation-1"
+  ],
+  "superseded_review_record_ids": [],
+  "synthesis_record_ids": [],
+  "archive_paths": [
+    "reviews/archive/example-pass"
+  ],
+  "artifact_visibility": "public_safe",
+  "review_record_artifacts": [
+    {
+      "record_id": "review-implementation-1",
+      "artifact_path": "reviews/examples/review-output.valid-full.json"
+    }
+  ],
+  "synthesis_record_artifacts": [],
+  "run_mode": "full",
+  "run_scope": "selected_lenses",
+  "completion_validation": {
+    "validator_name": "validate-completion-summary",
+    "validator_contract_version": "1.1.0",
+    "passed": false,
+    "validated_review_record_ids": [
+      "review-implementation-1"
+    ],
+    "validated_synthesis_record_id": "",
+    "failures": []
+  }
+}

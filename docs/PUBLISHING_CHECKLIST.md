@@ -39,7 +39,10 @@
 - [ ] Verify `.agents/plugins/marketplace.json` is valid JSON and exposes the
   `lens-temper` plugin.
 - [ ] Verify `.agents/plugins/marketplace.json` uses
-  `source.source: "local"` and `source.path: "./"`.
+  `source.source: "local"` and `source.path: "./plugins/lens-temper"`.
+- [ ] Verify `plugins/lens-temper/` contains the packaged Codex plugin manifest,
+  `skills/`, and `reviews/`, and that package validation reports no drift from
+  the root source files.
 - [ ] Verify `.agents/plugins/marketplace.json` has explicit
   `policy.installation`, `policy.authentication`, and `category` values.
 - [ ] Verify `lens-temper.package.json` includes

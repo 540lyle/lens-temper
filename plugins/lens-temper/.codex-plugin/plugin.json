@@ -1,0 +1,41 @@
+{
+  "name": "lens-temper",
+  "version": "0.1.1",
+  "description": "LensTemper runs structured spec-driven development reviews with fresh reviewer subagents and lens-specific synthesis.",
+  "author": {
+    "name": "LensTemper maintainers"
+  },
+  "homepage": "https://github.com/540lyle/lens-temper",
+  "repository": "https://github.com/540lyle/lens-temper",
+  "license": "MIT",
+  "keywords": [
+    "code-review",
+    "plan-review",
+    "skills",
+    "validation",
+    "synthesis",
+    "workflow"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "LensTemper",
+    "shortDescription": "Spec reviews with fresh lens reviewers",
+    "longDescription": "Use LensTemper to review specs, implementation plans, and design proposals through independent lenses. Start with the Start Plan Review skill for normal use; specialist skills are for one-lens reviewing, synthesis, reruns, and validation evidence.",
+    "developerName": "LensTemper maintainers",
+    "category": "Coding",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Use LensTemper to run a full review of this spec.",
+      "Use LensTemper to review this plan with selected lenses."
+    ],
+    "websiteURL": "https://github.com/540lyle/lens-temper",
+    "privacyPolicyURL": "https://github.com/540lyle/lens-temper/blob/main/docs/PRIVACY.md",
+    "termsOfServiceURL": "https://github.com/540lyle/lens-temper/blob/main/docs/TERMS.md",
+    "brandColor": "#2563EB",
+    "screenshots": []
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "record_id": "review-direct-provenance-missing-path",
+  "pass_id": "example-pass",
+  "target_path": "docs/plans/FORWARD_PLAN.md",
+  "target_revision": "example-target-revision",
+  "template_revision": "example-template-revision",
+  "lens": "implementation",
+  "lens_revision": "example-lens-revision",
+  "attempt": 1,
+  "run_mode": "full",
+  "execution_mode": "fresh_spawned_lens_reviewers",
+  "status": "completed",
+  "agent_id": "agent-example-provenance",
+  "closed": true,
+  "output_captured": true,
+  "artifact_path": "reviews/examples/review-output.invalid-direct-provenance-missing-path.json",
+  "markdown_artifact_path": "reviews/examples/artifacts/review-output.valid-full.md",
+  "markdown_artifact_sha": "git:98a5f7228a05a5d82602c12b6694331df2b4103a",
+  "verdict": "Strong",
+  "provenance": {
+    "input_sources": [
+      {
+        "role": "target",
+        "basis": "direct_workspace_read",
+        "paths_reviewed": [
+          "reviews/README.md"
+        ],
+        "target_included": true
+      }
+    ]
+  },
+  "material_blockers": {
+    "present": false,
+    "summary": "fixture intentionally omits target path from direct provenance",
+    "count": 0
+  },
+  "cross_cutting_status": {
+    "security_privacy": "not_applicable",
+    "accessibility": "not_applicable",
+    "performance": "not_applicable",
+    "reliability_rollback": "not_applicable",
+    "observability_debuggability": "not_applicable",
+    "compatibility_platform": "not_applicable"
+  },
+  "scorecard": {
+    "correctness": 4,
+    "completeness": 4,
+    "risk_awareness": 4,
+    "testability": 4,
+    "maintainability": 4,
+    "ship_readiness": 4
+  }
+}

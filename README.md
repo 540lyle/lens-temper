@@ -283,6 +283,7 @@ Do not spawn reviewers.
 .agents/plugins/marketplace.json Codex repo marketplace catalog
 .claude-plugin/plugin.json      Claude Code plugin metadata
 .codex-plugin/plugin.json       Codex plugin metadata
+plugins/lens-temper/            Packaged Codex plugin payload for repo marketplace installs
 skills/                         Portable skill entrypoints (host-neutral)
 reviews/README.md               Agent-facing workflow contract
 reviews/lenses/                 Lens prompts
@@ -424,11 +425,12 @@ your Desktop/web skill bundle includes both.
 
 Codex installs should use the repo marketplace catalog in
 `.agents/plugins/marketplace.json`; see [docs/INSTALL.md](docs/INSTALL.md) for
-the current install and update commands. Codex reads `.codex-plugin/plugin.json`
-and the root `skills/` directory. Full LensTemper reviews also require
-`spawn_agent` or an equivalent fresh-subagent tool. If that is unavailable, a
-full review cannot be completed; only run inline/advisory mode when the user
-explicitly asks for a non-lockable advisory pass.
+the current install and update commands. The marketplace installs the packaged
+Codex payload in `plugins/lens-temper/`, which mirrors `.codex-plugin/`,
+`skills/`, and `reviews/` for Codex's plugin cache. Full LensTemper reviews also
+require `spawn_agent` or an equivalent fresh-subagent tool. If that is
+unavailable, a full review cannot be completed; only run inline/advisory mode
+when the user explicitly asks for a non-lockable advisory pass.
 
 ### Cursor, plain CLI, and other hosts
 

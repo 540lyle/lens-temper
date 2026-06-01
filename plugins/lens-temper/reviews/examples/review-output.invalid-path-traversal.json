@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "record_id": "review-invalid-path",
+  "pass_id": "example-pass",
+  "target_path": "../docs/plans/FORWARD_PLAN.md",
+  "target_revision": "example-target-revision",
+  "template_revision": "example-template-revision",
+  "lens": "implementation",
+  "lens_revision": "example-lens-revision",
+  "attempt": 1,
+  "execution_mode": "manual_or_imported",
+  "status": "completed",
+  "artifact_path": "reviews/examples/review-output.invalid-path-traversal.json",
+  "verdict": "Strong",
+  "material_blockers": {
+    "present": false,
+    "summary": "invalid path traversal",
+    "count": 0
+  },
+  "cross_cutting_status": {
+    "security_privacy": "not_applicable",
+    "accessibility": "not_applicable",
+    "performance": "not_applicable",
+    "reliability_rollback": "not_applicable",
+    "observability_debuggability": "not_applicable",
+    "compatibility_platform": "not_applicable"
+  },
+  "scorecard": {
+    "correctness": 5,
+    "completeness": 5,
+    "risk_awareness": 5,
+    "testability": 5,
+    "maintainability": 5,
+    "ship_readiness": 5
+  },
+  "run_mode": "inline",
+  "provenance": {
+    "input_sources": [
+      {
+        "role": "target",
+        "basis": "provided_packet",
+        "paths_reviewed": [],
+        "target_included": true
+      }
+    ]
+  },
+  "score_challenges": {
+    "correctness": {
+      "would_make_this_a_4": "A material correctness issue would lower this score.",
+      "why_not_present": "No material correctness issue is present in this fixture.",
+      "evidence_no_material_issue": "Fixture evidence records no accepted material blocker for correctness."
+    },
+    "completeness": {
+      "would_make_this_a_4": "A material completeness issue would lower this score.",
+      "why_not_present": "No material completeness issue is present in this fixture.",
+      "evidence_no_material_issue": "Fixture evidence records no accepted material blocker for completeness."
+    },
+    "risk_awareness": {
+      "would_make_this_a_4": "A material risk_awareness issue would lower this score.",
+      "why_not_present": "No material risk_awareness issue is present in this fixture.",
+      "evidence_no_material_issue": "Fixture evidence records no accepted material blocker for risk_awareness."
+    },
+    "testability": {
+      "would_make_this_a_4": "A material testability issue would lower this score.",
+      "why_not_present": "No material testability issue is present in this fixture.",
+      "evidence_no_material_issue": "Fixture evidence records no accepted material blocker for testability."
+    },
+    "maintainability": {
+      "would_make_this_a_4": "A material maintainability issue would lower this score.",
+      "why_not_present": "No material maintainability issue is present in this fixture.",
+      "evidence_no_material_issue": "Fixture evidence records no accepted material blocker for maintainability."
+    },
+    "ship_readiness": {
+      "would_make_this_a_4": "A material ship_readiness issue would lower this score.",
+      "why_not_present": "No material ship_readiness issue is present in this fixture.",
+      "evidence_no_material_issue": "Fixture evidence records no accepted material blocker for ship_readiness."
+    }
+  }
+}
