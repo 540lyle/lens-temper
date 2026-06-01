@@ -324,6 +324,7 @@ function checkPackagedCodexPayload(root, manifest, failures) {
 
   for (const repoPath of [
     `${packageRoot}/.codex-plugin/plugin.json`,
+    `${packageRoot}/assets/`,
     `${packageRoot}/skills/`,
     `${packageRoot}/reviews/`
   ]) {
@@ -339,6 +340,7 @@ function checkPackagedCodexPayload(root, manifest, failures) {
 
   const mirroredRoots = [
     [".codex-plugin/plugin.json", `${packageRoot}/.codex-plugin/plugin.json`],
+    ...walkFiles(root, "assets").map((repoPath) => [repoPath, `${packageRoot}/${repoPath}`]),
     ...walkFiles(root, "skills").map((repoPath) => [repoPath, `${packageRoot}/${repoPath}`]),
     ...packageCandidates
       .filter((repoPath) => repoPath.startsWith("reviews/"))

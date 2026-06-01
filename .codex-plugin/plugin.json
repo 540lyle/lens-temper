@@ -35,7 +35,9 @@
     "websiteURL": "https://github.com/540lyle/lens-temper",
     "privacyPolicyURL": "https://github.com/540lyle/lens-temper/blob/main/docs/PRIVACY.md",
     "termsOfServiceURL": "https://github.com/540lyle/lens-temper/blob/main/docs/TERMS.md",
-    "brandColor": "#2563EB",
+    "brandColor": "#2F3338",
+    "composerIcon": "./assets/lens-temper-composer-icon.png",
+    "logo": "./assets/lens-temper-plugin-icon.png",
     "screenshots": []
   }
 }

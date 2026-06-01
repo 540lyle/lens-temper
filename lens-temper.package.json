@@ -116,6 +116,7 @@
     ".codex-plugin/plugin.json",
     ".agents/plugins/marketplace.json",
     "plugins/lens-temper/",
+    "assets/",
     "skills/",
     "reviews/README.md",
     "reviews/AGENT.md",

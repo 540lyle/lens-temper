@@ -77,6 +77,7 @@ const BASE_PACKAGE = {
     ".codex-plugin/plugin.json",
     ".agents/plugins/marketplace.json",
     "plugins/lens-temper/",
+    "assets/",
     "skills/",
     "reviews/",
     "docs/hosts/cursor.md",
@@ -134,6 +135,7 @@ function makeFixture({
     write(root, ".agents/plugins/marketplace.json", `${JSON.stringify(marketplace, null, 2)}\n`);
   }
   write(root, "skills/start-plan-review/SKILL.md", "---\nname: start-plan-review\n---\nRead reviews/README.md before running.\n");
+  write(root, "assets/lens-temper-plugin-icon.png", "fake png fixture\n");
   write(root, "docs/hosts/cursor.md", `# Cursor Host Guide
 
 Cursor support is conditional full when a detached run proves fresh reviewer isolation and artifact validation; otherwise Cursor support is advisory/reference. Use .cursor/rules/lens-temper.mdc as an Agent Requested rule, read reviews/README.md, reviews/registry.json, selected reviews/lenses/ files, reviews/manifests/lenses/ entries, and reviews/reviewer-template.md, and label non-gated output advisory/reference. Cursor Background Agents can satisfy the conditional full gate only after an experiment proves fresh reviewer isolation with validate-review-fixtures.mjs, validate-review-output.mjs, validate-ledger.mjs, validate-synthesis-output.mjs, decide-reruns.mjs, emit-completion-summary.mjs, and validate-completion-summary.mjs. The guide includes Advisory Quick Start, Entrypoints, Advisory Verification Checklist, Conditional Full Gates, lens-<slug>.md, parent-chat-only secret, ledger.json, events.jsonl, completion-summary.json, and archive path consistency.
@@ -165,6 +167,7 @@ Read docs/hosts/cursor.md, reviews/README.md, reviews/registry.json, selected re
 `);
   write(root, ".github/copilot-instructions.md", "# LensTemper Copilot advisory adapter\n");
   write(root, "plugins/lens-temper/.codex-plugin/plugin.json", `${JSON.stringify({ name: "lens-temper", version: "0.1.1" }, null, 2)}\n`);
+  write(root, "plugins/lens-temper/assets/lens-temper-plugin-icon.png", "fake png fixture\n");
   write(root, "plugins/lens-temper/skills/start-plan-review/SKILL.md", "---\nname: start-plan-review\n---\nRead reviews/README.md before running.\n");
   write(root, "plugins/lens-temper/reviews/scripts/validate-package.mjs", "#!/usr/bin/env node\n");
   write(root, "plugins/lens-temper/reviews/README.md", "# Reviews\n");

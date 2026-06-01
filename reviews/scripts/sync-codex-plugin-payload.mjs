@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 const PACKAGE_ROOT = "plugins/lens-temper";
 const STATIC_PAYLOAD_PATHS = [
   [".codex-plugin", `${PACKAGE_ROOT}/.codex-plugin`],
+  ["assets", `${PACKAGE_ROOT}/assets`],
   ["skills", `${PACKAGE_ROOT}/skills`]
 ];
 
