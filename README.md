@@ -280,8 +280,10 @@ Do not spawn reviewers.
 ## Repository Layout
 
 ```text
+.agents/plugins/marketplace.json Codex repo marketplace catalog
 .claude-plugin/plugin.json      Claude Code plugin metadata
 .codex-plugin/plugin.json       Codex plugin metadata
+plugins/lens-temper/            Packaged Codex plugin payload for repo marketplace installs
 skills/                         Portable skill entrypoints (host-neutral)
 reviews/README.md               Agent-facing workflow contract
 reviews/lenses/                 Lens prompts
@@ -297,6 +299,7 @@ Validate the reusable review contract and fixtures:
 
 ```powershell
 node reviews/scripts/validate-review-fixtures.mjs
+node reviews/scripts/sync-codex-plugin-payload.mjs
 node reviews/scripts/validate-package.mjs
 ```
 
@@ -421,28 +424,16 @@ your Desktop/web skill bundle includes both.
 
 ### Codex
 
-Codex reads `.codex-plugin/plugin.json` and the root `skills/` directory. Full
-LensTemper reviews also require `spawn_agent` or an equivalent fresh-subagent
-tool. If that is unavailable, a full review cannot be completed; only run
-inline/advisory mode when the user explicitly asks for a non-lockable advisory
-pass.
-
-If you edit a local checkout that Codex has cached, refresh the active installed
-cache path. On Windows, discover the installed path first:
-
-```powershell
-Get-ChildItem "$env:USERPROFILE\.codex\plugins\cache\local\lens-temper" -Directory
-```
-
-Then mirror into the directory Codex is actually using:
-
-```powershell
-robocopy <path-to-checkout> <installed-cache-path> /MIR /XD .git .claude .codex .cache node_modules dist coverage reviews\archive /XF *.log /NFL /NDL /NJH /NJS /NP
-```
-
-Use your actual checkout and installed-skill paths. The cache location may
-differ by Codex version and platform, and its directory version segment may lag
-the plugin manifest version.
+For Codex, "install the LensTemper skill" means install the `lens-temper` plugin
+from this repository's marketplace; the plugin exposes the LensTemper skills.
+Use the repo marketplace catalog in `.agents/plugins/marketplace.json`; see
+[docs/INSTALL.md](docs/INSTALL.md) for the current install and update commands.
+The marketplace installs the packaged Codex payload in `plugins/lens-temper/`,
+which mirrors `.codex-plugin/`, `skills/`, and `reviews/` for Codex's plugin
+cache. Full LensTemper reviews also require `spawn_agent` or an equivalent
+fresh-subagent tool. If that is unavailable, a full review cannot be completed;
+only run inline/advisory mode when the user explicitly asks for a non-lockable
+advisory pass.
 
 ### Cursor, plain CLI, and other hosts
 

@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0",
+  "id": "data-model",
+  "kind": "lens",
+  "display_name": "Data Model",
+  "prompt_path": "reviews/lenses/lens-data-model.md",
+  "domain_focus": [
+    "schema changes",
+    "migration safety",
+    "storage contracts",
+    "data validation",
+    "backward compatibility"
+  ],
+  "cross_cutting_ownership": {
+    "primary": [],
+    "secondary": [
+      "Security / privacy"
+    ]
+  },
+  "default_selection_triggers": [
+    "persistence",
+    "saved records",
+    "library or history features",
+    "schema changes",
+    "storage or API contracts"
+  ],
+  "advisory_tool_expectations": [
+    "Read the target plan or spec directly from disk.",
+    "Inspect referenced schemas, migrations, contracts, or storage docs when provided.",
+    "Treat data integrity and compatibility gaps as material when they affect implementation safety."
+  ]
+}

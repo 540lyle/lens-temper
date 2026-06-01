@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "pass_id": "example-pass",
+  "target_path": "docs/plans/FORWARD_PLAN.md",
+  "target_revision": "example-target-revision",
+  "status": "active",
+  "execution_mode": "fresh_spawned_lens_reviewers",
+  "selected_lenses": [
+    "architecture",
+    "implementation",
+    "risk",
+    "test-strategy",
+    "product-ux",
+    "product-ux"
+  ],
+  "current_review_record_ids": [],
+  "superseded_review_record_ids": [],
+  "synthesis_record_ids": [],
+  "archive_paths": [
+    "reviews/archive/2026-05-03-forward-plan-example-pass"
+  ],
+  "artifact_visibility": "public_safe",
+  "review_record_artifacts": [],
+  "synthesis_record_artifacts": [],
+  "run_mode": "full",
+  "run_scope": "six_lens",
+  "completion_validation": {
+    "validator_name": "validate-completion-summary",
+    "validator_contract_version": "1.1.0",
+    "passed": false,
+    "validated_review_record_ids": [],
+    "validated_synthesis_record_id": "",
+    "failures": []
+  }
+}

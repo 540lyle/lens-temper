@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0",
+  "id": "synthesis-owner",
+  "kind": "role",
+  "display_name": "Synthesis Owner",
+  "source_paths": [
+    "reviews/synthesize-review-feedback.md",
+    "reviews/README.md"
+  ],
+  "responsibilities": [
+    "Merge, deduplicate, and prioritize reviewer feedback.",
+    "Accept, reject, downgrade, or defer findings that affect readiness or rerun scope.",
+    "Reconcile scorecards without averaging away material blockers.",
+    "Decide lens lock state from material findings and current valid reviewer evidence.",
+    "Use claim_flags for completion, lock-state, all-5, and review-complete claims.",
+    "Keep inline and advisory outputs explicitly non-lockable.",
+    "Produce a final readiness assessment."
+  ],
+  "inputs": [
+    "feature_request",
+    "proposed_plan",
+    "review_outputs",
+    "constraints",
+    "ledger"
+  ],
+  "outputs": [
+    "synthesis output",
+    "finding decisions",
+    "lens lock and rerun decisions",
+    "recommended plan changes",
+    "final assessment"
+  ],
+  "validation_rules": [
+    "Every critical issue must be supported by reviewer evidence.",
+    "Every cross-cutting category must have a consolidated status.",
+    "Synthesis must not invent per-lens scores or lock states without current valid review records.",
+    "Lock states require run_mode=full and valid score challenge evidence.",
+    "Rejected, downgraded, or deferred findings that affect rerun scope must include reasons."
+  ]
+}
