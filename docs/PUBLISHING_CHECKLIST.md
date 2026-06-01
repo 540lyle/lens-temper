@@ -14,6 +14,9 @@
   discovery, Claude Code, Claude Desktop / Claude.ai, Cursor, and Copilot.
 - [ ] Validate registry, package metadata, manifest targets, package candidates,
   and nested artifact exclusions stay in sync.
+- [ ] Run `node reviews/scripts/sync-codex-plugin-payload.mjs` before package
+  validation when root `skills/`, `reviews/`, or `.codex-plugin/` content
+  changes.
 - [ ] Confirm ignored local artifacts are absent from package candidates with
   `git status --ignored --short --untracked-files=all` and
   `node reviews/scripts/validate-package.mjs`.
@@ -31,6 +34,7 @@
 - [ ] Bump `lens-temper.package.json`, `.codex-plugin/plugin.json`, and
   `.claude-plugin/plugin.json` versions together.
 - [ ] Run the full validation suite:
+  `node reviews/scripts/sync-codex-plugin-payload.mjs`,
   `node --test reviews/scripts/*.test.mjs`,
   `node reviews/scripts/validate-package.mjs`,
   `node reviews/scripts/validate-review-fixtures.mjs`,

@@ -122,6 +122,10 @@
       "path": "reviews/scripts/validate-package.mjs"
     },
     {
+      "id": "sync-codex-plugin-payload",
+      "path": "reviews/scripts/sync-codex-plugin-payload.mjs"
+    },
+    {
       "id": "validate-completion-summary",
       "path": "reviews/scripts/validate-completion-summary.mjs"
     },

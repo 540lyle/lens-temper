@@ -477,11 +477,12 @@ Replace the `## Codex` section with:
 ```markdown
 ## Codex
 
-Codex reads `.codex-plugin/plugin.json` and the root `skills/` directory. Full
-LensTemper reviews also require `spawn_agent` or an equivalent fresh-subagent
-tool. If that is unavailable, a full review cannot be completed; only run
-inline/advisory mode when the user explicitly asks for a non-lockable advisory
-pass.
+Codex repo marketplace installs read the packaged payload under
+`plugins/lens-temper/`, which mirrors `.codex-plugin/`, `skills/`, and the
+package-candidate `reviews/` resources. Full LensTemper reviews also require
+`spawn_agent` or an equivalent fresh-subagent tool. If that is unavailable, a
+full review cannot be completed; only run inline/advisory mode when the user
+explicitly asks for a non-lockable advisory pass.
 
 ### Repo Marketplace Install
 
@@ -690,10 +691,11 @@ Run:
 
 ```powershell
 node --test reviews/scripts/*.test.mjs
+node reviews/scripts/sync-codex-plugin-payload.mjs
 node reviews/scripts/validate-package.mjs
 node reviews/scripts/validate-review-fixtures.mjs
 node reviews/scripts/run-review-evals.mjs
-node --check reviews/scripts/*.mjs
+Get-ChildItem reviews/scripts/*.mjs | ForEach-Object { node --check $_.FullName }
 git diff --check
 ```
 

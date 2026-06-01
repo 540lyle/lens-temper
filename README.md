@@ -299,6 +299,7 @@ Validate the reusable review contract and fixtures:
 
 ```powershell
 node reviews/scripts/validate-review-fixtures.mjs
+node reviews/scripts/sync-codex-plugin-payload.mjs
 node reviews/scripts/validate-package.mjs
 ```
 

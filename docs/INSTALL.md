@@ -81,6 +81,7 @@ marketplace:
 ```bash
 cd <path-to-lens-temper-checkout>
 git pull --ff-only
+node reviews/scripts/sync-codex-plugin-payload.mjs
 node reviews/scripts/validate-package.mjs
 codex plugin add lens-temper@lens-temper
 ```
@@ -142,6 +143,7 @@ Update the package root, then rerun validation:
 
 ```bash
 git pull
+node reviews/scripts/sync-codex-plugin-payload.mjs
 node reviews/scripts/validate-package.mjs
 node reviews/scripts/validate-review-fixtures.mjs
 ```
