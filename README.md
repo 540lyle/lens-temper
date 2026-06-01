@@ -424,14 +424,16 @@ your Desktop/web skill bundle includes both.
 
 ### Codex
 
-Codex installs should use the repo marketplace catalog in
-`.agents/plugins/marketplace.json`; see [docs/INSTALL.md](docs/INSTALL.md) for
-the current install and update commands. The marketplace installs the packaged
-Codex payload in `plugins/lens-temper/`, which mirrors `.codex-plugin/`,
-`skills/`, and `reviews/` for Codex's plugin cache. Full LensTemper reviews also
-require `spawn_agent` or an equivalent fresh-subagent tool. If that is
-unavailable, a full review cannot be completed; only run inline/advisory mode
-when the user explicitly asks for a non-lockable advisory pass.
+For Codex, "install the LensTemper skill" means install the `lens-temper` plugin
+from this repository's marketplace; the plugin exposes the LensTemper skills.
+Use the repo marketplace catalog in `.agents/plugins/marketplace.json`; see
+[docs/INSTALL.md](docs/INSTALL.md) for the current install and update commands.
+The marketplace installs the packaged Codex payload in `plugins/lens-temper/`,
+which mirrors `.codex-plugin/`, `skills/`, and `reviews/` for Codex's plugin
+cache. Full LensTemper reviews also require `spawn_agent` or an equivalent
+fresh-subagent tool. If that is unavailable, a full review cannot be completed;
+only run inline/advisory mode when the user explicitly asks for a non-lockable
+advisory pass.
 
 ### Cursor, plain CLI, and other hosts
 

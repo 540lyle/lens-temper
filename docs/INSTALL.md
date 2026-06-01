@@ -52,6 +52,9 @@ pass.
 
 ## Codex
 
+For Codex, "install the LensTemper skill" means install the `lens-temper` plugin
+from this repository's marketplace; the plugin exposes the LensTemper skills.
+
 ### Repo Marketplace Install
 
 Register this repository marketplace, then install LensTemper from it:
@@ -63,6 +66,10 @@ node reviews/scripts/validate-package.mjs
 codex plugin marketplace add <path-to-lens-temper-checkout>
 codex plugin add lens-temper@lens-temper
 ```
+
+On Windows, if a `codex` PATH shim fails with `Access is denied`, run the same
+commands with the bundled `codex.exe` under
+`%LOCALAPPDATA%\OpenAI\Codex\bin\<version>\codex.exe`.
 
 Development users should install from a checkout of `main`. Stable users should
 install from a checkout of a release tag such as `v0.1.1`.
@@ -154,7 +161,7 @@ descriptions, or rule files.
 ## Prompt To Reuse
 
 ```text
-Install LensTemper from <repo>: clone it at the workspace root, ensure skills/
-and reviews/ are available together, then run
-node reviews/scripts/validate-package.mjs.
+Install LensTemper for Codex from <repo>: clone it at the workspace root,
+validate it, register the repo marketplace, then install
+`lens-temper@lens-temper`.
 ```
