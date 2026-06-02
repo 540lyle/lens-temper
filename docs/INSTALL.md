@@ -82,15 +82,27 @@ mode when the user explicitly asks for a non-lockable advisory pass.
 
 ### Repo Marketplace Update
 
-Update the marketplace source, validate it, then reinstall from the registered
-marketplace:
+For Git-backed marketplace installs, refresh the marketplace snapshot, then
+reinstall the plugin from that snapshot:
+
+```powershell
+codex plugin marketplace upgrade lens-temper
+codex plugin remove lens-temper@lens-temper
+codex plugin add lens-temper@lens-temper
+```
+
+The remove/add step is intentional. On Windows, `marketplace upgrade` can
+refresh the Git marketplace snapshot while failing to replace the installed
+plugin cache in place.
+
+For local checkout installs, update and validate the checkout first, then run
+the same remove/add plugin commands:
 
 ```bash
 cd <path-to-lens-temper-checkout>
 git pull --ff-only
 node reviews/scripts/sync-codex-plugin-payload.mjs
 node reviews/scripts/validate-package.mjs
-codex plugin add lens-temper@lens-temper
 ```
 
 After updating, start a new thread, reload the host, or restart Codex if cached
