@@ -3,7 +3,7 @@
 This packet can be regenerated with:
 
 ```powershell
-node reviews/scripts/assemble-review-prompt.mjs --target docs/plans/FORWARD_PLAN.md --lens implementation --pass-id example-pass --out reviews/examples/review-input.packet.md
+node reviews/scripts/assemble-review-prompt.mjs --target reviews/examples/artifacts/target.valid.md --lens implementation --pass-id example-pass --out reviews/examples/review-input.packet.md
 ```
 
 It exists as a small path-based example. For real runs, use a target plan path,

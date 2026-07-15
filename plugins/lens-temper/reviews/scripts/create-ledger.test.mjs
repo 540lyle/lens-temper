@@ -27,7 +27,12 @@ test("create-ledger defaults to inline manual/imported mode", () => {
 });
 
 test("create-ledger supports explicit full spawned reviewer mode", () => {
-  const ledger = createLedger(["--run-mode", "full"]);
+  const ledger = createLedger([
+    "--run-mode", "full",
+    "--review-input", "reviews/examples/review-input.valid.json"
+  ]);
   assert.equal(ledger.run_mode, "full");
   assert.equal(ledger.execution_mode, "fresh_spawned_lens_reviewers");
+  assert.equal(ledger.review_input_path, "reviews/examples/review-input.valid.json");
+  assert.match(ledger.review_input_revision, /^sha256:[a-f0-9]{64}$/);
 });

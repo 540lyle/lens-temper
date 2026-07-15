@@ -2,8 +2,8 @@
 
 - Pass ID: example-pass
 - Lens: implementation
-- Target Path: docs/plans/FORWARD_PLAN.md
-- Target Revision: example-target-revision
+- Target Path: reviews/examples/artifacts/target.valid.md
+- Target Revision: git:73eaed921475be235f6684abdd2ce19a4e367c7f
 - Template Revision: example-template-revision
 - Lens Revision: example-lens-revision
 

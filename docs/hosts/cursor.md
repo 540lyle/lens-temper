@@ -105,7 +105,7 @@ Treat a Cursor advisory run as usable only if:
   `reviews/archive/` run directory or another clearly local artifact location.
 
 If a Cursor run emits JSON review records, validate them with
-`node reviews/scripts/validate-review-output.mjs <path>`. Markdown-only
+`node reviews/scripts/validate-review-output.mjs <path> --ledger <run>/ledger.json`. Markdown-only
 advisory outputs are manually checked against this section and
 `reviews/reviewer-template.md`; `validate-review-fixtures.mjs` validates repo
 fixtures, not arbitrary live Cursor Markdown.
@@ -132,14 +132,14 @@ detached experiment that proves all of the following:
 - `ledger.json` records the real archive path; archive path consistency is
   required between `ledger.archive_paths`, saved artifacts, and the completion
   summary.
-- `node reviews/scripts/validate-review-output.mjs` passes for each JSON review
+- `node reviews/scripts/validate-review-output.mjs <review.json> --ledger <run>/ledger.json` passes for each JSON review
   artifact.
 - `node reviews/scripts/validate-ledger.mjs` passes for the run ledger.
 - `node reviews/scripts/validate-synthesis-output.mjs` passes for synthesis.
 - `node reviews/scripts/decide-reruns.mjs` records rerun or lock decisions.
 - `node reviews/scripts/emit-completion-summary.mjs --out <run>/completion-summary.json`
   writes `completion-summary.json`.
-- `node reviews/scripts/validate-completion-summary.mjs` passes for final
+- `node reviews/scripts/validate-completion-summary.mjs <completion.json> --ledger <run>/ledger.json` passes for final
   completion metadata.
 - `node reviews/scripts/validate-review-fixtures.mjs` still passes for the repo
   fixture suite after any host-support changes.

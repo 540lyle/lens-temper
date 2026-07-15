@@ -310,12 +310,13 @@ node reviews/scripts/validate-package.mjs
 Useful helpers:
 
 ```powershell
-node reviews/scripts/run-plan-review.mjs --target docs/plans/my-plan.md --pass-id my-pass
-node reviews/scripts/assemble-review-prompt.mjs --target docs/plans/my-plan.md --lens implementation --pass-id my-pass
+node reviews/scripts/run-plan-review.mjs --target docs/plans/my-plan.md --pass-id my-pass --review-input docs/plans/my-plan.review-input.json
+node reviews/scripts/assemble-review-prompt.mjs --target docs/plans/my-plan.md --lens implementation --pass-id my-pass --review-input docs/plans/my-plan.review-input.json
 node reviews/scripts/run-review-evals.mjs
 ```
 
-`run-plan-review.mjs` prepares ledgers and prompt packets. Reviewer execution is
+`run-plan-review.mjs` validates and snapshots the review contract, then prepares
+ledgers and prompt packets. Reviewer execution is
 still provided by the host, such as Codex subagents, Claude subagents, Cursor
 Background Agents, or another verified fresh-agent mechanism. Cursor is
 conditional full only when its run proves fresh reviewer isolation and artifact

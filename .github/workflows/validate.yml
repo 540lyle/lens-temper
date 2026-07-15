@@ -39,14 +39,5 @@ jobs:
             exit 1
           fi
 
-      - name: Run script unit tests
-        run: node --test reviews/scripts/*.test.mjs
-
-      - name: Validate package metadata
-        run: node reviews/scripts/validate-package.mjs
-
-      - name: Validate review fixtures
-        run: node reviews/scripts/validate-review-fixtures.mjs
-
-      - name: Run review evaluator fixtures
-        run: node reviews/scripts/run-review-evals.mjs
+      - name: Run independent validation lanes in parallel
+        run: node reviews/scripts/validate-all.mjs

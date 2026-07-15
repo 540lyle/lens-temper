@@ -88,6 +88,10 @@
   ],
   "schemas": [
     {
+      "id": "review-input",
+      "path": "reviews/schemas/review-input.schema.json"
+    },
+    {
       "id": "review-ledger",
       "path": "reviews/schemas/review-ledger.schema.json"
     },
@@ -180,6 +184,10 @@
     {
       "id": "run-synthesis",
       "path": "reviews/scripts/run-synthesis.mjs"
+    },
+    {
+      "id": "validate-all",
+      "path": "reviews/scripts/validate-all.mjs"
     }
   ],
   "examples": [

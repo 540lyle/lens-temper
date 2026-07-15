@@ -4,6 +4,7 @@ import {
   CONTRACT_VERSION,
   EXIT_CODES,
   ensureNode18,
+  loadValidatedRunContext,
   parseCommonArgs,
   printFailures,
   readJsonFile,
@@ -35,7 +36,8 @@ try {
   const root = opts.artifactRoot ? resolve(opts.artifactRoot) : repoRootFrom(import.meta.url);
   const inputPath = opts.positional[0];
   const record = readJsonFile(inputPath);
-  const ledger = readJsonFile(opts.ledger);
+  const context = await loadValidatedRunContext(root, opts.ledger);
+  const ledger = context.ledger;
   const failures = validateSynthesisRecord(record, {
     artifactRoot: root,
     targetRevision: ledger.target_revision,
@@ -45,7 +47,7 @@ try {
 
   if (failures.length > 0) {
     printFailures(failures, opts);
-    process.exit(failures.some((f) => f.field === "target_revision" || f.field === "markdown_artifact_sha") ? EXIT_CODES.stale : EXIT_CODES.validation);
+    process.exit(failures.some((f) => f.field === "target_revision" || f.field === "review_input_revision" || f.field === "markdown_artifact_sha") ? EXIT_CODES.stale : EXIT_CODES.validation);
   }
   if (opts.json) {
     process.stdout.write(`${JSON.stringify({ event: "valid", artifact_path: inputPath, record_id: record.record_id })}\n`);

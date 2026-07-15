@@ -11,6 +11,7 @@ import {
   parseCommonArgs,
   readJsonFile,
   repoRootFrom,
+  resolveReviewInput,
   resolveRepoPath,
   usage,
   writeJsonLinesEvent
@@ -43,6 +44,8 @@ function buildSpawnPrompt({
   passId,
   targetPath,
   targetRevision,
+  reviewInputPath,
+  reviewInputRevision,
   templatePath,
   templateRevision,
   lensId,
@@ -62,7 +65,7 @@ Review \`${targetPath}\` through the ${lensDisplayName} lens and return a valid 
 # Success Criteria
 - Treat the current repository checkout as the source of truth.
 - Read the prompt packet at \`${inputPacketPath}\`.
-- Verify the target, template, and lens revisions before reviewing.
+- Verify the target, review input, template, and lens revisions before reviewing.
 - Review exactly one lens: \`${lensId}\` (${lensDisplayName}).
 - Return exactly the sections required by \`${templatePath}\`.
 - Complete the cross-cutting sweep and stateful workflow sweep.
@@ -83,9 +86,11 @@ Paths:
 - lens manifest: \`${lensManifestPath}\`
 - lens prompt: \`${lensPromptPath}\`
 - prompt packet: \`${inputPacketPath}\`
+- review input: \`${reviewInputPath}\`
 
 Revisions:
 - target: \`${targetRevision}\`
+- review input: \`${reviewInputRevision}\`
 - template: \`${templateRevision}\`
 - lens: \`${lensRevision}\`
 
@@ -106,16 +111,16 @@ function lensManifestDisplayName(lensId) {
 try {
   const opts = parseCommonArgs(process.argv.slice(2));
   if (opts.help) {
-    process.stdout.write(`${usage(scriptName, "--target <path> --lens <id|manifest|path> --pass-id <id> --input-packet <path> [--out <path>] [--json]")}\n`);
+    process.stdout.write(`${usage(scriptName, "--target <path> --lens <id|manifest|path> --pass-id <id> --input-packet <path> --review-input <path> [--out <path>] [--json]")}\n`);
     process.exit(EXIT_CODES.ok);
   }
   if (opts.version) {
     process.stdout.write(`${CONTRACT_VERSION}\n`);
     process.exit(EXIT_CODES.ok);
   }
-  if (!opts.target || !opts.lens || !opts.passId || !opts.inputPacket) {
-    process.stderr.write(`${usage(scriptName, "--target <path> --lens <id|manifest|path> --pass-id <id> --input-packet <path> [--out <path>]")}\n`);
-    process.stderr.write(`validation error: missing --target, --lens, --pass-id, or --input-packet\n`);
+  if (!opts.target || !opts.lens || !opts.passId || !opts.inputPacket || !opts.reviewInput) {
+    process.stderr.write(`${usage(scriptName, "--target <path> --lens <id|manifest|path> --pass-id <id> --input-packet <path> --review-input <path> [--out <path>]")}\n`);
+    process.stderr.write(`validation error: missing --target, --lens, --pass-id, --input-packet, or --review-input\n`);
     process.exit(EXIT_CODES.usage);
   }
 
@@ -144,6 +149,7 @@ try {
   }
 
   const lens = resolveLensManifest(root, registry, opts.lens);
+  const reviewInput = resolveReviewInput(root, opts);
   const templatePath = registry.entrypoints.reviewer_template;
   const lensPromptPath = lens.manifest.prompt_path;
   const lensDisplayName = lens.manifest.display_name || lensManifestDisplayName(lens.manifest.id);
@@ -156,6 +162,8 @@ try {
     passId: opts.passId,
     targetPath,
     targetRevision,
+    reviewInputPath: reviewInput.sourcePath,
+    reviewInputRevision: reviewInput.revision,
     templatePath,
     templateRevision,
     lensId: lens.manifest.id,
@@ -181,6 +189,8 @@ try {
         output_path: opts.out,
         target_path: targetPath,
         target_revision: targetRevision,
+        review_input_path: reviewInput.sourcePath,
+        review_input_revision: reviewInput.revision,
         template_revision: templateRevision,
         lens_revision: lensRevision,
         lens: lens.manifest.id,
@@ -194,6 +204,8 @@ try {
       output_path: null,
       target_path: targetPath,
       target_revision: targetRevision,
+      review_input_path: reviewInput.sourcePath,
+      review_input_revision: reviewInput.revision,
       template_revision: templateRevision,
       lens_revision: lensRevision,
       lens: lens.manifest.id,
@@ -203,7 +215,7 @@ try {
     process.stdout.write(prompt);
   }
 } catch (error) {
-  process.stderr.write(`${usage(scriptName, "--target <path> --lens <id|manifest|path> --pass-id <id> --input-packet <path> [--out <path>]")}\n`);
+  process.stderr.write(`${usage(scriptName, "--target <path> --lens <id|manifest|path> --pass-id <id> --input-packet <path> --review-input <path> [--out <path>]")}\n`);
   process.stderr.write(`validation error: ${error.message}\n`);
   process.exit(error.exitCode || EXIT_CODES.internal);
 }

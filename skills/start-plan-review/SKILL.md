@@ -12,9 +12,10 @@ and selected role manifests before running a review.
 ## Inputs
 
 - Target plan or spec path.
-- Feature request and constraints.
+- Repository-relative review input JSON containing the feature request,
+  relevant context, constraints, and optional previous adjudications.
 - Selected lenses, or enough context to select lenses.
-- Pass id and deterministic target revision.
+- Pass id, deterministic target revision, and normalized review input revision.
 
 ## Outputs
 
@@ -31,7 +32,8 @@ and selected role manifests before running a review.
 
 1. Select the smallest lens set that covers the plan risk.
 2. Create or update a ledger with deterministic target, template, and lens
-   revisions.
+   revisions plus the repository-relative review input path and normalized
+   review input revision. Stop if the feature request is missing.
 3. Use `full_hosted` or `full_detached` by default. A request to run
    LensTemper, review with LensTemper, or run a full LensTemper review means
    detached-context reviewer subagents, one per selected lens. A
@@ -75,7 +77,12 @@ and selected role manifests before running a review.
    still requires its own detached-context reviewer subagent.
 8. Validate review, synthesis, and ledger JSON with
    `reviews/scripts/validate-review-fixtures.mjs` or the individual validators.
-9. Archive completed runs with `reviews/scripts/archive-review-run.mjs`.
+   For full runs, bind review and completion validation to the run with
+   `--ledger <run>/ledger.json`; do not validate them against free-standing
+   revision strings.
+9. Assemble synthesis with
+   `reviews/scripts/run-synthesis.mjs --ledger <run>/ledger.json`, then archive
+   completed runs with `reviews/scripts/archive-review-run.mjs`.
 
 The orchestrator may update ledger state. Lens reviewers may not.
 Detached orchestration may not claim completion unless `events.jsonl`, ledger,

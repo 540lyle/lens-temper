@@ -1,6 +1,6 @@
 # Plan Review System
 
-> Version 1.6
+> Version 1.7
 
 This folder contains reusable review prompts for evaluating implementation plans,
 plus task-specific review input packets that assemble the context for one plan review run.
@@ -16,7 +16,7 @@ Standardize plan review so that:
 ## Quick Start
 
 1. Generate a candidate implementation plan.
-2. Assemble the required inputs.
+2. Assemble the required inputs in a repository-relative `review-input.json`.
 3. Run a full LensTemper review by default: spawn one detached-context reviewer
    subagent per selected lens.
 4. Collect the structured output from each spawned reviewer.
@@ -27,7 +27,7 @@ Store completed review outputs outside this folder unless they are still being a
 `reviews/` is for reusable tooling and review-input packets; durable finished outputs or synthesis
 should live in `reviews/archive/` or next to the owning plan/doc when that folder explicitly owns review history.
 Default durable review run path: `reviews/archive/<yyyy-mm-dd>-<target-slug>-<pass-id>/`.
-That directory should contain `ledger.json`, `events.jsonl`, generated prompt packets, `synthesis.md`, and `final.md`
+That directory should contain `review-input.json`, `ledger.json`, `events.jsonl`, generated prompt packets, `synthesis.md`, and `final.md`
 when those artifacts are produced. Use an owning plan/doc folder instead when that folder already keeps
 review history next to the plan.
 
@@ -81,7 +81,7 @@ For `full_detached`, the parent agent acts only as launcher/reporter when the ho
 
 Required orchestration:
 
-1. Create an agent-run ledger before spawning reviewers. Track lens name, lens file, pass id, target path, deterministic target revision/hash, agent id, status, final output captured, and closed status.
+1. Materialize and validate one canonical `review-input.json`, then create an agent-run ledger before spawning reviewers. Track its repository-relative path and normalized revision together with lens name, lens file, pass id, target path, deterministic target revision/hash, agent id, status, final output captured, and closed status.
 2. Spawn a detached-context reviewer subagent for each lens. Do not provide the host, parent, or orchestrator conversation or history.
 3. Reviewer execution may be concurrent or sequential. Never reuse one reviewer for multiple lenses.
 4. Start each reviewer in the current repository root, then give it the target plan/spec path, deterministic target revision/hash, pass id, `reviews/reviewer-template.md`, and the exact lens file path as repository-relative paths.
@@ -99,6 +99,8 @@ Ledger fields:
 | `pass_id` | yes | Groups reviewers spawned for the same review pass. |
 | `target_path` | yes | Plan/spec path under review. |
 | `target_revision` | yes | Deterministic content identifier for the target plan/spec. Prefer `git hash-object -- <target_path>`; use a SHA-256 file hash only when `git hash-object` is unavailable. Do not use timestamps or vague notes for rerunnable reviews. |
+| `review_input_path` | yes for full runs | Repository-relative path to the normalized review input JSON snapshot. |
+| `review_input_revision` | yes for full runs | SHA-256 of the normalized review input. It must match across ledger, events, current reviews, synthesis, and completion output. |
 | `run_mode` | yes | Claim authority: `full`, `inline`, or `advisory`. |
 | `run_scope` | yes | `six_lens` or `selected_lenses`. |
 | `execution_mode` | yes | `manual_or_imported`, `fresh_spawned_lens_reviewers`, or `fresh_spawned_orchestrator`. |
@@ -211,6 +213,7 @@ Every review receives these inputs. The template uses `{{double_curly}}` variabl
 | `{{pass_id}}` | Identifier for this review pass | Required for spawned-agent runs. Use the same value in every reviewer prompt for one pass. |
 | `{{target_path}}` | Plan/spec file path under review | Required for spawned-agent runs. Use a repository-relative path; the host provides the workspace root separately. |
 | `{{target_revision}}` | Deterministic content hash for the target plan/spec | Required for spawned-agent runs and reruns. Prefer `git hash-object -- <target_path>`. |
+| `{{review_input_revision}}` | SHA-256 of the normalized review input contract | Required for full runs. Every current review, synthesis, event, ledger, and completion artifact must report the same value. |
 | `{{template_revision}}` | Deterministic content hash for `reviewer-template.md` | Recommended for stale-output detection. |
 | `{{lens_revision}}` | Deterministic content hash for the lens file | Recommended for stale-output detection. |
 | `{{proposed_plan}}` | The implementation plan under review | Full plan text. Ordered steps preferred. |
@@ -281,12 +284,43 @@ Assemble a single prompt containing:
 
 Then request output in exactly the structure specified in the template.
 
-`reviews/scripts/run-plan-review.mjs` creates two reviewer-facing files per selected lens:
+For full runs, use a repository-relative JSON review input artifact:
+
+```json
+{
+  "schema_version": 2,
+  "feature_request": "What is being built, why, and the success criteria.",
+  "relevant_context": "Focused supporting context or excerpts.",
+  "constraints": "Hard constraints and non-goals, or an explicit statement that none were supplied.",
+  "previous_adjudications": "Settled rerun findings, or an explicit statement that none were supplied."
+}
+```
+
+`feature_request` must be non-empty. The other fields are always materialized;
+when omitted from scalar compatibility input, the runner writes explicit
+`No additional ... supplied` values instead of silent blanks. Prefer
+`--review-input <repo-relative-path>` for portability. The scalar
+`--feature-request`, `--relevant-context`, `--constraints`, and
+`--previous-adjudications` options remain a compatibility path and cannot be
+mixed with `--review-input`.
+
+`reviews/scripts/run-plan-review.mjs` creates a normalized `review-input.json`
+and two reviewer-facing files per selected lens:
 
 - `<lens>.prompt.md`: the assembled reviewer packet with the target plan, template, lens, constraints, and deterministic revisions.
 - `<lens>.spawn.md`: the compact host-to-subagent handoff prompt. Use this as the spawned agent's initial prompt when the host can start the reviewer in the repository root.
 
-For detached orchestration, `reviews/scripts/assemble-orchestrator-prompt.mjs` emits `<pass-id>.orchestrator.md`. The packet includes target path/revision, run mode, run scope, selected lenses, allowed files, required artifacts, stop conditions, and claim rules. It uses repository-relative paths only. `run-plan-review.mjs --execution-mode fresh_spawned_orchestrator` creates the ledger, event log, orchestrator packet, reviewer packets, and reviewer spawn handoffs in one setup pass.
+Preparation is deterministic: independent lens packets are assembled in
+parallel, while ledger creation and event commits remain ordered. Full
+synthesis accepts only `--ledger <path>` and admits the current reviewer
+artifacts after ledger, revision, Markdown-hash, and lifecycle validation. Raw
+Markdown inputs are not accepted by the full synthesis runner.
+
+For package development, `node reviews/scripts/validate-all.mjs` runs unit,
+package, fixture, and evaluator lanes concurrently and reports them in stable
+order. Use the individual validators when diagnosing one lane.
+
+For detached orchestration, `reviews/scripts/assemble-orchestrator-prompt.mjs` emits `<pass-id>.orchestrator.md`. The packet includes target path/revision, review input path/revision, run mode, run scope, selected lenses, allowed files, required artifacts, stop conditions, and claim rules. It uses repository-relative paths only. `run-plan-review.mjs --execution-mode fresh_spawned_orchestrator` creates the normalized review input, ledger, event log, orchestrator packet, reviewer packets, and reviewer spawn handoffs in one setup pass.
 
 For spawned-agent runs, prefer path-based assembly over pasted content when the agent has workspace access:
 
@@ -294,6 +328,8 @@ For spawned-agent runs, prefer path-based assembly over pasted content when the 
 - `target_plan`: path to the current plan/spec under review
 - `pass_id`: current pass identifier
 - `target_revision`: deterministic content hash of the target plan/spec, preferably from `git hash-object -- <target_plan>`
+- `review_input`: repository-relative normalized review input JSON
+- `review_input_revision`: SHA-256 of the normalized review input record
 - `template_revision`: deterministic content hash of `reviews/reviewer-template.md`
 - `lens_revision`: deterministic content hash of the selected lens file
 - `template`: `reviews/reviewer-template.md`
@@ -303,4 +339,4 @@ For spawned-agent runs, prefer path-based assembly over pasted content when the 
 
 Generated spawn prompts should be outcome-first: role, goal, success criteria, context, and constraints. They should not duplicate the full review packet, include absolute local paths, or claim six-lens completion for selected-lens runs.
 
-Reject or mark stale any review output whose reported target revision does not match the current target revision, unless the synthesis explicitly includes it as superseded historical context.
+Reject or mark stale any current review, synthesis, or completion output whose reported target revision or review input revision does not match the ledger. Changing the feature request, relevant context, constraints, or previous adjudications invalidates current outputs even when the target plan itself is unchanged.

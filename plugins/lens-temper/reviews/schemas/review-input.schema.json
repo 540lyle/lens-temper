@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "LensTemper Review Input",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "feature_request",
+    "relevant_context",
+    "constraints",
+    "previous_adjudications"
+  ],
+  "properties": {
+    "schema_version": { "const": 2 },
+    "feature_request": { "type": "string", "minLength": 1 },
+    "relevant_context": { "type": "string" },
+    "constraints": { "type": "string" },
+    "previous_adjudications": { "type": "string" }
+  },
+  "additionalProperties": false
+}

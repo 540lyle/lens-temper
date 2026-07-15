@@ -1,5 +1,5 @@
-export const CONTRACT_VERSION = "1.1.0";
-export const SCHEMA_VERSION = 1;
+export const CONTRACT_VERSION = "2.0.0";
+export const SCHEMA_VERSION = 2;
 
 export const EXIT_CODES = {
   ok: 0,
@@ -206,6 +206,10 @@ export const REVIEW_REQUIRED_FIELDS = [
   "scorecard"
 ];
 
+export const REVIEW_FULL_REQUIRED_FIELDS = [
+  "review_input_revision"
+];
+
 export const REVIEW_COMPLETED_REQUIRED_FIELDS = [
   "markdown_artifact_path",
   "markdown_artifact_sha"
@@ -230,6 +234,10 @@ export const SYNTHESIS_REQUIRED_FIELDS = [
   "markdown_artifact_sha"
 ];
 
+export const SYNTHESIS_FULL_REQUIRED_FIELDS = [
+  "review_input_revision"
+];
+
 export const LEDGER_REQUIRED_FIELDS = [
   "schema_version",
   "pass_id",
@@ -250,11 +258,29 @@ export const LEDGER_REQUIRED_FIELDS = [
   "synthesis_record_artifacts"
 ];
 
+export const LEDGER_FULL_REQUIRED_FIELDS = [
+  "review_input_path",
+  "review_input_revision"
+];
+
+export const COMPLETION_SUMMARY_FULL_REQUIRED_FIELDS = [
+  "review_input_revision"
+];
+
+export const REVIEW_INPUT_REQUIRED_FIELDS = [
+  "schema_version",
+  "feature_request",
+  "relevant_context",
+  "constraints",
+  "previous_adjudications"
+];
+
 export const SCHEMA_CONTRACTS = {
   "review-output.schema.json": {
     required: REVIEW_REQUIRED_FIELDS,
     conditionalRequired: {
-      completed: REVIEW_COMPLETED_REQUIRED_FIELDS
+      completed: REVIEW_COMPLETED_REQUIRED_FIELDS,
+      "run_mode.full": REVIEW_FULL_REQUIRED_FIELDS
     },
     enums: {
       verdict: REVIEW_VERDICTS,
@@ -274,6 +300,9 @@ export const SCHEMA_CONTRACTS = {
   },
   "synthesis-output.schema.json": {
     required: SYNTHESIS_REQUIRED_FIELDS,
+    conditionalRequired: {
+      "run_mode.full": SYNTHESIS_FULL_REQUIRED_FIELDS
+    },
     enums: {
       final_assessment: FINAL_ASSESSMENTS,
       run_mode: RUN_MODES
@@ -289,10 +318,11 @@ export const SCHEMA_CONTRACTS = {
       "lens_lock_decisions.lock_state": LOCK_STATES
     }
   },
-    "review-ledger.schema.json": {
+  "review-ledger.schema.json": {
     required: LEDGER_REQUIRED_FIELDS,
     conditionalRequired: {
-      "execution_mode.fresh_spawned_orchestrator": ["events_path"]
+      "execution_mode.fresh_spawned_orchestrator": ["events_path"],
+      "run_mode.full": LEDGER_FULL_REQUIRED_FIELDS
     },
     enums: {
       status: LEDGER_STATUSES,
@@ -311,6 +341,9 @@ export const SCHEMA_CONTRACTS = {
   },
   "completion-summary.schema.json": {
     required: COMPLETION_SUMMARY_REQUIRED_FIELDS,
+    conditionalRequired: {
+      "run_mode.full": COMPLETION_SUMMARY_FULL_REQUIRED_FIELDS
+    },
     enums: {
       run_mode: RUN_MODES,
       run_scope: RUN_SCOPES
@@ -318,5 +351,8 @@ export const SCHEMA_CONTRACTS = {
     nestedRequired: {
       claim_flags: CLAIM_FLAG_KEYS
     }
+  },
+  "review-input.schema.json": {
+    required: REVIEW_INPUT_REQUIRED_FIELDS
   }
 };

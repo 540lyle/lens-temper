@@ -5,12 +5,15 @@ import {
   CONTRACT_VERSION,
   EXIT_CODES,
   computeArtifactSha,
+  encodePromptData,
   ensureNode18,
   isRepoRelativePath,
   parseCommonArgs,
   readJsonFile,
   readTextFile,
   repoRootFrom,
+  renderTemplate,
+  resolveReviewInput,
   resolveRepoPath,
   usage,
   writeJsonLinesEvent
@@ -20,14 +23,6 @@ ensureNode18();
 
 const scriptName = "assemble-review-prompt.mjs";
 
-function replaceAll(template, values) {
-  let output = template;
-  for (const [key, value] of Object.entries(values)) {
-    output = output.split(`{{${key}}}`).join(value ?? "");
-  }
-  return output;
-}
-
 function toRepo(root, input) {
   if (isRepoRelativePath(input)) return input;
   return relative(root, resolve(input)).replace(/\\/g, "/");
@@ -36,7 +31,7 @@ function toRepo(root, input) {
 try {
   const opts = parseCommonArgs(process.argv.slice(2));
   if (opts.help) {
-    process.stdout.write(`${usage(scriptName, "--target <path> --lens <id|manifest|path> --pass-id <id> [--feature-request <text>] [--out <path>] [--json]")}\n`);
+    process.stdout.write(`${usage(scriptName, "--target <path> --lens <id|manifest|path> --pass-id <id> (--review-input <path> | --feature-request <text>) [--relevant-context <text>] [--constraints <text>] [--previous-adjudications <text>] [--out <path>] [--json]")}\n`);
     process.exit(EXIT_CODES.ok);
   }
   if (opts.version) {
@@ -44,7 +39,7 @@ try {
     process.exit(EXIT_CODES.ok);
   }
   if (!opts.target || !opts.lens || !opts.passId) {
-    process.stderr.write(`${usage(scriptName, "--target <path> --lens <id|manifest|path> --pass-id <id> [--out <path>]")}\n`);
+    process.stderr.write(`${usage(scriptName, "--target <path> --lens <id|manifest|path> --pass-id <id> (--review-input <path> | --feature-request <text>) [--out <path>]")}\n`);
     process.stderr.write(`validation error: missing --target, --lens, or --pass-id\n`);
     process.exit(EXIT_CODES.usage);
   }
@@ -79,19 +74,21 @@ try {
   const targetRevision = computeArtifactSha(root, targetPath);
   const templateRevision = computeArtifactSha(root, templatePath);
   const lensRevision = computeArtifactSha(root, lensManifest.prompt_path);
+  const reviewInput = resolveReviewInput(root, opts);
 
-  const prompt = replaceAll(template, {
+  const prompt = renderTemplate(template, {
     pass_id: opts.passId,
     target_path: targetPath,
     target_revision: targetRevision,
+    review_input_revision: reviewInput.revision,
     template_revision: templateRevision,
     lens_revision: lensRevision,
-    feature_request: opts.featureRequest || "",
-    proposed_plan: targetText,
-    relevant_context: opts.relevantContext || "",
-    constraints: opts.constraints || "",
+    feature_request: encodePromptData(reviewInput.record.feature_request),
+    proposed_plan: encodePromptData(targetText),
+    relevant_context: encodePromptData(reviewInput.record.relevant_context),
+    constraints: encodePromptData(reviewInput.record.constraints),
     review_lens: lensText,
-    previous_adjudications: opts.previousAdjudications || ""
+    previous_adjudications: encodePromptData(reviewInput.record.previous_adjudications)
   });
 
   if (opts.out) {
@@ -107,6 +104,8 @@ try {
         output_path: opts.out,
         target_path: targetPath,
         target_revision: targetRevision,
+        review_input_path: reviewInput.sourcePath,
+        review_input_revision: reviewInput.revision,
         template_revision: templateRevision,
         lens_revision: lensRevision,
         lens: lensManifest.id
@@ -120,6 +119,8 @@ try {
         output_path: null,
         target_path: targetPath,
         target_revision: targetRevision,
+        review_input_path: reviewInput.sourcePath,
+        review_input_revision: reviewInput.revision,
         template_revision: templateRevision,
         lens_revision: lensRevision,
         lens: lensManifest.id
@@ -129,7 +130,7 @@ try {
     }
   }
 } catch (error) {
-  process.stderr.write(`${usage(scriptName, "--target <path> --lens <id|manifest|path> --pass-id <id> [--out <path>]")}\n`);
+  process.stderr.write(`${usage(scriptName, "--target <path> --lens <id|manifest|path> --pass-id <id> (--review-input <path> | --feature-request <text>) [--out <path>]")}\n`);
   process.stderr.write(`validation error: ${error.message}\n`);
   process.exit(error.exitCode || EXIT_CODES.internal);
 }

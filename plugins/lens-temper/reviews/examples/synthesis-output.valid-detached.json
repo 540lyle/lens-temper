@@ -1,10 +1,10 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "fixture_ledger_path": "reviews/examples/review-ledger.valid-detached-completed.json",
   "record_id": "synthesis-detached-1",
   "pass_id": "example-detached-pass",
-  "target_path": "docs/plans/FORWARD_PLAN.md",
-  "target_revision": "example-target-revision",
+  "target_path": "reviews/examples/artifacts/target.valid.md",
+  "target_revision": "git:73eaed921475be235f6684abdd2ce19a4e367c7f",
   "included_review_record_ids": [
     "review-detached-implementation-1"
   ],
@@ -39,5 +39,6 @@
     "all_5_lockable": true,
     "review_complete": false
   },
-  "prior_material_findings_context": []
+  "prior_material_findings_context": [],
+  "review_input_revision": "sha256:dc29a2b9712d8555b2b607998bd97d25cc3a61dbc0e447dd8dee1865a6c3833d"
 }

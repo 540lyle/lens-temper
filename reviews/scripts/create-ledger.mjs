@@ -12,6 +12,7 @@ import {
   parseCommonArgs,
   readJsonFile,
   repoRootFrom,
+  resolveReviewInput,
   resolveRepoPath,
   usage
 } from "./validation-helpers.mjs";
@@ -28,7 +29,7 @@ function lensSetEquals(left, right) {
 try {
   const opts = parseCommonArgs(process.argv.slice(2));
   if (opts.help) {
-    process.stdout.write(`${usage(scriptName, "--target <path> --pass-id <id> [--lens a,b] [--run-mode inline|advisory|full] [--execution-mode manual_or_imported|fresh_spawned_lens_reviewers|fresh_spawned_orchestrator] [--out <path>] [--json]")}\n`);
+    process.stdout.write(`${usage(scriptName, "--target <path> --pass-id <id> [--review-input <path>] [--lens a,b] [--run-mode inline|advisory|full] [--execution-mode manual_or_imported|fresh_spawned_lens_reviewers|fresh_spawned_orchestrator] [--out <path>] [--json]")}\n`);
     process.exit(EXIT_CODES.ok);
   }
   if (opts.version) {
@@ -36,7 +37,7 @@ try {
     process.exit(EXIT_CODES.ok);
   }
   if (!opts.target || !opts.passId) {
-    process.stderr.write(`${usage(scriptName, "--target <path> --pass-id <id> [--lens a,b] [--out <path>]")}\n`);
+    process.stderr.write(`${usage(scriptName, "--target <path> --pass-id <id> [--review-input <path>] [--lens a,b] [--out <path>]")}\n`);
     process.stderr.write(`validation error: missing --target or --pass-id\n`);
     process.exit(EXIT_CODES.usage);
   }
@@ -94,16 +95,25 @@ try {
     process.stderr.write(`validation error: inline/advisory run modes require manual_or_imported execution\n`);
     process.exit(EXIT_CODES.usage);
   }
+  if (runMode === "full" && !opts.reviewInput) {
+    process.stderr.write(`validation error: full run mode requires --review-input\n`);
+    process.exit(EXIT_CODES.usage);
+  }
+  const reviewInput = opts.reviewInput ? resolveReviewInput(root, opts) : null;
   const eventsPath = opts.eventsPath || (opts.out ? opts.out.replace(/[^/]+$/, "events.jsonl") : archiveRunPath(targetPath, opts.passId).replace(/\/?$/, "/events.jsonl"));
   if (!isRepoRelativePath(eventsPath)) {
     process.stderr.write(`validation error: --events-path must be repository-relative\n`);
     process.exit(EXIT_CODES.usage);
   }
   const ledger = {
-    schema_version: 1,
+    schema_version: 2,
     pass_id: opts.passId,
     target_path: targetPath,
     target_revision: targetRevision,
+    ...(reviewInput ? {
+      review_input_path: reviewInput.sourcePath,
+      review_input_revision: reviewInput.revision
+    } : {}),
     status: "active",
     run_mode: runMode,
     run_scope: runScope,
@@ -140,7 +150,7 @@ try {
     process.stdout.write(output);
   }
 } catch (error) {
-  process.stderr.write(`${usage(scriptName, "--target <path> --pass-id <id> [--lens a,b] [--out <path>]")}\n`);
+  process.stderr.write(`${usage(scriptName, "--target <path> --pass-id <id> [--review-input <path>] [--lens a,b] [--out <path>]")}\n`);
   process.stderr.write(`validation error: ${error.message}\n`);
   process.exit(error.exitCode || EXIT_CODES.internal);
 }

@@ -1,6 +1,6 @@
 Final assessment: Ready to implement
 
-Target: docs/plans/FORWARD_PLAN.md at example-target-revision
+Target: reviews/examples/artifacts/target.valid.md at git:73eaed921475be235f6684abdd2ce19a4e367c7f
 
 Artifact storage: reviews/archive/example-pass/
 

@@ -1,8 +1,8 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "record_id": "review-invalid-provenance",
   "pass_id": "example-pass",
-  "target_path": "docs/plans/FORWARD_PLAN.md",
+  "target_path": "reviews/examples/artifacts/target.valid.md",
   "template_revision": "example-template-revision",
   "lens": "implementation",
   "lens_revision": "example-lens-revision",
@@ -33,9 +33,9 @@
     "ship_readiness": 5
   },
   "run_mode": "inline",
-  "target_revision": "example-target-revision",
+  "target_revision": "git:73eaed921475be235f6684abdd2ce19a4e367c7f",
   "markdown_artifact_path": "reviews/examples/artifacts/review-output.valid-full.md",
-  "markdown_artifact_sha": "git:98a5f7228a05a5d82602c12b6694331df2b4103a",
+  "markdown_artifact_sha": "git:b35d57a7bef682c1fea29994a61ad99c66ed777e",
   "score_challenges": {
     "correctness": {
       "would_make_this_a_4": "A material correctness issue would lower this score.",

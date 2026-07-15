@@ -11,10 +11,14 @@ package or repository root.
 
 ## Inputs
 
-- Feature request and proposed plan.
+- Canonical review input and its normalized revision.
+- Feature request, proposed plan, and relevant context.
 - Complete review outputs.
 - Constraints.
 - Ledger state when available.
+
+For full runs, reject synthesis inputs whose review input revision differs from
+the ledger even when the target revision is unchanged.
 
 ## Outputs
 

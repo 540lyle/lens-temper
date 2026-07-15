@@ -11,6 +11,7 @@ import {
   parseCommonArgs,
   readJsonFile,
   repoRootFrom,
+  resolveReviewInput,
   resolveRepoPath,
   usage,
   writeRunEvent
@@ -45,6 +46,8 @@ function buildOrchestratorPrompt({
   passId,
   targetPath,
   targetRevision,
+  reviewInputPath,
+  reviewInputRevision,
   runMode,
   runScope,
   selectedLenses,
@@ -62,6 +65,7 @@ function buildOrchestratorPrompt({
     })
     .join("\n");
   const requiredArtifacts = [
+    reviewInputPath,
     ledgerPath,
     eventsPath,
     orchestratorPath,
@@ -84,6 +88,8 @@ Own the LensTemper review pass for \`${targetPath}\` from ledger creation throug
 - Pass ID: \`${passId}\`
 - Target path: \`${targetPath}\`
 - Target revision: \`${targetRevision}\`
+- Review input: \`${reviewInputPath}\`
+- Review input revision: \`${reviewInputRevision}\`
 - Run mode: \`${runMode}\`
 - Run scope: \`${runScope}\`
 - Execution mode: \`fresh_spawned_orchestrator\`
@@ -96,6 +102,7 @@ ${lensRows}
 # Allowed Files
 Read only these repository-relative source inputs and workflow definitions:
 - \`${targetPath}\`
+- \`${reviewInputPath}\`
 - \`reviews/README.md\`
 - \`reviews/AGENT.md\`
 - \`reviews/registry.json\`
@@ -115,7 +122,7 @@ Write only repository-relative run artifacts for this pass:
 ${requiredArtifacts.map((path) => `- \`${path}\``).join("\n")}
 
 # Event Log
-Append one JSON object per line to \`${eventsPath}\`. Every event must include \`pass_id\`, \`timestamp\`, \`role\`, \`target_revision\`, optional repository-relative \`artifact_path\`, and \`status\`.
+Append one JSON object per line to \`${eventsPath}\`. Every event must include \`pass_id\`, \`timestamp\`, \`role\`, \`target_revision\`, \`review_input_revision\`, optional repository-relative \`artifact_path\`, and \`status\`.
 
 For this packet, emit all orchestrator-owned events with \`role: \"orchestrator\"\`. Leave any launcher-authored setup events intact (they may use \`role: \"parent_launcher\"\`).
 
@@ -125,6 +132,7 @@ Use these event names when they occur: \`orchestrator_started\`, \`ledger_create
 
 # Stop Conditions
 - Stop and report input failure if the target path or target revision differs from this packet.
+- Stop and report input failure if \`${reviewInputPath}\` does not hash to \`${reviewInputRevision}\` after normalization.
 - Stop before review if the host cannot spawn detached-context reviewer subagents for the selected
   lenses. Do not perform an inline/advisory substitute unless the user
   explicitly requested inline or advisory mode.
@@ -136,6 +144,7 @@ Use these event names when they occur: \`orchestrator_started\`, \`ledger_create
 - Treat reviewer outputs as lockable only when they are validated, current for \`${targetRevision}\`, captured into artifacts, and closed.
 - Label unvalidated or imported outputs as advisory/imported; do not use them for lock states.
 - Completion claims require agreement among \`${eventsPath}\`, \`${ledgerPath}\`, reviewer artifacts, synthesis artifacts, and archive evidence.
+- Require every current review, synthesis, event, and completion artifact to report \`review_input_revision: "${reviewInputRevision}"\`.
 - Launch one detached-context reviewer subagent per selected lens. Do not provide parent-launcher or orchestrator conversation or history; each reviewer reads only its run packet and permitted workspace files. Reviewer execution may be concurrent or sequential, and one reviewer may not cover multiple lenses.
 - Use host-provided spawning mechanics. Do not assume Codex, Claude, Cursor, or any specific API.
 `;
@@ -144,16 +153,16 @@ Use these event names when they occur: \`orchestrator_started\`, \`ledger_create
 try {
   const opts = parseCommonArgs(process.argv.slice(2));
   if (opts.help) {
-    process.stdout.write(`${usage(scriptName, "--target <path> --pass-id <id> [--lens a,b] [--run-scope six_lens|selected_lenses] [--ledger <path>] [--events-path <path>] [--out <path>]")}\n`);
+    process.stdout.write(`${usage(scriptName, "--target <path> --pass-id <id> --review-input <path> [--lens a,b] [--run-scope six_lens|selected_lenses] [--ledger <path>] [--events-path <path>] [--out <path>]")}\n`);
     process.exit(EXIT_CODES.ok);
   }
   if (opts.version) {
     process.stdout.write(`${CONTRACT_VERSION}\n`);
     process.exit(EXIT_CODES.ok);
   }
-  if (!opts.target || !opts.passId) {
-    process.stderr.write(`${usage(scriptName, "--target <path> --pass-id <id> [--lens a,b] [--out <path>]")}\n`);
-    process.stderr.write(`validation error: missing --target or --pass-id\n`);
+  if (!opts.target || !opts.passId || !opts.reviewInput) {
+    process.stderr.write(`${usage(scriptName, "--target <path> --pass-id <id> --review-input <path> [--lens a,b] [--out <path>]")}\n`);
+    process.stderr.write(`validation error: missing --target, --pass-id, or --review-input\n`);
     process.exit(EXIT_CODES.usage);
   }
   const root = repoRootFrom(import.meta.url);
@@ -193,10 +202,13 @@ try {
     }
   }
   const targetRevision = computeArtifactSha(root, targetPath);
+  const reviewInput = resolveReviewInput(root, opts);
   const prompt = buildOrchestratorPrompt({
     passId: opts.passId,
     targetPath,
     targetRevision,
+    reviewInputPath: reviewInput.sourcePath,
+    reviewInputRevision: reviewInput.revision,
     runMode: "full",
     runScope,
     selectedLenses,
@@ -213,16 +225,18 @@ try {
     pass_id: opts.passId,
     role: "parent_launcher",
     target_revision: targetRevision,
+    review_input_path: reviewInput.sourcePath,
+    review_input_revision: reviewInput.revision,
     artifact_path: outPath,
     status: "created"
   });
   if (opts.json) {
-    process.stdout.write(`${JSON.stringify({ event: "orchestrator_prompt_created", artifact_path: outPath, events_path: eventsPath, target_revision: targetRevision })}\n`);
+    process.stdout.write(`${JSON.stringify({ event: "orchestrator_prompt_created", artifact_path: outPath, events_path: eventsPath, target_revision: targetRevision, review_input_path: reviewInput.sourcePath, review_input_revision: reviewInput.revision })}\n`);
   } else if (!opts.quiet) {
     process.stdout.write(`wrote ${outPath}\n`);
   }
 } catch (error) {
-  process.stderr.write(`${usage(scriptName, "--target <path> --pass-id <id> [--lens a,b] [--out <path>]")}\n`);
+  process.stderr.write(`${usage(scriptName, "--target <path> --pass-id <id> --review-input <path> [--lens a,b] [--out <path>]")}\n`);
   process.stderr.write(`validation error: ${error.message}\n`);
   process.exit(error.exitCode || EXIT_CODES.internal);
 }

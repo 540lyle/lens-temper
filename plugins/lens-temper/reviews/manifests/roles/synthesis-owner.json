@@ -18,7 +18,9 @@
   ],
   "inputs": [
     "feature_request",
+    "review_input_revision",
     "proposed_plan",
+    "relevant_context",
     "review_outputs",
     "constraints",
     "ledger"
@@ -35,6 +37,7 @@
     "Every cross-cutting category must have a consolidated status.",
     "Synthesis must not invent per-lens scores or lock states without current valid review records.",
     "Lock states require run_mode=full and valid score challenge evidence.",
-    "Rejected, downgraded, or deferred findings that affect rerun scope must include reasons."
+    "Rejected, downgraded, or deferred findings that affect rerun scope must include reasons.",
+    "Full-run synthesis must report the same review_input_revision as the ledger and included reviews."
   ]
 }

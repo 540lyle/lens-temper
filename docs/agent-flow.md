@@ -24,7 +24,8 @@ flowchart TD
   end
 
   Orchestrator --> Inputs
-  Inputs --> Prep["Create ledger, events.jsonl, and hash target"]
+  Inputs --> Contract["Validate and hash review-input.json"]
+  Contract --> Prep["Create ledger, events.jsonl, and hash target"]
   Prep --> Generate["Generate per-lens prompt packets and spawn handoffs"]
 
   Generate --> Wave["Spawn detached-context read-only lens reviewers<br/>Architecture, Implementation, Risk, Test Strategy, Product and UX, Data Model"]
