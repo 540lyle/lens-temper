@@ -24,8 +24,8 @@ workflow from repository files instead of prior chat context.
   absolute paths, or copied private constraints in examples or fixtures.
 - Keep examples generic and fictional unless the repository owner explicitly
   asks for a project-specific private review run.
-- Keep the six default lenses capped unless replacing an existing lens or
-  explicitly running a second review wave.
+- Treat changes to the default lens set as review-contract changes. Update the
+  registry, lens manifests, documentation, and evaluator fixtures together.
 - Prefer path-based prompt assembly when the reviewer has workspace access.
 - Record deterministic target, template, and lens revisions when running
   spawned or repeatable reviews.

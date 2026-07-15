@@ -29,9 +29,11 @@ stale-spec detection, synthesis, and explicit completion rules.
 
 LensTemper is designed to make reviews:
 
-- independent: fresh reviewers avoid inherited planning assumptions
+- independent: detached-context reviewers receive no host or orchestrator
+  conversation history
 - grounded: reviewers read the current spec directly from the workspace
-- parallel: default lenses can run as separate subagents
+- host-portable: reviewer execution may be concurrent or sequential without
+  changing the review contract
 - auditable: prompts, outputs, synthesis, and completion evidence can be stored
 - composable: use all lenses for broad work or selected lenses for focused work
 - explicit: inline/advisory reviews are allowed only when you ask for them
@@ -41,7 +43,7 @@ LensTemper is designed to make reviews:
 LensTemper turns the critique-agent pattern into a spec-review system:
 
 - one reviewer per lens, not one generic critic
-- fresh subagents that avoid inherited planning assumptions
+- detached-context subagents that receive no planning conversation or history
 - reviewers read the current spec directly from the workspace
 - narrower per-reviewer context, with an explicit multi-agent token tradeoff
 - explicit scoring and materiality rules
@@ -49,16 +51,17 @@ LensTemper turns the critique-agent pattern into a spec-review system:
 - validated artifacts before completion claims
 - full, selected-lens, and inline modes with clear claim boundaries
 
-## Why Fresh Reviewer Context Matters
+## Why Detached Reviewer Context Matters
 
 The planning conversation often contains assumptions: why a decision was made,
 which tradeoffs felt settled, what the author believes is obvious, and which
 risks have already been mentally discounted. A reviewer that inherits that
 conversation can inherit those assumptions too.
 
-LensTemper avoids that by spawning fresh reviewer agents. Each reviewer reads
-the current spec directly from the workspace, through one assigned lens, without
-the host thread's planning history or another reviewer's conclusions.
+LensTemper avoids that by spawning detached-context reviewer subagents. Each
+reviewer reads the current spec directly from the workspace, through one
+assigned lens, without the host thread's planning history or another reviewer's
+conclusions.
 
 That has a token tradeoff: a full run pays some base context cost per subagent.
 In exchange, each reviewer carries a smaller, cleaner working context and gives
@@ -82,12 +85,12 @@ In a full-review host such as Codex or Claude Code, the simplest prompt is:
 Use LensTemper to review docs/plans/my-plan.md.
 ```
 
-By default, LensTemper should run a full review with fresh subagents, one per
-selected lens, using whatever fresh-subagent mechanism your host provides
-(Claude Code's `Agent` / Task tool, Codex `spawn_agent` with
-`fork_context: false`, or the equivalent in your host). If the host cannot
-spawn fresh subagents, the review should stop instead of silently falling back
-to inline/advisory mode.
+By default, LensTemper should run a full review with one detached-context
+reviewer subagent per selected lens, using the host's equivalent mechanism. A
+detached-context reviewer receives none of the host, parent, or orchestrator
+conversation or history and reads only its run packet and permitted workspace
+files. If the host cannot provide that isolation, the review should stop instead
+of silently falling back to inline/advisory mode.
 
 To force all default lenses:
 
@@ -143,7 +146,8 @@ If you are using a skill picker, start with the start-plan-review entrypoint:
   compatibility alias.
 
 Use this first for normal reviews. It selects lenses, prepares reviewer prompts,
-spawns or directs fresh reviewers, tracks outputs, and drives synthesis/reruns.
+spawns or directs detached-context reviewers, tracks outputs, and drives
+synthesis/reruns.
 
 The other skills are specialist roles:
 
@@ -173,7 +177,7 @@ A full run typically follows this path:
 1. Choose lenses based on the plan's risk.
 2. Hash the target plan/spec so stale review output can be detected.
 3. Create a ledger and prompt packets for the selected lenses.
-4. Spawn one fresh reviewer per selected lens.
+4. Spawn one detached-context reviewer subagent per selected lens.
 5. Capture structured reviewer outputs.
 6. Synthesize findings, decide materiality, and select reruns if needed.
 7. Archive final artifacts and report what the evidence supports.
@@ -189,7 +193,7 @@ is heavier than a single critique prompt:
 - full runs spawn multiple agents
 - each subagent has its own base context cost
 - review artifacts and validation evidence take time to produce
-- the host must support fresh reviewers for lockable full-review claims
+- the host must support detached-context reviewers for lockable full-review claims
 
 For rough sketches, small changes, or early brainstorming, use inline advisory
 review and label it as advisory.
@@ -242,7 +246,7 @@ LensTemper is probably too much process for:
 - tiny edits where the expected behavior is already obvious
 - throwaway experiments
 - mechanical refactors with good existing tests
-- tasks where no host can spawn fresh reviewers and you need lockable claims
+- tasks where no host can spawn detached-context reviewers and you need lockable claims
 
 Use inline/advisory mode for quick feedback, but label it honestly.
 
@@ -252,8 +256,8 @@ Use inline/advisory mode for quick feedback, but label it honestly.
 
 ```text
 Use LensTemper to run a full six-lens review of
-docs/plans/saved-setups-v2.md. Spawn fresh subagents, one per lens, and do not
-fall back to inline review.
+docs/plans/saved-setups-v2.md. Spawn detached-context reviewer subagents, one
+per lens, and do not fall back to inline review.
 ```
 
 ### Focused Review
@@ -357,7 +361,7 @@ slightly differently.
 | Host | Support | Requirements |
 |------|---------|--------------|
 | Claude Code | Full review supported | Plugin plus Claude Code `Agent` tool, with `skills/` and `reviews/` available together. |
-| Codex | Full review supported when fresh subagents are available | Plugin/skills plus `spawn_agent` with fresh reviewers, with `skills/` and `reviews/` available together. |
+| Codex | Full review supported when detached-context subagents are available | Plugin/skills with `skills/` and `reviews/` available together. See the [Codex host guide](docs/hosts/codex.md) for current mechanics. |
 | Claude Desktop / Claude.ai | Conditional | Needs packaged `reviews/` resources and verified fresh reviewer isolation before claiming full review support. |
 | Cursor | Conditional full | Requires detached orchestration, fresh reviewer isolation, JSON artifacts, ledger/events, synthesis/rerun/completion validators, and a parent-chat-only secret scan; otherwise advisory/reference. See `docs/hosts/cursor.md`. |
 | Copilot | Advisory/reference | Use `.github/copilot-instructions.md` or `AGENTS.md` for reference guidance only. |
@@ -410,7 +414,7 @@ For LensTemper:
 2. Package the relevant LensTemper skill together with the `reviews/` workflow
    resources it references, or use a filesystem-capable host such as Claude Code
    for full repo-backed reviews.
-3. Verify that the host can launch fresh, isolated reviewer agents before
+3. Verify that the host can launch detached-context reviewer subagents before
    treating the result as a full LensTemper review. If it cannot, stop for
    full-review requests; only run inline/advisory mode when the user explicitly
    asks for a non-lockable advisory pass.
@@ -429,11 +433,14 @@ from this repository's marketplace; the plugin exposes the LensTemper skills.
 Use the repo marketplace catalog in `.agents/plugins/marketplace.json`; see
 [docs/INSTALL.md](docs/INSTALL.md) for the current install and update commands.
 The marketplace installs the packaged Codex payload in `plugins/lens-temper/`,
-which mirrors `.codex-plugin/`, `skills/`, and `reviews/` for Codex's plugin
-cache. Full LensTemper reviews also require `spawn_agent` or an equivalent
-fresh-subagent tool. If that is unavailable, a full review cannot be completed;
-only run inline/advisory mode when the user explicitly asks for a non-lockable
-advisory pass.
+which mirrors `.codex-plugin/`, `skills/`, `reviews/`, and the Codex host guide
+for Codex's plugin cache. Full LensTemper reviews also require Codex support for
+detached-context reviewer subagents. If that is unavailable, a full review
+cannot be completed; only run inline/advisory mode when the user explicitly
+asks for a non-lockable advisory pass. See [the Codex host guide](docs/hosts/codex.md)
+for the currently verified tool, configuration, and nested-spawn smoke check.
+These are Codex adapter details; the portable LensTemper workflow and other host
+paths are unchanged.
 
 ### Cursor, plain CLI, and other hosts
 

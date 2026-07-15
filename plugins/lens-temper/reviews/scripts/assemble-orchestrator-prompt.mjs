@@ -125,7 +125,7 @@ Use these event names when they occur: \`orchestrator_started\`, \`ledger_create
 
 # Stop Conditions
 - Stop and report input failure if the target path or target revision differs from this packet.
-- Stop before review if the host cannot spawn fresh subagents for the selected
+- Stop before review if the host cannot spawn detached-context reviewer subagents for the selected
   lenses. Do not perform an inline/advisory substitute unless the user
   explicitly requested inline or advisory mode.
 - Stop before synthesis if any current reviewer output is missing, stale, unvalidated, uncaptured, or not closed.
@@ -136,6 +136,7 @@ Use these event names when they occur: \`orchestrator_started\`, \`ledger_create
 - Treat reviewer outputs as lockable only when they are validated, current for \`${targetRevision}\`, captured into artifacts, and closed.
 - Label unvalidated or imported outputs as advisory/imported; do not use them for lock states.
 - Completion claims require agreement among \`${eventsPath}\`, \`${ledgerPath}\`, reviewer artifacts, synthesis artifacts, and archive evidence.
+- Launch one detached-context reviewer subagent per selected lens. Do not provide parent-launcher or orchestrator conversation or history; each reviewer reads only its run packet and permitted workspace files. Reviewer execution may be concurrent or sequential, and one reviewer may not cover multiple lenses.
 - Use host-provided spawning mechanics. Do not assume Codex, Claude, Cursor, or any specific API.
 `;
 }

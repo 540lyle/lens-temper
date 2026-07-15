@@ -34,16 +34,21 @@ and selected role manifests before running a review.
    revisions.
 3. Use `full_hosted` or `full_detached` by default. A request to run
    LensTemper, review with LensTemper, or run a full LensTemper review means
-   fresh subagents, one per selected lens, with no inherited thread context.
+   detached-context reviewer subagents, one per selected lens. A
+   detached-context reviewer subagent is fresh and receives none of the host,
+   parent, or orchestrator conversation or history; it reads only the run
+   packet and permitted workspace files.
    Host equivalents:
-   - Codex: `spawn_agent` with `fork_context: false`.
+   - Codex: use the current detached-context subagent mechanism once per
+     selected lens. See `docs/hosts/codex.md` for current mechanics.
    - Claude Code: each `Agent` (Task) invocation is already a fresh subagent
      with isolated context, so spawn one Agent call per selected lens -- no flag
      required.
-   - Claude Desktop / Claude.ai: use only if the host can launch fresh,
-     isolated reviewer agents and can provide the shared `reviews/` workflow
-     resources. Otherwise stop full-review requests; inline/advisory mode is
-     only valid when the user explicitly asks for a non-lockable advisory pass.
+   - Claude Desktop / Claude.ai: use only if the host can launch
+     detached-context reviewer subagents and can provide the shared `reviews/`
+     workflow resources. Otherwise stop full-review requests; inline/advisory
+     mode is only valid when the user explicitly asks for a non-lockable
+     advisory pass.
    - Cursor, plain CLI, and other manual hosts: use LensTemper materials as
      advisory unless a fresh independent-agent mechanism and artifact validation
      have been verified for that host.
@@ -66,6 +71,8 @@ and selected role manifests before running a review.
    and artifact validation can prove the run. Codex and Claude may provide
    different spawning mechanics; Cursor, plain CLI, and manual hosts remain
    advisory until their fresh-agent path is verified.
+   Reviewer execution may be concurrent or sequential. Each selected lens
+   still requires its own detached-context reviewer subagent.
 8. Validate review, synthesis, and ledger JSON with
    `reviews/scripts/validate-review-fixtures.mjs` or the individual validators.
 9. Archive completed runs with `reviews/scripts/archive-review-run.mjs`.

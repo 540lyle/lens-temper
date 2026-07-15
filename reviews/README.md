@@ -17,9 +17,8 @@ Standardize plan review so that:
 
 1. Generate a candidate implementation plan.
 2. Assemble the required inputs.
-3. Run a full LensTemper review by default: spawn one fresh reviewer per
-   selected lens with no inherited thread context (`fork_context: false` or
-   platform equivalent).
+3. Run a full LensTemper review by default: spawn one detached-context reviewer
+   subagent per selected lens.
 4. Collect the structured output from each spawned reviewer.
 5. Run `synthesize-review-feedback.md` across all review outputs to produce a consolidated assessment.
 6. Lock lenses only from validated `full` run artifacts. Inline and advisory outputs may guide planning, but their scores are not lockable.
@@ -53,18 +52,23 @@ Use `run_scope: six_lens` only when all six manifest-backed lenses are current. 
 
 Completion and lockable claims are blocked unless the ledger and artifacts prove the run. Detached completion also requires agreement among `events.jsonl`, ledger, reviewer outputs, synthesis, and archive evidence. The completion validator checks structured `claim_flags` and generated text for completion, lock-state, all-5, and review-complete wording.
 
-## Fresh-Agent Review Runs
+## Detached-Context Review Runs
 
-When running `full_hosted` lens reviews through spawned agents, use one fresh agent per lens and make the workspace the source of truth.
-Do not rely on inherited conversation context, stale pasted excerpts, or another lens agent's conclusions.
-Host mechanisms for fresh reviewers:
+When running `full_hosted` lens reviews through spawned agents, use one
+detached-context reviewer subagent per lens and make the workspace the source
+of truth. A detached-context reviewer subagent is fresh and receives none of
+the host, parent, or orchestrator conversation or history; it reads only the
+run packet and permitted workspace files. Do not rely on inherited conversation
+context, stale pasted excerpts, or another lens agent's conclusions.
+Host mechanisms for detached-context reviewers:
 
-- Codex: `spawn_agent` with `fork_context: false`, one agent per selected lens.
+- Codex: use the current detached-context subagent mechanism once per selected
+  lens. See `docs/hosts/codex.md` for current tool and configuration details.
 - Claude Code: invoke the `Agent` (Task) tool once per selected lens. Each
   Agent invocation is already a fresh subagent with isolated context, so no
   fork flag is needed.
-- Claude Desktop / Claude.ai: use only if the host can launch fresh, isolated
-  reviewer agents and can provide the `reviews/` workflow resources. If it
+- Claude Desktop / Claude.ai: use only if the host can launch detached-context
+  reviewer subagents and can provide the `reviews/` workflow resources. If it
   cannot, stop the full-review request and report that the host requirements
   are not met unless the user explicitly asks for advisory mode.
 - Cursor and other skill-aware hosts: use the host's independent-agent
@@ -78,14 +82,15 @@ For `full_detached`, the parent agent acts only as launcher/reporter when the ho
 Required orchestration:
 
 1. Create an agent-run ledger before spawning reviewers. Track lens name, lens file, pass id, target path, deterministic target revision/hash, agent id, status, final output captured, and closed status.
-2. Spawn each lens reviewer with no inherited thread context (`fork_context: false` or platform equivalent).
-3. Start each reviewer in the current repository root, then give it the target plan/spec path, deterministic target revision/hash, pass id, `reviews/reviewer-template.md`, and the exact lens file path as repository-relative paths.
-4. Instruct each reviewer to read the current files directly from the workspace before reviewing.
-5. Keep reviewer prompts narrow: include the task, file paths, provenance values, and output expectations; do not include prior debate, user conversation, or other agents' findings unless the task is explicitly synthesis. For reruns, a short list of previously adjudicated non-material findings is allowed so fresh reviewers do not reopen already-settled nits. Generated spawn prompts should use repository-relative paths only; the host should set the reviewer working directory instead of embedding absolute workspace paths in the prompt.
-6. Wait for each reviewer to produce its final review output, then copy that output into the parent thread or review artifact.
-7. Close each completed reviewer immediately after its output is captured. Do not leave completed agents running.
-8. If a reviewer times out, errors, or is superseded by a rerun, close it before spawning a replacement unless its output is still required.
-9. Before reporting review completion, verify every spawned reviewer in the ledger has a terminal status and has been closed.
+2. Spawn a detached-context reviewer subagent for each lens. Do not provide the host, parent, or orchestrator conversation or history.
+3. Reviewer execution may be concurrent or sequential. Never reuse one reviewer for multiple lenses.
+4. Start each reviewer in the current repository root, then give it the target plan/spec path, deterministic target revision/hash, pass id, `reviews/reviewer-template.md`, and the exact lens file path as repository-relative paths.
+5. Instruct each reviewer to read the current files directly from the workspace before reviewing.
+6. Keep reviewer prompts narrow: include the task, file paths, provenance values, and output expectations; do not include prior debate, user conversation, or other agents' findings unless the task is explicitly synthesis. For reruns, a short list of previously adjudicated non-material findings is allowed so fresh reviewers do not reopen already-settled nits. Generated spawn prompts should use repository-relative paths only; the host should set the reviewer working directory instead of embedding absolute workspace paths in the prompt.
+7. Wait for each reviewer to produce its final review output, then copy that output into the parent thread or review artifact.
+8. Close each completed reviewer immediately after its output is captured. Do not leave completed agents running.
+9. If a reviewer times out, errors, or is superseded by a rerun, close it before spawning a replacement unless its output is still required.
+10. Before reporting review completion, verify every spawned reviewer in the ledger has a terminal status and has been closed.
 
 Ledger fields:
 
@@ -157,7 +162,9 @@ Rerun protocol:
 
 ## Available Lenses
 
-The standard process intentionally uses six lenses so all default reviewers can run in one parallel subagent pass in environments that cap a thread at six subagents. Do not add more default lenses unless you are replacing an existing lens or explicitly accepting a second review wave.
+The standard process uses six default lenses because they cover distinct review
+concerns. Changing that default set is a review-contract change: update the
+registry, lens manifests, documentation, and evaluator fixtures together.
 
 | Lens | File | Focus |
 |------|------|-------|

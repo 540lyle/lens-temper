@@ -21,7 +21,7 @@ the review packet provides it.
 
 When this review is run by a spawned workspace agent, read the current referenced files directly from disk before reviewing. Do not rely on inherited conversation context, earlier review passes, pasted stale excerpts, or another lens agent's conclusions. If a required file path is missing or unreadable, call that out as a review input problem instead of guessing.
 
-If you are not a spawned fresh reviewer, label the output as advisory in the surrounding handoff. Inline and advisory reviews may use this structure, but their scores are not lockable.
+If you are not a spawned detached-context reviewer subagent, label the output as advisory in the surrounding handoff. Inline and advisory reviews may use this structure, but their scores are not lockable.
 
 ---
 
