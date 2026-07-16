@@ -429,6 +429,35 @@ function checkInstallDocMarketplaceOrder(root, failures) {
   if (cacheCopyIndex >= 0 && (fallbackIndex < 0 || cacheCopyIndex < fallbackIndex)) {
     failures.push(failure(installDocPath, "codex_cache_copy_fallback", "cache-copy guidance under Local Development Fallback", "outside fallback", "Codex cache-copy guidance must be labeled as local development fallback"));
   }
+
+  checkCursorInstallDoc(installDoc, installDocPath, failures);
+}
+
+function checkCursorInstallDoc(installDoc, installDocPath, failures) {
+  const cursorHeadingIndex = installDoc.search(/^##\s+Cursor\s*$/im);
+  if (cursorHeadingIndex < 0) {
+    failures.push(failure(installDocPath, "cursor_install", "## Cursor section", "missing", "install doc must include a Cursor section"));
+    return;
+  }
+
+  const nextHeadingMatch = installDoc.slice(cursorHeadingIndex + 1).match(/^##\s+/m);
+  const cursorSection = nextHeadingMatch
+    ? installDoc.slice(cursorHeadingIndex, cursorHeadingIndex + 1 + nextHeadingMatch.index)
+    : installDoc.slice(cursorHeadingIndex);
+
+  if (!/~\/\.cursor\/skills\/lens-temper/.test(cursorSection)) {
+    failures.push(failure(installDocPath, "cursor_personal_install", "~/.cursor/skills/lens-temper", "missing", "install doc must present Cursor personal install under ~/.cursor/skills/lens-temper"));
+  }
+
+  if (!/skills-cursor/i.test(cursorSection)) {
+    failures.push(failure(installDocPath, "cursor_skills_cursor_warning", "warn against ~/.cursor/skills-cursor/", "missing", "install doc must warn against installing Cursor skills under skills-cursor"));
+  } else if (!/\b(do not|never|must not|reserved)\b[\s\S]{0,120}skills-cursor|skills-cursor[\s\S]{0,120}\b(do not|never|must not|reserved)\b/i.test(cursorSection)) {
+    failures.push(failure(installDocPath, "cursor_skills_cursor_warning", "prohibit skills-cursor as install root", "unqualified mention", "install doc must prohibit installing under skills-cursor"));
+  }
+
+  if (/~\/\.cursor\/skills-cursor\/lens-temper/.test(cursorSection) && !/\b(do not|never|must not)\b[\s\S]{0,80}~\/\.cursor\/skills-cursor\/lens-temper/i.test(cursorSection)) {
+    failures.push(failure(installDocPath, "cursor_skills_cursor_path", "do not install under skills-cursor", "~/.cursor/skills-cursor/lens-temper", "install doc must not recommend ~/.cursor/skills-cursor/lens-temper"));
+  }
 }
 
 function checkFullReviewDowngradeLanguage(root, failures) {

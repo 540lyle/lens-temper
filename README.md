@@ -349,7 +349,10 @@ Each host loads the same source tree through its own mechanism:
 
 - `.claude-plugin/plugin.json` for Claude Code plugins.
 - `.codex-plugin/plugin.json` for Codex.
-- `.cursor/rules/lens-temper.mdc` as a Cursor conditional/advisory adapter.
+- Personal Cursor install at `~/.cursor/skills/lens-temper/` (not
+  `~/.cursor/skills-cursor/`), with `.cursor/rules/lens-temper.mdc` as an
+  optional project-copied requestable adapter. See
+  [docs/INSTALL.md](docs/INSTALL.md#cursor).
 - `.github/copilot-instructions.md` or `AGENTS.md` as a Copilot
   advisory/reference adapter.
 - `skills/` as standalone skill folders where the host supports that layout,
@@ -462,11 +465,15 @@ Skill-aware hosts can load `skills/` directly via their native mechanism when
 the full package is available in the workspace. Keep `reviews/` beside `skills/`
 so the workflow contracts, lenses, manifests, and validators resolve.
 
-For Cursor, `.cursor/rules/lens-temper.mdc` is requestable claim discipline and
-workflow guidance, not a replacement for the portable skills. See
-`docs/hosts/cursor.md` for prompt examples and the Background Agents path.
-Cursor output is full only for a detached run that produces validator-backed
-artifacts and passes the parent-chat-only isolation scan; otherwise it remains
+For Cursor, install the full package under `~/.cursor/skills/lens-temper/` so
+nested `skills/*/SKILL.md` files and `reviews/` stay together. Do not install
+under `~/.cursor/skills-cursor/`. The packaged `.cursor/rules/lens-temper.mdc`
+is requestable claim discipline only after it is copied or symlinked into a
+project's `.cursor/rules/`; it is not a replacement for the portable skills.
+See [docs/INSTALL.md](docs/INSTALL.md#cursor) and `docs/hosts/cursor.md` for
+install steps, prompt examples, and the Background Agents path. Cursor output
+is full only for a detached run that produces validator-backed artifacts and
+passes the parent-chat-only isolation scan; otherwise it remains
 advisory/reference.
 
 Plain CLI or manual hosts can still drive the workflow by reading
