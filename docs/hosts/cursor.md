@@ -7,14 +7,18 @@ inside Cursor, but it does not by itself prove lockable LensTemper completion.
 
 ## Advisory Quick Start
 
-1. Open a workspace that contains the LensTemper package root.
-2. Run `node reviews/scripts/validate-package.mjs` from the package root.
-3. Confirm `skills/` and `reviews/` are available together.
-4. Use `.cursor/rules/lens-temper.mdc` as a requestable project rule when the
-   user asks for LensTemper review.
-5. If Cursor exposes `skills/`, start normal review requests through
-   `skills/start-plan-review/SKILL.md`; if it does not, use the rule-only
-   advisory prompt below.
+1. Install the full LensTemper package at `~/.cursor/skills/lens-temper/`
+   (not `~/.cursor/skills-cursor/`). See `docs/INSTALL.md#cursor`.
+2. Confirm nested skills are present, especially
+   `skills/start-plan-review/SKILL.md`, with `reviews/` beside `skills/`.
+3. Restart or reload Cursor, then start normal review requests through
+   `skills/start-plan-review/SKILL.md` when the skill picker exposes it.
+4. Optionally copy or symlink `.cursor/rules/lens-temper.mdc` into a
+   consuming project's `.cursor/rules/` if you want the requestable rule
+   adapter in that workspace.
+5. For package development, you can instead open a LensTemper checkout as the
+   workspace and run `node reviews/scripts/validate-package.mjs` from that
+   package root.
 6. Confirm any non-gated output is labeled advisory/reference and does not
    claim full LensTemper completion.
 
@@ -40,17 +44,25 @@ folder without the shared `reviews/` resources is advisory-only.
 
 ## Adapter
 
-Use `.cursor/rules/lens-temper.mdc` as a requestable project rule. It should not
-be an always-on rule because LensTemper guidance is only relevant when the user
-asks for plan/spec review.
+The packaged `.cursor/rules/lens-temper.mdc` is requestable claim discipline and
+workflow guidance. It is not a replacement for the portable `skills/` and
+`reviews/` package, and it does nothing as a Cursor rule until it is present in
+a project's `.cursor/rules/` (or otherwise loaded by the host). For global
+skill-picker use, rely on the personal install under
+`~/.cursor/skills/lens-temper/`; copy or symlink the rule into projects that
+need the adapter.
 
-Keep the LensTemper package root available in the workspace. Full LensTemper
-materials require `skills/` and `reviews/` together.
+It should not be an always-on rule because LensTemper guidance is only relevant
+when the user asks for plan/spec review.
 
-If Cursor creates `.cursor/skills/` links or junctions to expose the skill
-folders, treat those as local install artifacts. They should stay ignored by
-`.gitignore`, must not be included in a LensTemper package, and are checked by
-`node reviews/scripts/validate-package.mjs`.
+Full LensTemper materials require `skills/` and `reviews/` together at the
+package root used for the run.
+
+If Cursor creates project-local `.cursor/skills/` links or junctions to expose
+skill folders, treat those as local install artifacts. They should stay ignored
+by `.gitignore`, must not be included in a LensTemper package, and are checked
+by `node reviews/scripts/validate-package.mjs`. Never install user skills under
+`~/.cursor/skills-cursor/`.
 
 ## Advisory Review Prompt
 

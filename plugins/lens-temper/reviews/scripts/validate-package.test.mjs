@@ -269,6 +269,12 @@ path after edits.
 \`\`\`powershell
 robocopy <path-to-checkout> <installed-cache-path> /MIR /XD .git .claude .codex .cache node_modules dist coverage reviews\\archive /XF *.log /NFL /NDL /NJH /NJS /NP
 \`\`\`
+
+## Cursor
+
+Install the full package at \`~/.cursor/skills/lens-temper/\`. Do not install
+under \`~/.cursor/skills-cursor/\`; that directory is reserved for Cursor's
+built-in skills.
 `;
 }
 
@@ -632,6 +638,93 @@ robocopy <path-to-checkout> <installed-cache-path> /MIR
   });
   try {
     assert(messages(validatePackageRoot(root)).some((message) => message.includes("Codex cache-copy guidance must be labeled as local development fallback")));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("reports install docs missing Cursor personal skill path", () => {
+  const root = makeFixture({
+    installDoc: `# Installing LensTemper
+
+## Codex
+
+\`\`\`bash
+codex plugin marketplace add <path-to-lens-temper-checkout>
+codex plugin add lens-temper@lens-temper
+\`\`\`
+
+## Local Development Fallback
+
+\`\`\`powershell
+robocopy <path-to-checkout> <installed-cache-path> /MIR
+\`\`\`
+
+## Cursor
+
+Use the host skill-loading mechanism. Do not install under skills-cursor.
+`
+  });
+  try {
+    assert(messages(validatePackageRoot(root)).some((message) => message.includes("install doc must present Cursor personal install under ~/.cursor/skills/lens-temper")));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("reports install docs that omit the skills-cursor warning", () => {
+  const root = makeFixture({
+    installDoc: `# Installing LensTemper
+
+## Codex
+
+\`\`\`bash
+codex plugin marketplace add <path-to-lens-temper-checkout>
+codex plugin add lens-temper@lens-temper
+\`\`\`
+
+## Local Development Fallback
+
+\`\`\`powershell
+robocopy <path-to-checkout> <installed-cache-path> /MIR
+\`\`\`
+
+## Cursor
+
+Install at \`~/.cursor/skills/lens-temper/\`.
+`
+  });
+  try {
+    assert(messages(validatePackageRoot(root)).some((message) => message.includes("install doc must warn against installing Cursor skills under skills-cursor")));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("reports install docs that recommend skills-cursor without prohibition", () => {
+  const root = makeFixture({
+    installDoc: `# Installing LensTemper
+
+## Codex
+
+\`\`\`bash
+codex plugin marketplace add <path-to-lens-temper-checkout>
+codex plugin add lens-temper@lens-temper
+\`\`\`
+
+## Local Development Fallback
+
+\`\`\`powershell
+robocopy <path-to-checkout> <installed-cache-path> /MIR
+\`\`\`
+
+## Cursor
+
+Install at \`~/.cursor/skills/lens-temper/\` or copy into skills-cursor for discovery.
+`
+  });
+  try {
+    assert(messages(validatePackageRoot(root)).some((message) => message.includes("install doc must prohibit installing under skills-cursor")));
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

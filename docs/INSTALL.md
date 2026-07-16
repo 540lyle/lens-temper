@@ -148,15 +148,45 @@ version segment may lag the plugin manifest version.
 
 ## Cursor
 
-Cursor can use project rules from `.cursor/rules/`, and `AGENTS.md` is a
-supported instruction format. The included `.cursor/rules/lens-temper.mdc`
-adapter is requestable claim discipline and workflow guidance; it is not a
-replacement for the portable `skills/` and `reviews/` package.
+Primary Cursor install is a personal skill package under
+`~/.cursor/skills/lens-temper/`. Cursor discovers nested `skills/*/SKILL.md`
+files recursively from that root, so keep the full portable package together:
 
-For advisory use, keep the LensTemper package root in the workspace and read
-`docs/hosts/cursor.md`, `reviews/README.md`, and the selected lens files. For
-skill-picker use, use the host's current skill-loading mechanism for `skills/`
-while keeping `reviews/` available at the package root.
+```bash
+git clone https://github.com/540lyle/lens-temper.git ~/.cursor/skills/lens-temper
+cd ~/.cursor/skills/lens-temper
+node reviews/scripts/validate-package.mjs
+```
+
+On Windows, the same path is `%USERPROFILE%\.cursor\skills\lens-temper`.
+
+Expected layout after install:
+
+```text
+~/.cursor/skills/lens-temper/
+  skills/start-plan-review/SKILL.md
+  skills/...
+  reviews/
+  docs/hosts/cursor.md
+  .cursor/rules/lens-temper.mdc
+```
+
+Do not install under `~/.cursor/skills-cursor/`. That directory is reserved for
+Cursor's built-in/managed skills; user skills belong in `~/.cursor/skills/`.
+
+Do not add a package-root `SKILL.md` that duplicates `start-plan-review`. The
+entrypoint skills live under `skills/*/SKILL.md`. After install or update,
+restart or reload Cursor so skill picker metadata refreshes.
+
+The packaged `.cursor/rules/lens-temper.mdc` file is an adapter only. It does
+not apply globally from the personal skill install. To use it as a requestable
+project rule, copy or symlink it into a consuming project's `.cursor/rules/`.
+Skill-picker use works from the personal install alone.
+
+For local advisory or package development, you can instead open a LensTemper
+checkout as the workspace and follow `docs/hosts/cursor.md`. Project-local
+`.cursor/skills/` junctions remain optional install artifacts and must stay
+gitignored.
 
 Cursor can be treated as conditional full only for a detached run that launches
 one fresh reviewer per lens, saves JSON review artifacts, produces
@@ -164,6 +194,9 @@ one fresh reviewer per lens, saves JSON review artifacts, produces
 `completion-summary.json`, passes the relevant validators, and passes a
 parent-chat-only secret isolation scan. If any gate is missing, label the run
 advisory/reference.
+
+See the [Cursor host guide](hosts/cursor.md) for advisory prompts, rule usage,
+and conditional-full gates.
 
 ## Copilot
 
