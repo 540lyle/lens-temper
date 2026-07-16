@@ -81,6 +81,7 @@ const BASE_PACKAGE = {
     "README.md",
     "lens-temper.package.json",
     ".claude-plugin/plugin.json",
+    ".claude-plugin/marketplace.json",
     ".codex-plugin/plugin.json",
     ".agents/plugins/marketplace.json",
     "plugins/lens-temper/",
@@ -115,6 +116,22 @@ const VALID_MARKETPLACE = {
   ]
 };
 
+const VALID_CLAUDE_MARKETPLACE = {
+  name: "lens-temper",
+  owner: {
+    name: "LensTemper maintainers",
+    url: "https://github.com/540lyle/lens-temper"
+  },
+  plugins: [
+    {
+      name: "lens-temper",
+      source: "./",
+      description: "LensTemper structured spec-driven development reviews.",
+      category: "workflow"
+    }
+  ]
+};
+
 function write(root, repoPath, content) {
   const fullPath = join(root, repoPath);
   mkdirSync(dirname(fullPath), { recursive: true });
@@ -127,7 +144,8 @@ function makeFixture({
   installDoc = defaultInstallDoc(),
   codexGuide = defaultCodexGuide(),
   registryPath = "skills/start-plan-review/SKILL.md",
-  marketplace = VALID_MARKETPLACE
+  marketplace = VALID_MARKETPLACE,
+  claudeMarketplace = VALID_CLAUDE_MARKETPLACE
 } = {}) {
   const root = mkdtempSync(join(tmpdir(), "lens-temper-package-"));
   const manifest = {
@@ -142,6 +160,9 @@ function makeFixture({
   write(root, "docs/INSTALL.md", installDoc);
   if (marketplace) {
     write(root, ".agents/plugins/marketplace.json", `${JSON.stringify(marketplace, null, 2)}\n`);
+  }
+  if (claudeMarketplace) {
+    write(root, ".claude-plugin/marketplace.json", `${JSON.stringify(claudeMarketplace, null, 2)}\n`);
   }
   write(root, "skills/start-plan-review/SKILL.md", "---\nname: start-plan-review\n---\nRead reviews/README.md before running.\n");
   write(root, "assets/lens-temper-plugin-icon.png", "fake png fixture\n");
@@ -390,6 +411,52 @@ test("reports package candidates missing marketplace file", () => {
   });
   try {
     assert(messages(validatePackageRoot(root)).some((message) => message.includes("marketplace metadata is not included in package candidates")));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("reports missing Claude Code marketplace metadata", () => {
+  const root = makeFixture({ claudeMarketplace: null });
+  try {
+    assert(messages(validatePackageRoot(root)).some((message) => message.includes("Claude Code marketplace metadata is missing")));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("reports Claude Code marketplace metadata without owner or root source", () => {
+  const root = makeFixture({
+    claudeMarketplace: {
+      name: "lens-temper",
+      plugins: [
+        {
+          name: "lens-temper",
+          source: {
+            source: "local",
+            path: "./plugins/lens-temper"
+          }
+        }
+      ]
+    }
+  });
+  try {
+    const validationMessages = messages(validatePackageRoot(root));
+    assert(validationMessages.some((message) => message.includes("Claude Code marketplace lacks required owner")));
+    assert(validationMessages.some((message) => message.includes("Claude Code marketplace plugin source must point at the repository root plugin")));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("reports package candidates missing Claude Code marketplace file", () => {
+  const root = makeFixture({
+    packagePatch: {
+      packageCandidates: BASE_PACKAGE.packageCandidates.filter((candidate) => candidate !== ".claude-plugin/marketplace.json")
+    }
+  });
+  try {
+    assert(messages(validatePackageRoot(root)).some((message) => message.includes("Claude Code marketplace metadata is not included in package candidates")));
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

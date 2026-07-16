@@ -114,6 +114,7 @@
     "SECURITY.md",
     "lens-temper.package.json",
     ".claude-plugin/plugin.json",
+    ".claude-plugin/marketplace.json",
     ".codex-plugin/plugin.json",
     ".agents/plugins/marketplace.json",
     "plugins/lens-temper/",

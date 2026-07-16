@@ -284,6 +284,7 @@ Do not spawn reviewers.
 
 ```text
 .agents/plugins/marketplace.json Codex repo marketplace catalog
+.claude-plugin/marketplace.json Claude Code repo marketplace catalog
 .claude-plugin/plugin.json      Claude Code plugin metadata
 .codex-plugin/plugin.json       Codex plugin metadata
 plugins/lens-temper/            Packaged Codex plugin payload for repo marketplace installs
@@ -370,7 +371,19 @@ slightly differently.
 
 ### Claude Code (CLI)
 
-Clone the repo, then load it as a local plugin:
+For a persistent install across sessions, add this repository as a plugin
+marketplace and install the plugin from it:
+
+```bash
+claude plugin marketplace add 540lyle/lens-temper
+claude plugin install lens-temper@lens-temper
+```
+
+Interactively, the same flow is `/plugin marketplace add 540lyle/lens-temper`
+followed by `/plugin install lens-temper@lens-temper`. Update later with
+`claude plugin marketplace update lens-temper`.
+
+For local development, clone the repo and load it as a local plugin instead:
 
 ```bash
 git clone https://github.com/540lyle/lens-temper.git
@@ -381,8 +394,7 @@ Skills appear in the picker under the plugin namespace, for example
 `/lens-temper:start-plan-review`. After editing a checkout, run
 `/reload-plugins` inside Claude Code to pick up changes without restarting.
 
-For persistent install across sessions, distribute via a Claude Code
-marketplace. See the Claude Code
+See the Claude Code
 [plugins guide](https://code.claude.com/docs/en/plugins) and
 [marketplaces guide](https://code.claude.com/docs/en/plugin-marketplaces).
 

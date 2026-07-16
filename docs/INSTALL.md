@@ -20,11 +20,24 @@ The package root is valid when `skills/`, `reviews/`,
 
 For Codex repo marketplace installs, the package root also includes
 `.agents/plugins/marketplace.json` and a packaged Codex plugin payload under
-`plugins/lens-temper/`.
+`plugins/lens-temper/`. For Claude Code marketplace installs, the package root
+includes `.claude-plugin/marketplace.json`, which exposes the repository root
+as the plugin.
 
 ## Claude Code
 
-Load the repository as a local plugin:
+Install from the repository marketplace (persistent across sessions):
+
+```bash
+claude plugin marketplace add 540lyle/lens-temper
+claude plugin install lens-temper@lens-temper
+```
+
+The repository root is the Claude Code plugin, described by
+`.claude-plugin/marketplace.json` and `.claude-plugin/plugin.json`. Update a
+marketplace install with `claude plugin marketplace update lens-temper`.
+
+For local development, load a checkout as a local plugin instead:
 
 ```bash
 git clone https://github.com/540lyle/lens-temper.git
