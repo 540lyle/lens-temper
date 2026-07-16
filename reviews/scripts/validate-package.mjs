@@ -314,6 +314,44 @@ function checkMarketplaceMetadata(root, manifest, failures) {
   }
 }
 
+function checkClaudeMarketplaceMetadata(root, manifest, failures) {
+  const marketplacePath = ".claude-plugin/marketplace.json";
+  const packageCandidates = (manifest.packageCandidates || []).map(normalizeRepoPath);
+
+  if (!packageCandidatesCover(packageCandidates, marketplacePath)) {
+    failures.push(failure("lens-temper.package.json", "packageCandidates", marketplacePath, "missing", "Claude Code marketplace metadata is not included in package candidates"));
+  }
+
+  if (!pathIsFile(root, marketplacePath)) {
+    failures.push(failure(marketplacePath, "file", "existing file", "missing", "Claude Code marketplace metadata is missing"));
+    return;
+  }
+
+  const marketplace = readJson(root, marketplacePath, failures);
+  if (!marketplace) return;
+  if (marketplace.name !== "lens-temper") {
+    failures.push(failure(marketplacePath, "name", "lens-temper", marketplace.name, "Claude Code marketplace top-level name is wrong"));
+  }
+  if (!marketplace.owner?.name) {
+    failures.push(failure(marketplacePath, "owner.name", "present", "missing", "Claude Code marketplace lacks required owner"));
+  }
+
+  if (!Array.isArray(marketplace.plugins)) {
+    failures.push(failure(marketplacePath, "plugins", "array with lens-temper plugin", marketplace.plugins || "missing", "Claude Code marketplace plugins must be an array"));
+    return;
+  }
+
+  const plugin = marketplace.plugins.find((candidate) => candidate?.name === "lens-temper");
+  if (!plugin) {
+    failures.push(failure(marketplacePath, "plugins", "plugin named lens-temper", marketplace.plugins || [], "Claude Code marketplace does not expose lens-temper plugin"));
+    return;
+  }
+
+  if (plugin.source !== "./") {
+    failures.push(failure(marketplacePath, "plugins.lens-temper.source", "./", plugin.source || "missing", "Claude Code marketplace plugin source must point at the repository root plugin"));
+  }
+}
+
 function checkPackagedCodexPayload(root, manifest, failures) {
   const packageRoot = "plugins/lens-temper";
   const packageCandidates = (manifest.packageCandidates || []).map(normalizeRepoPath);
@@ -622,6 +660,7 @@ export function validatePackageRoot(root = repoRootFrom()) {
   checkReadmeHostClaims(root, failures);
   checkReadmeVersionExamples(root, manifest, failures);
   checkMarketplaceMetadata(root, manifest, failures);
+  checkClaudeMarketplaceMetadata(root, manifest, failures);
   checkPackagedCodexPayload(root, manifest, failures);
   checkInstallDocMarketplaceOrder(root, failures);
   checkFullReviewDowngradeLanguage(root, failures);

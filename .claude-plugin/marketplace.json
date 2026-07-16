@@ -1,0 +1,19 @@
+{
+  "name": "lens-temper",
+  "owner": {
+    "name": "LensTemper maintainers",
+    "url": "https://github.com/540lyle/lens-temper"
+  },
+  "metadata": {
+    "description": "LensTemper structured spec-driven development reviews.",
+    "version": "0.1.1"
+  },
+  "plugins": [
+    {
+      "name": "lens-temper",
+      "source": "./",
+      "description": "LensTemper runs structured spec-driven development reviews with fresh reviewer subagents and lens-specific synthesis.",
+      "category": "workflow"
+    }
+  ]
+}
