@@ -1,0 +1,7 @@
+{
+  "schema_version": 2,
+  "feature_request": "Build the fictional review-input sentinel workflow so reviewers can evaluate the user goal and success criteria.",
+  "relevant_context": "Context sentinel: preserve multiline and Unicode input such as café and Δ without relying on parent conversation history.",
+  "constraints": "Constraint sentinel: remain host-neutral and do not silently discard review inputs.",
+  "previous_adjudications": "No previous adjudications supplied."
+}

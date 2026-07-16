@@ -1,7 +1,7 @@
 {
   "name": "lens-temper",
   "version": "0.1.1",
-  "description": "LensTemper runs structured spec-driven development reviews with fresh reviewer subagents and lens-specific synthesis.",
+  "description": "LensTemper runs structured spec-driven development reviews with detached-context reviewer subagents and lens-specific synthesis.",
   "skills": [
     {
       "id": "start-plan-review",
@@ -47,8 +47,9 @@
       "requirements": [
         "skills/",
         "reviews/",
-        "spawn_agent or equivalent fresh subagent support",
-        "fork_context false for spawned reviewers"
+        "Codex subagent support capable of detached-context reviewer subagents",
+        "nested subagent spawning for full_detached",
+        "current Codex mechanics documented in docs/hosts/codex.md"
       ]
     },
     "claude-desktop-claude-ai": {
@@ -57,7 +58,7 @@
       "requirements": [
         "one or more packaged skill folders rooted at SKILL.md",
         "referenced reviews/ resources bundled or otherwise readable",
-        "verified fresh reviewer isolation"
+        "verified detached-context reviewer isolation"
       ]
     },
     "cursor": {
@@ -68,7 +69,7 @@
         "reviews/",
         ".cursor/rules/lens-temper.mdc",
         "detached orchestrator subagent",
-        "one fresh reviewer per selected lens",
+        "one detached-context reviewer per selected lens",
         "parent-chat-only secret isolation falsification",
         "per-lens JSON review artifacts",
         "ledger.json and events.jsonl",
@@ -130,6 +131,7 @@
     "reviews/examples/",
     "reviews/evals/",
     "docs/INSTALL.md",
+    "docs/hosts/codex.md",
     "docs/hosts/cursor.md",
     "docs/PRIVACY.md",
     "docs/TERMS.md",

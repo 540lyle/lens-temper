@@ -398,7 +398,7 @@ template enum: `Strong`, `Usable with fixes`, `High risk`, or `Incomplete`.
 `Ready to implement`, `Ready with minor clarifications`, `Needs revision`, or
 `Not implementation-ready`.
 
-`schema_version` starts at integer `1`. Validators must reject missing,
+The current artifact contract uses `schema_version: 2`. Validators must reject missing,
 non-integer, or unknown schema versions rather than attempting best-effort
 parsing.
 

@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "LensTemper Evidence-Backed Lens Additions",
+  "type": "object",
+  "required": ["schema_version", "additions"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "additions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["lens", "reason", "evidence"],
+        "properties": {
+          "lens": { "enum": ["architecture", "implementation", "risk", "test-strategy", "product-ux", "data-model"] },
+          "reason": { "type": "string", "minLength": 1 },
+          "evidence": { "type": "string", "minLength": 1 }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

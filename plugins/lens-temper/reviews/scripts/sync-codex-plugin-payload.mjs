@@ -7,7 +7,8 @@ const PACKAGE_ROOT = "plugins/lens-temper";
 const STATIC_PAYLOAD_PATHS = [
   [".codex-plugin", `${PACKAGE_ROOT}/.codex-plugin`],
   ["assets", `${PACKAGE_ROOT}/assets`],
-  ["skills", `${PACKAGE_ROOT}/skills`]
+  ["skills", `${PACKAGE_ROOT}/skills`],
+  ["docs/hosts/codex.md", `${PACKAGE_ROOT}/docs/hosts/codex.md`]
 ];
 
 function repoRootFrom(importMetaUrl = import.meta.url) {

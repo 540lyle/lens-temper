@@ -30,14 +30,14 @@ jobs:
             node --check "$file"
           done
 
-      - name: Run script unit tests
-        run: node --test reviews/scripts/*.test.mjs
+      - name: Verify generated Codex plugin payload
+        run: |
+          node reviews/scripts/sync-codex-plugin-payload.mjs
+          payload_status="$(git status --porcelain --untracked-files=all -- plugins/lens-temper)"
+          if [ -n "$payload_status" ]; then
+            printf '%s\n' "$payload_status"
+            exit 1
+          fi
 
-      - name: Validate package metadata
-        run: node reviews/scripts/validate-package.mjs
-
-      - name: Validate review fixtures
-        run: node reviews/scripts/validate-review-fixtures.mjs
-
-      - name: Run review evaluator fixtures
-        run: node reviews/scripts/run-review-evals.mjs
+      - name: Run independent validation lanes in parallel
+        run: node reviews/scripts/validate-all.mjs

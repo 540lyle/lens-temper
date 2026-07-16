@@ -6,13 +6,16 @@ import {
   EXIT_CODES,
   ensureNode18,
   isRepoRelativePath,
+  loadValidatedRunContext,
+  normalizeRepoInputPath,
   parseCommonArgs,
   readJsonFile,
   repoRootFrom,
   resolveRepoPath,
   usage,
   validateCompletionSummaryRecord,
-  validateReviewRecord
+  validateSynthesisRecord,
+  validationError
 } from "./validation-helpers.mjs";
 
 ensureNode18();
@@ -25,22 +28,9 @@ function averageScore(scorecard) {
   return (values.reduce((sum, value) => sum + value, 0) / values.length).toFixed(1);
 }
 
-function collectLensScores(root, ledger) {
+function collectLensScores(reviews) {
   const rows = [];
-  for (const entry of ledger.review_record_artifacts || []) {
-    const resolved = resolveRepoPath(root, entry.artifact_path);
-    if (!resolved) {
-      throw Object.assign(new Error(`invalid review artifact path ${entry.artifact_path}`), { exitCode: EXIT_CODES.validation });
-    }
-    const review = readJsonFile(resolved);
-    const failures = validateReviewRecord(review, {
-      artifactRoot: root,
-      targetRevision: ledger.target_revision,
-      artifactPath: entry.artifact_path
-    });
-    if (failures.length > 0) {
-      throw Object.assign(new Error(`review artifact failed validation ${entry.artifact_path}`), { exitCode: EXIT_CODES.validation });
-    }
+  for (const { record: review } of reviews) {
     rows.push({
       record_id: review.record_id,
       lens: review.lens,
@@ -76,6 +66,7 @@ function asMarkdown(ledger, synthesis, synthesisPath, lensScores) {
   }
   lines.push(`Final assessment: ${synthesis.final_assessment || "not recorded"}`);
   lines.push(`Target: ${ledger.target_path} at ${ledger.target_revision}`);
+  if (ledger.review_input_revision) lines.push(`Review input revision: ${ledger.review_input_revision}`);
   lines.push(`Artifact storage: ${(ledger.archive_paths || []).join(", ") || "not archived"}`);
   lines.push("");
   lines.push("| Lens | Verdict | Average score | Material blockers |");
@@ -119,16 +110,32 @@ try {
     process.exit(EXIT_CODES.usage);
   }
   const root = repoRootFrom(import.meta.url);
-  const ledger = readJsonFile(opts.ledger);
-  const synthesis = readJsonFile(opts.synthesis);
-  const lensScores = collectLensScores(root, ledger);
+  const context = await loadValidatedRunContext(root, opts.ledger);
+  const ledger = context.ledger;
+  const synthesisPath = normalizeRepoInputPath(root, opts.synthesis);
+  const synthesisResolved = synthesisPath ? resolveRepoPath(root, synthesisPath) : null;
+  if (!synthesisResolved) throw Object.assign(new Error("--synthesis must resolve under the repository root"), { exitCode: EXIT_CODES.usage });
+  const synthesis = readJsonFile(synthesisResolved);
+  const synthesisFailures = validateSynthesisRecord(synthesis, {
+    artifactRoot: root,
+    targetRevision: ledger.target_revision,
+    reviewInputRevision: ledger.review_input_revision,
+    ledger,
+    artifactPath: synthesisPath
+  });
+  if (synthesisFailures.length > 0) throw validationError(synthesisFailures, "synthesis trust chain failed");
+  if (!(ledger.synthesis_record_ids || []).includes(synthesis.record_id)) {
+    throw Object.assign(new Error(`synthesis ${synthesis.record_id} is not current in the ledger`), { exitCode: EXIT_CODES.validation });
+  }
+  const lensScores = collectLensScores(context.reviews);
   const summary = {
-    schema_version: 1,
+    schema_version: ledger.schema_version,
     run_mode: ledger.run_mode,
     run_scope: ledger.run_scope,
     final_assessment: synthesis.final_assessment,
     target_path: ledger.target_path,
     target_revision: ledger.target_revision,
+    ...(ledger.review_input_revision ? { review_input_revision: ledger.review_input_revision } : {}),
     claim_flags: synthesis.claim_flags || {
       completion: false,
       lock_state: false,
@@ -146,6 +153,7 @@ try {
   const summaryFailures = validateCompletionSummaryRecord(summary, {
     artifactRoot: root,
     targetRevision: ledger.target_revision,
+    reviewInputRevision: ledger.review_input_revision,
     artifactPath: "emit-completion-summary"
   });
   if (summaryFailures.length > 0) {

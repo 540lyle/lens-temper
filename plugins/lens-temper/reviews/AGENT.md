@@ -24,11 +24,17 @@ workflow from repository files instead of prior chat context.
   absolute paths, or copied private constraints in examples or fixtures.
 - Keep examples generic and fictional unless the repository owner explicitly
   asks for a project-specific private review run.
-- Keep the six default lenses capped unless replacing an existing lens or
-  explicitly running a second review wave.
+- Treat changes to the default lens set as review-contract changes. Update the
+  registry, lens manifests, documentation, and evaluator fixtures together.
+- Resolve automatic lens scope through the canonical selection policy and
+  script. Model judgment may add evidence-backed lenses but may not subtract
+  deterministic lenses or resolve a zero-match input.
 - Prefer path-based prompt assembly when the reviewer has workspace access.
-- Record deterministic target, template, and lens revisions when running
+- Materialize one canonical review input JSON and record its normalized revision
+  together with deterministic target, template, and lens revisions when running
   spawned or repeatable reviews.
+- Fail before spawning full-review agents when the feature request is missing;
+  never replace a missing review contract with silent empty strings.
 - Close spawned reviewers after output capture.
 - Label run mode honestly. Inline and advisory reviews cannot claim completed
   LensTemper passes, lock states, or lockable all-5 scores.

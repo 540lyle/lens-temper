@@ -25,7 +25,14 @@ const BASE_PACKAGE = {
     },
     codex: {
       status: "full",
-      requirements: [".codex-plugin/plugin.json", "skills/", "reviews/", "spawn_agent"]
+      requirements: [
+        ".codex-plugin/plugin.json",
+        "skills/",
+        "reviews/",
+        "Codex subagent support capable of detached-context reviewer subagents",
+        "nested subagent spawning for full_detached",
+        "current Codex mechanics documented in docs/hosts/codex.md"
+      ]
     },
     "claude-desktop-claude-ai": {
       status: "conditional",
@@ -80,6 +87,7 @@ const BASE_PACKAGE = {
     "assets/",
     "skills/",
     "reviews/",
+    "docs/hosts/codex.md",
     "docs/hosts/cursor.md",
     ".cursor/rules/lens-temper.mdc",
     ".github/copilot-instructions.md"
@@ -117,6 +125,7 @@ function makeFixture({
   packagePatch = {},
   readme = defaultReadme(),
   installDoc = defaultInstallDoc(),
+  codexGuide = defaultCodexGuide(),
   registryPath = "skills/start-plan-review/SKILL.md",
   marketplace = VALID_MARKETPLACE
 } = {}) {
@@ -136,12 +145,13 @@ function makeFixture({
   }
   write(root, "skills/start-plan-review/SKILL.md", "---\nname: start-plan-review\n---\nRead reviews/README.md before running.\n");
   write(root, "assets/lens-temper-plugin-icon.png", "fake png fixture\n");
+  write(root, "docs/hosts/codex.md", codexGuide);
   write(root, "docs/hosts/cursor.md", `# Cursor Host Guide
 
 Cursor support is conditional full when a detached run proves fresh reviewer isolation and artifact validation; otherwise Cursor support is advisory/reference. Use .cursor/rules/lens-temper.mdc as an Agent Requested rule, read reviews/README.md, reviews/registry.json, selected reviews/lenses/ files, reviews/manifests/lenses/ entries, and reviews/reviewer-template.md, and label non-gated output advisory/reference. Cursor Background Agents can satisfy the conditional full gate only after an experiment proves fresh reviewer isolation with validate-review-fixtures.mjs, validate-review-output.mjs, validate-ledger.mjs, validate-synthesis-output.mjs, decide-reruns.mjs, emit-completion-summary.mjs, and validate-completion-summary.mjs. The guide includes Advisory Quick Start, Entrypoints, Advisory Verification Checklist, Conditional Full Gates, lens-<slug>.md, parent-chat-only secret, ledger.json, events.jsonl, completion-summary.json, and archive path consistency.
 `);
   write(root, "reviews/scripts/validate-package.mjs", "#!/usr/bin/env node\n");
-  write(root, "reviews/README.md", "# Reviews\n");
+  write(root, "reviews/README.md", "# Reviews\n\nSee docs/hosts/codex.md for current Codex mechanics.\n");
   write(root, "reviews/registry.json", `${JSON.stringify({
     scripts: [
       {
@@ -168,9 +178,10 @@ Read docs/hosts/cursor.md, reviews/README.md, reviews/registry.json, selected re
   write(root, ".github/copilot-instructions.md", "# LensTemper Copilot advisory adapter\n");
   write(root, "plugins/lens-temper/.codex-plugin/plugin.json", `${JSON.stringify({ name: "lens-temper", version: "0.1.1" }, null, 2)}\n`);
   write(root, "plugins/lens-temper/assets/lens-temper-plugin-icon.png", "fake png fixture\n");
+  write(root, "plugins/lens-temper/docs/hosts/codex.md", codexGuide);
   write(root, "plugins/lens-temper/skills/start-plan-review/SKILL.md", "---\nname: start-plan-review\n---\nRead reviews/README.md before running.\n");
   write(root, "plugins/lens-temper/reviews/scripts/validate-package.mjs", "#!/usr/bin/env node\n");
-  write(root, "plugins/lens-temper/reviews/README.md", "# Reviews\n");
+  write(root, "plugins/lens-temper/reviews/README.md", "# Reviews\n\nSee docs/hosts/codex.md for current Codex mechanics.\n");
   write(root, "plugins/lens-temper/reviews/registry.json", `${JSON.stringify({
     scripts: [
       {
@@ -196,7 +207,7 @@ function defaultReadme() {
 | Host | Support | Notes |
 |------|---------|-------|
 | Claude Code | Full review supported | Plugin plus Agent tool. |
-| Codex | Full review supported | Plugin/skills plus spawn_agent. |
+| Codex | Full review supported | Plugin/skills with detached-context subagents. See [the Codex host guide](docs/hosts/codex.md). |
 | Claude Desktop / Claude.ai | Conditional | Needs packaged reviews/ resources and verified fresh reviewer isolation. |
 | Cursor | Conditional full | Requires detached orchestration, fresh reviewer isolation, artifact validation, and parent-chat-only secret scan; otherwise advisory/reference. |
 | Copilot | Advisory/reference | Via .github/copilot-instructions.md or AGENTS.md. |
@@ -226,6 +237,9 @@ codex plugin add lens-temper@lens-temper
 For development users, install from a checkout of \`main\`. For stable users,
 install from a checkout of a release tag such as \`v0.1.1\`.
 
+Full reviews require detached-context reviewer subagents. See the
+[Codex host guide](hosts/codex.md) for current tool and configuration details.
+
 ## Local Development Fallback
 
 If Codex is using a cached local plugin copy, refresh the active installed cache
@@ -234,6 +248,30 @@ path after edits.
 \`\`\`powershell
 robocopy <path-to-checkout> <installed-cache-path> /MIR /XD .git .claude .codex .cache node_modules dist coverage reviews\\archive /XF *.log /NFL /NDL /NJH /NJS /NP
 \`\`\`
+`;
+}
+
+function defaultCodexGuide() {
+  return `# Codex Host Guide
+
+## Detached Context
+
+Create one detached-context reviewer subagent per lens. It receives none of the
+host, parent, or orchestrator conversation or history and reads only its run
+packet and permitted workspace files.
+
+## Codex Configuration
+
+Configuration must support the root -> detached orchestrator -> reviewer path.
+Concurrency is measured as total active threads including the root.
+
+## Smoke Check
+
+Verify direct and nested subagent launch behavior.
+
+## Upstream References
+
+Link current primary sources and tracked issues.
 `;
 }
 
@@ -375,6 +413,86 @@ test("reports packaged Codex plugin payload drift", () => {
   write(root, "plugins/lens-temper/skills/start-plan-review/SKILL.md", "---\nname: start-plan-review\n---\nChanged copy.\n");
   try {
     assert(messages(validatePackageRoot(root)).some((message) => message.includes("packaged Codex plugin payload file drifted from source")));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("reports missing Codex host guide package candidate", () => {
+  const root = makeFixture({
+    packagePatch: {
+      packageCandidates: BASE_PACKAGE.packageCandidates.filter((candidate) => candidate !== "docs/hosts/codex.md")
+    }
+  });
+  try {
+    assert(messages(validatePackageRoot(root)).some((message) => message.includes("Codex host guide is not included in package candidates")));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("reports missing detached-context Codex host requirements", () => {
+  const root = makeFixture({
+    packagePatch: {
+      hostSupportMatrix: {
+        ...BASE_PACKAGE.hostSupportMatrix,
+        codex: {
+          ...BASE_PACKAGE.hostSupportMatrix.codex,
+          requirements: ["Codex subagent support"]
+        }
+      }
+    }
+  });
+  try {
+    assert(messages(validatePackageRoot(root)).some((message) => message.includes("Codex host requirements are missing current multi-agent guidance")));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("reports stale Codex host guide", () => {
+  const root = makeFixture({ codexGuide: `# Codex Host Guide
+
+## Detached Context
+
+Details pending.
+
+## Codex Configuration
+
+Details pending.
+
+## Smoke Check
+
+Details pending.
+
+## Upstream References
+
+Details pending.
+` });
+  try {
+    const failures = validatePackageRoot(root);
+    assert(failures.some((failure) => failure.expected === "detached-context reviewer subagent contract"));
+    assert(failures.some((failure) => failure.expected === "root -> detached orchestrator -> reviewer path"));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("reports packaged Codex host guide drift", () => {
+  const root = makeFixture();
+  write(root, "plugins/lens-temper/docs/hosts/codex.md", "# Stale Codex guide\n");
+  try {
+    assert(messages(validatePackageRoot(root)).some((message) => message.includes("packaged Codex plugin payload file drifted from source")));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("reports portable docs that omit the Codex host guide link", () => {
+  const root = makeFixture();
+  write(root, "reviews/README.md", "# Reviews\n\nCodex mechanics are described inline.\n");
+  try {
+    assert(messages(validatePackageRoot(root)).some((message) => message.includes("portable docs must link to the Codex host guide")));
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

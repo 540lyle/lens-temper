@@ -17,13 +17,7 @@
       "Security / privacy"
     ]
   },
-  "default_selection_triggers": [
-    "persistence",
-    "saved records",
-    "library or history features",
-    "schema changes",
-    "storage or API contracts"
-  ],
+  "selection_domains": ["migration-and-data"],
   "advisory_tool_expectations": [
     "Read the target plan or spec directly from disk.",
     "Inspect referenced schemas, migrations, contracts, or storage docs when provided.",

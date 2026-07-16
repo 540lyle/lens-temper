@@ -22,10 +22,14 @@
     "synthesis_record_artifacts"
   ],
   "properties": {
-    "schema_version": { "const": 1 },
+    "schema_version": { "const": 2 },
     "pass_id": { "type": "string" },
     "target_path": { "type": "string" },
     "target_revision": { "type": "string" },
+    "review_input_path": { "type": "string" },
+    "review_input_revision": { "type": "string" },
+    "lens_selection_path": { "type": "string" },
+    "lens_selection_revision": { "type": "string" },
     "status": {
       "enum": ["active", "completed", "error", "superseded", "stale"]
     },
@@ -123,6 +127,16 @@
   },
   "additionalProperties": true,
   "allOf": [
+    {
+      "if": {
+        "properties": {
+          "run_mode": { "const": "full" }
+        }
+      },
+      "then": {
+        "required": ["review_input_path", "review_input_revision", "lens_selection_path", "lens_selection_revision"]
+      }
+    },
     {
       "if": {
         "properties": {

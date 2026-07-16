@@ -20,6 +20,7 @@
     "pass_id",
     "target_path",
     "target_revision",
+    "review_input_revision",
     "template_revision",
     "lens_revision",
     "feature_request",
@@ -41,6 +42,7 @@
     "Scores must use the six standard dimensions.",
     "Any score below 5/5 must be tied to a material issue.",
     "Any score of 5/5 must explain why a material score-lowering issue is absent.",
-    "The reported target_revision must match the prompt target_revision."
+    "The reported target_revision must match the prompt target_revision.",
+    "The reported review_input_revision must match the prompt review_input_revision."
   ]
 }

@@ -48,7 +48,12 @@ try {
     }
     return { lens, decision: "not_affected", reason: "no accepted material change in lens domain", rerun_needed: false };
   });
-  const output = { pass_id: ledger.pass_id, target_revision: ledger.target_revision, decisions };
+  const output = {
+    pass_id: ledger.pass_id,
+    target_revision: ledger.target_revision,
+    ...(ledger.review_input_revision ? { review_input_revision: ledger.review_input_revision } : {}),
+    decisions
+  };
   if (opts.write) {
     ledger.rerun_decisions = decisions;
     writeFileSync(resolveRepoPath(root, opts.ledger), `${JSON.stringify(ledger, null, 2)}\n`, "utf8");

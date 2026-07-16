@@ -325,6 +325,7 @@ function checkPackagedCodexPayload(root, manifest, failures) {
   for (const repoPath of [
     `${packageRoot}/.codex-plugin/plugin.json`,
     `${packageRoot}/assets/`,
+    `${packageRoot}/docs/hosts/codex.md`,
     `${packageRoot}/skills/`,
     `${packageRoot}/reviews/`
   ]) {
@@ -340,6 +341,7 @@ function checkPackagedCodexPayload(root, manifest, failures) {
 
   const mirroredRoots = [
     [".codex-plugin/plugin.json", `${packageRoot}/.codex-plugin/plugin.json`],
+    ["docs/hosts/codex.md", `${packageRoot}/docs/hosts/codex.md`],
     ...walkFiles(root, "assets").map((repoPath) => [repoPath, `${packageRoot}/${repoPath}`]),
     ...walkFiles(root, "skills").map((repoPath) => [repoPath, `${packageRoot}/${repoPath}`]),
     ...packageCandidates
@@ -393,7 +395,7 @@ function checkInstallDocMarketplaceOrder(root, failures) {
 
 function checkFullReviewDowngradeLanguage(root, failures) {
   const silentDowngradePatterns = [
-    /\bif (?:it|that|spawn_agent|fresh[^.]{0,80}) (?:is )?unavailable,\s*use inline\/advisory mode\b/i,
+    /\bif (?:it|that|subagents?|fresh[^.]{0,80}) (?:is )?unavailable,\s*use inline\/advisory mode\b/i,
     /\bwithout that,\s*use inline\/advisory mode\b/i,
     /\botherwise\s+treat the run as inline\/advisory\b/i
   ];
@@ -426,6 +428,60 @@ function checkHostSupportMatrix(manifest, failures) {
   })) {
     if (matrix[host]?.status !== expectedStatus) {
       failures.push(failure("lens-temper.package.json", `hostSupportMatrix.${host}.status`, expectedStatus, matrix[host]?.status, "host support matrix status mismatch"));
+    }
+  }
+}
+
+function checkCodexAdapter(root, manifest, failures) {
+  const codexGuidePath = "docs/hosts/codex.md";
+  const packageCandidates = (manifest.packageCandidates || []).map(normalizeRepoPath);
+
+  if (!packageCandidatesCover(packageCandidates, codexGuidePath)) {
+    failures.push(failure("lens-temper.package.json", "packageCandidates", codexGuidePath, "missing", "Codex host guide is not included in package candidates"));
+  }
+  if (!pathIsFile(root, codexGuidePath)) {
+    failures.push(failure(codexGuidePath, "file", "existing file", "missing", "Codex host guide is missing"));
+    return;
+  }
+
+  const codexRequirements = (manifest.hostSupportMatrix?.codex?.requirements || []).join("\n");
+  for (const [pattern, expected] of [
+    [/detached-context reviewer subagents/i, "detached-context reviewer subagents"],
+    [/nested subagent spawning for full_detached/i, "nested subagent spawning for full_detached"],
+    [/docs\/hosts\/codex\.md/i, "docs/hosts/codex.md"]
+  ]) {
+    if (!pattern.test(codexRequirements)) {
+      failures.push(failure("lens-temper.package.json", "hostSupportMatrix.codex.requirements", expected, "missing", "Codex host requirements are missing current multi-agent guidance"));
+    }
+  }
+
+  const codexGuide = readText(root, codexGuidePath, failures);
+  for (const [pattern, expected] of [
+    [/^# Codex Host Guide$/m, "Codex Host Guide heading"],
+    [/^## Detached Context$/m, "Detached Context section"],
+    [/^## Codex Configuration$/m, "Codex Configuration section"],
+    [/^## Smoke Check$/m, "Smoke Check section"],
+    [/^## Upstream References$/m, "Upstream References section"],
+    [/detached-context reviewer subagent/i, "detached-context reviewer subagent contract"],
+    [/receives none of the\s+host,\s+parent,\s+or\s+orchestrator conversation or history/i, "no inherited host, parent, or orchestrator history"],
+    [/reads only its run\s+packet and\s+permitted workspace files/i, "run-packet and permitted-workspace input boundary"],
+    [/root\s*->\s*detached orchestrator\s*->\s*reviewer/i, "root -> detached orchestrator -> reviewer path"],
+    [/total (?:number of )?active threads[^.]*including\s+(?:the\s+)?root/i, "total active threads include the root"]
+  ]) {
+    if (!pattern.test(codexGuide)) {
+      failures.push(failure(codexGuidePath, "required_guidance", expected, "missing", "Codex host guide missing current multi-agent guidance"));
+    }
+  }
+
+  for (const [repoPath, pattern] of [
+    ["README.md", /\(docs\/hosts\/codex\.md\)/i],
+    ["docs/INSTALL.md", /\(hosts\/codex\.md\)/i],
+    ["reviews/README.md", /docs\/hosts\/codex\.md/i]
+  ]) {
+    if (!pathIsFile(root, repoPath)) continue;
+    const text = readText(root, repoPath, failures);
+    if (!pattern.test(text)) {
+      failures.push(failure(repoPath, "codex_host_guide_link", "link to docs/hosts/codex.md", "missing", "portable docs must link to the Codex host guide instead of duplicating current mechanics"));
     }
   }
 }
@@ -570,6 +626,7 @@ export function validatePackageRoot(root = repoRootFrom()) {
   checkInstallDocMarketplaceOrder(root, failures);
   checkFullReviewDowngradeLanguage(root, failures);
   checkHostSupportMatrix(manifest, failures);
+  checkCodexAdapter(root, manifest, failures);
   checkCursorAdapter(root, manifest, failures);
   checkIgnoredLocalArtifacts(root, manifest, failures);
   return failures;

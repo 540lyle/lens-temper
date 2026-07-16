@@ -121,7 +121,11 @@
         "matching App or application-layer apply path",
         "full snapshot, patch, reference, or intent",
         "visible UI state",
-        "save-before-restore"
+        "save-before-restore",
+        "fictional review-input sentinel workflow",
+        "context sentinel",
+        "constraint sentinel",
+        "review input revision"
       ]
     }
   ],

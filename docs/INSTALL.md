@@ -45,8 +45,8 @@ include the `reviews/` workflow resources those skills reference inside the
 bundle or another location the host can read.
 
 Do not claim a full LensTemper review in Desktop or Claude.ai until the host can
-launch fresh, isolated reviewer agents and the packaged `reviews/` resources are
-verified for that run. Without that, stop full-review requests; only run
+launch detached-context reviewer subagents and the packaged `reviews/` resources
+are verified for that run. Without that, stop full-review requests; only run
 inline/advisory mode when the user explicitly asks for a non-lockable advisory
 pass.
 
@@ -75,10 +75,16 @@ Development users should install from a checkout of `main`. Stable users should
 install from a checkout of a release tag such as `v0.1.1`.
 
 Codex installs from `plugins/lens-temper/`, which contains the Codex plugin
-manifest plus packaged `skills/` and `reviews/` resources. Full LensTemper
-reviews also require `spawn_agent` or an equivalent fresh-subagent tool. If that
-is unavailable, a full review cannot be completed; only run inline/advisory
-mode when the user explicitly asks for a non-lockable advisory pass.
+manifest, packaged `skills/` and `reviews/` resources, and
+`docs/hosts/codex.md`. Full LensTemper reviews also require Codex support for
+detached-context reviewer subagents. If that is unavailable, a full review
+cannot be completed; only run inline/advisory mode when the user explicitly
+asks for a non-lockable advisory pass.
+
+See the [Codex host guide](hosts/codex.md) for the currently verified subagent
+tool, Multi-Agent V2 configuration, nested-depth requirement, and smoke check.
+Those settings are a Codex adapter concern and do not change Claude, Cursor, or
+other host adapters.
 
 ### Repo Marketplace Update
 

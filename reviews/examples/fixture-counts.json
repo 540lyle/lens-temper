@@ -1,4 +1,8 @@
 {
+  "review-input": {
+    "valid": 1,
+    "invalid": 1
+  },
   "review-output": {
     "valid": 3,
     "invalid": 9

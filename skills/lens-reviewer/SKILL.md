@@ -19,7 +19,7 @@ verification runner.
 ## Inputs
 
 - Pass id.
-- Target path and deterministic target revision.
+- Target path, deterministic target revision, and review input revision.
 - Template and lens revisions.
 - Feature request, proposed plan, relevant context, constraints.
 - Optional previous adjudications.

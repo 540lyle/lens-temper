@@ -13,6 +13,7 @@ import {
   usage,
   validateLedgerRecord,
   validateCompletionSummaryRecord,
+  validateReviewInputRecord,
   validateReviewRecord,
   validateSynthesisRecord
 } from "./validation-helpers.mjs";
@@ -21,7 +22,7 @@ import { SCHEMA_CONTRACTS } from "./validation-contracts.mjs";
 ensureNode18();
 
 const scriptName = "validate-review-fixtures.mjs";
-const TARGET_REVISION = "example-target-revision";
+const TARGET_REVISION = "git:73eaed921475be235f6684abdd2ce19a4e367c7f";
 
 function fixturePath(root, name) {
   return join(root, "reviews", "examples", name);
@@ -40,7 +41,8 @@ function checkSchemaDrift(root) {
   const propertyFor = (schema, path) => path.split(".").reduce((current, part) => current?.properties?.[part], schema);
   const itemPropertyFor = (schema, path) => {
     const [arrayName, fieldName] = path.split(".");
-    return schema.properties?.[arrayName]?.items?.properties?.[fieldName];
+    const items = schema.properties?.[arrayName]?.items;
+    return fieldName ? items?.properties?.[fieldName] : items;
   };
   for (const [schemaName, contract] of Object.entries(SCHEMA_CONTRACTS)) {
     const schemaPath = `reviews/schemas/${schemaName}`;
@@ -175,6 +177,9 @@ function checkSchemaDrift(root) {
 function validateFixture(root, type, repoPath, ledger) {
   const fullPath = join(root, repoPath);
   const record = readJsonFile(fullPath);
+  if (type === "review-input") {
+    return validateReviewInputRecord(record, { artifactPath: repoPath });
+  }
   if (type === "review-output") {
     return validateReviewRecord(record, {
       artifactRoot: root,
@@ -233,6 +238,7 @@ try {
   const validLedger = readJsonFile(fixturePath(root, "review-ledger.valid.json"));
 
   const groups = [
+    ["review-input", discover(root, "review-input", "valid"), discover(root, "review-input", "invalid")],
     ["review-output", discover(root, "review-output", "valid"), discover(root, "review-output", "invalid")],
     ["synthesis-output", discover(root, "synthesis-output", "valid"), discover(root, "synthesis-output", "invalid")],
     ["ledger", discover(root, "review-ledger", "valid"), discover(root, "review-ledger", "invalid")],

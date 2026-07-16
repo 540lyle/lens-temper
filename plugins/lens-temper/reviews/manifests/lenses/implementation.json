@@ -23,13 +23,7 @@
       "Observability / debuggability"
     ]
   },
-  "default_selection_triggers": [
-    "multi-step implementation plans",
-    "platform constraints",
-    "sequencing risk",
-    "migration or compatibility handling",
-    "shared utility or tooling changes"
-  ],
+  "selection_domains": ["stateful-workflow", "shared-contract", "implementation-complexity", "migration-and-data"],
   "advisory_tool_expectations": [
     "Read the target plan or spec directly from disk.",
     "Inspect referenced file paths only when the review packet asks for repo-specific validation.",

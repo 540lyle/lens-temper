@@ -59,7 +59,9 @@ try {
         "--lens",
         assertion.lens,
         "--pass-id",
-        assertion.pass_id || "eval-prompt"
+        assertion.pass_id || "eval-prompt",
+        "--review-input",
+        "reviews/examples/review-input.valid.json"
       ], {
         cwd: root,
         encoding: "utf8",

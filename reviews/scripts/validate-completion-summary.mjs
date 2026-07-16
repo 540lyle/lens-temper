@@ -4,6 +4,7 @@ import {
   CONTRACT_VERSION,
   EXIT_CODES,
   ensureNode18,
+  loadValidatedRunContext,
   parseCommonArgs,
   printFailures,
   readJsonFile,
@@ -19,7 +20,7 @@ const scriptName = "validate-completion-summary.mjs";
 try {
   const opts = parseCommonArgs(process.argv.slice(2));
   if (opts.help) {
-    process.stdout.write(`${usage(scriptName, "<completion-summary-json> [--target-revision <hash>] [--artifact-root <path>] [--json] [--quiet]")}\n`);
+    process.stdout.write(`${usage(scriptName, "<completion-summary-json> [--ledger <ledger-json> | --target-revision <hash>] [--artifact-root <path>] [--json] [--quiet]")}\n`);
     process.exit(EXIT_CODES.ok);
   }
   if (opts.version) {
@@ -35,15 +36,20 @@ try {
   const root = opts.artifactRoot ? resolve(opts.artifactRoot) : repoRootFrom(import.meta.url);
   const inputPath = opts.positional[0];
   const record = readJsonFile(inputPath);
+  const context = opts.ledger ? await loadValidatedRunContext(root, opts.ledger) : null;
+  if (record.run_mode === "full" && !context) {
+    throw Object.assign(new Error("full completion validation requires --ledger"), { exitCode: EXIT_CODES.usage });
+  }
   const failures = validateCompletionSummaryRecord(record, {
     artifactRoot: root,
-    targetRevision: opts.targetRevision,
+    targetRevision: context?.ledger.target_revision || opts.targetRevision,
+    reviewInputRevision: context?.ledger.review_input_revision || opts.reviewInputRevision,
     inputPath
   });
 
   if (failures.length > 0) {
     printFailures(failures, opts);
-    process.exit(EXIT_CODES.validation);
+    process.exit(failures.some((f) => f.field === "target_revision" || f.field === "review_input_revision") ? EXIT_CODES.stale : EXIT_CODES.validation);
   }
   if (opts.json) {
     process.stdout.write(`${JSON.stringify({ event: "valid", artifact_path: inputPath, run_mode: record.run_mode })}\n`);

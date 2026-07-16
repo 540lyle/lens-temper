@@ -12,9 +12,10 @@ and selected role manifests before running a review.
 ## Inputs
 
 - Target plan or spec path.
-- Feature request and constraints.
+- Repository-relative review input JSON containing the feature request,
+  relevant context, constraints, and optional previous adjudications.
 - Selected lenses, or enough context to select lenses.
-- Pass id and deterministic target revision.
+- Pass id, deterministic target revision, and normalized review input revision.
 
 ## Outputs
 
@@ -29,21 +30,41 @@ and selected role manifests before running a review.
 
 ## Procedure
 
-1. Select the smallest lens set that covers the plan risk.
+1. Resolve lens scope before creating the ledger or spawning reviewers:
+   - If the user explicitly names lenses, validate each id against
+     `reviews/registry.json` and use exactly that set. Do not add or remove
+     lenses; stop on unknown or duplicate ids.
+   - Otherwise, run `reviews/scripts/select-lenses.mjs` against the normalized
+     canonical review input and current target text. Treat
+     `deterministic_lenses` as the required minimum.
+   - The orchestrator may add registry-valid lenses through a validated
+     `--lens-proposal`. Each addition needs a concise reason and concrete
+     evidence from the canonical review input or target. Additions are unioned
+     with the deterministic minimum and may never remove or replace it.
+   - If deterministic selection returns no lenses, stop for clarification
+     before creating artifacts or reviewers. Use
+     `--selection-fallback all` only when that conservative fallback was
+     explicitly authorized.
 2. Create or update a ledger with deterministic target, template, and lens
-   revisions.
+   revisions plus the repository-relative review input path and normalized
+   review input revision. Stop if the feature request is missing.
 3. Use `full_hosted` or `full_detached` by default. A request to run
    LensTemper, review with LensTemper, or run a full LensTemper review means
-   fresh subagents, one per selected lens, with no inherited thread context.
+   detached-context reviewer subagents, one per selected lens. A
+   detached-context reviewer subagent is fresh and receives none of the host,
+   parent, or orchestrator conversation or history; it reads only the run
+   packet and permitted workspace files.
    Host equivalents:
-   - Codex: `spawn_agent` with `fork_context: false`.
+   - Codex: use the current detached-context subagent mechanism once per
+     selected lens. See `docs/hosts/codex.md` for current mechanics.
    - Claude Code: each `Agent` (Task) invocation is already a fresh subagent
      with isolated context, so spawn one Agent call per selected lens -- no flag
      required.
-   - Claude Desktop / Claude.ai: use only if the host can launch fresh,
-     isolated reviewer agents and can provide the shared `reviews/` workflow
-     resources. Otherwise stop full-review requests; inline/advisory mode is
-     only valid when the user explicitly asks for a non-lockable advisory pass.
+   - Claude Desktop / Claude.ai: use only if the host can launch
+     detached-context reviewer subagents and can provide the shared `reviews/`
+     workflow resources. Otherwise stop full-review requests; inline/advisory
+     mode is only valid when the user explicitly asks for a non-lockable
+     advisory pass.
    - Cursor, plain CLI, and other manual hosts: use LensTemper materials as
      advisory unless a fresh independent-agent mechanism and artifact validation
      have been verified for that host.
@@ -66,9 +87,16 @@ and selected role manifests before running a review.
    and artifact validation can prove the run. Codex and Claude may provide
    different spawning mechanics; Cursor, plain CLI, and manual hosts remain
    advisory until their fresh-agent path is verified.
+   Reviewer execution may be concurrent or sequential. Each selected lens
+   still requires its own detached-context reviewer subagent.
 8. Validate review, synthesis, and ledger JSON with
    `reviews/scripts/validate-review-fixtures.mjs` or the individual validators.
-9. Archive completed runs with `reviews/scripts/archive-review-run.mjs`.
+   For full runs, bind review and completion validation to the run with
+   `--ledger <run>/ledger.json`; do not validate them against free-standing
+   revision strings.
+9. Assemble synthesis with
+   `reviews/scripts/run-synthesis.mjs --ledger <run>/ledger.json`, then archive
+   completed runs with `reviews/scripts/archive-review-run.mjs`.
 
 The orchestrator may update ledger state. Lens reviewers may not.
 Detached orchestration may not claim completion unless `events.jsonl`, ledger,

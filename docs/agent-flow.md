@@ -24,10 +24,12 @@ flowchart TD
   end
 
   Orchestrator --> Inputs
-  Inputs --> Prep["Create ledger, events.jsonl, and hash target"]
+  Inputs --> Contract["Validate and hash review-input.json"]
+  Contract --> Select["Resolve and audit lens-selection.json"]
+  Select --> Prep["Create ledger, events.jsonl, and hash target"]
   Prep --> Generate["Generate per-lens prompt packets and spawn handoffs"]
 
-  Generate --> Wave["Spawn fresh read-only lens reviewers in parallel<br/>Architecture, Implementation, Risk, Test Strategy, Product and UX, Data Model"]
+  Generate --> Wave["Spawn detached-context read-only lens reviewers<br/>Architecture, Implementation, Risk, Test Strategy, Product and UX, Data Model"]
 
   Wave --> Outputs["Capture structured reviewer outputs"]
   Outputs --> Close["Close reviewer agents"]
@@ -54,11 +56,17 @@ flowchart TD
 
 - `*.prompt.md` contains the full reviewer packet for one lens: target text,
   template, lens, constraints, and deterministic revisions.
+- `lens-selection.json` records explicit scope or the policy-derived minimum,
+  any validated evidence-backed LLM additions, and the final selected set.
 - `*.spawn.md` is the compact host-to-subagent handoff. It uses
   repository-relative paths and tells the reviewer to read the packet from disk.
 - `<pass-id>.orchestrator.md` is the optional detached-orchestrator packet. It
   uses repository-relative paths and describes selected lenses, required
   artifacts, stop conditions, and claim rules.
+- Reviewers may run concurrently or sequentially. Each lens gets a separate
+  detached-context reviewer subagent with no host, parent, or orchestrator
+  conversation history. Current Codex mechanics live in
+  `docs/hosts/codex.md`.
 - `events.jsonl` records trace events for setup, reviewer lifecycle, validation,
   synthesis, reruns, archive, and completion reporting.
 - Lens reviewers are independent, read-only, and limited to exactly one lens.

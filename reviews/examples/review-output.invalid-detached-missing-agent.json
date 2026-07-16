@@ -1,9 +1,9 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "record_id": "review-detached-missing-agent",
   "pass_id": "example-detached-pass",
-  "target_path": "docs/plans/FORWARD_PLAN.md",
-  "target_revision": "example-target-revision",
+  "target_path": "reviews/examples/artifacts/target.valid.md",
+  "target_revision": "git:73eaed921475be235f6684abdd2ce19a4e367c7f",
   "template_revision": "example-template-revision",
   "lens": "implementation",
   "lens_revision": "example-lens-revision",
@@ -15,7 +15,7 @@
   "output_captured": true,
   "artifact_path": "reviews/examples/review-output.invalid-detached-missing-agent.json",
   "markdown_artifact_path": "reviews/examples/artifacts/review-output.valid-full.md",
-  "markdown_artifact_sha": "git:98a5f7228a05a5d82602c12b6694331df2b4103a",
+  "markdown_artifact_sha": "git:b35d57a7bef682c1fea29994a61ad99c66ed777e",
   "verdict": "Usable with fixes",
   "material_blockers": {
     "present": true,
@@ -44,10 +44,11 @@
         "role": "target",
         "basis": "direct_workspace_read",
         "paths_reviewed": [
-          "docs/plans/FORWARD_PLAN.md"
+          "reviews/examples/artifacts/target.valid.md"
         ],
         "target_included": true
       }
     ]
-  }
+  },
+  "review_input_revision": "sha256:dc29a2b9712d8555b2b607998bd97d25cc3a61dbc0e447dd8dee1865a6c3833d"
 }
