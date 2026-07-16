@@ -38,6 +38,7 @@ import {
   SYNTHESIS_FULL_REQUIRED_FIELDS,
   TRACE_EVENT_NAMES
 } from "./validation-contracts.mjs";
+import { evaluateLensPolicy, validateLensSelectionShape } from "./lens-selection-contract.mjs";
 
 export { CONTRACT_VERSION, EXIT_CODES };
 
@@ -82,7 +83,11 @@ export function parseCommonArgs(argv) {
     runMode: null,
     runScope: null,
     executionMode: null,
-    eventsPath: null
+    eventsPath: null,
+    allLenses: false,
+    lensProposal: null,
+    lensSelection: null,
+    selectionFallback: null
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -93,6 +98,7 @@ export function parseCommonArgs(argv) {
     else if (arg === "--json") opts.json = true;
     else if (arg === "--update-counts") opts.updateCounts = true;
     else if (arg === "--write") opts.write = true;
+    else if (arg === "--all-lenses") opts.allLenses = true;
     else if (arg.startsWith("--")) {
       const key = arg.slice(2).replace(/-([a-z])/g, (_, c) => c.toUpperCase());
       if (!(key in opts)) {
@@ -1047,6 +1053,70 @@ export function validateLedgerRecord(record, options = {}) {
       }
     } catch (error) {
       failures.push(makeFailure(artifactPath, record, "review_input_path", "valid review input", error.message));
+    }
+  }
+  if ((record.lens_selection_path === undefined) !== (record.lens_selection_revision === undefined)) {
+    failures.push(makeFailure(artifactPath, record, "lens_selection", "path and revision supplied together", "partial binding"));
+  } else if (record.lens_selection_path !== undefined) {
+    const selectionPath = validatePathField(root, artifactPath, record, "lens_selection_path", failures, { mustExist: true });
+    if (selectionPath) {
+      try {
+        const actualRevision = computeArtifactSha(root, record.lens_selection_path);
+        if (record.lens_selection_revision !== actualRevision) {
+          failures.push(makeFailure(artifactPath, record, "lens_selection_revision", actualRevision, record.lens_selection_revision));
+        }
+        const selection = readJsonFile(selectionPath);
+        const registry = readJsonFile(join(root, "reviews", "registry.json"));
+        for (const reason of validateLensSelectionShape(selection, registry)) {
+          failures.push(makeFailure(artifactPath, selection, "lens_selection", "valid selection contract", reason));
+        }
+        for (const [field, expected] of [
+          ["pass_id", record.pass_id],
+          ["target_path", record.target_path],
+          ["target_revision", record.target_revision],
+          ["review_input_revision", record.review_input_revision]
+        ]) {
+          if (selection[field] !== expected) failures.push(makeFailure(artifactPath, selection, `lens_selection.${field}`, expected, selection[field]));
+        }
+        if (JSON.stringify(selection.selected_lenses) !== JSON.stringify(record.selected_lenses)) {
+          failures.push(makeFailure(artifactPath, selection, "lens_selection.selected_lenses", JSON.stringify(record.selected_lenses), JSON.stringify(selection.selected_lenses)));
+        }
+        if (selection.review_input_path !== record.review_input_path) {
+          failures.push(makeFailure(artifactPath, selection, "lens_selection.review_input_path", record.review_input_path, selection.review_input_path));
+        }
+        if (selection.policy_path !== "reviews/manifests/lens-selection.json") {
+          failures.push(makeFailure(artifactPath, selection, "lens_selection.policy_path", "reviews/manifests/lens-selection.json", selection.policy_path));
+        } else {
+          const policyRevision = computeArtifactSha(root, selection.policy_path);
+          if (selection.policy_revision !== policyRevision) failures.push(makeFailure(artifactPath, selection, "lens_selection.policy_revision", policyRevision, selection.policy_revision));
+        }
+        if (["deterministic", "deterministic_plus_llm_additions"].includes(selection.mode) && selection.review_input_path) {
+          const replayInput = resolveReviewInput(root, { reviewInput: selection.review_input_path });
+          const replayPolicy = readJsonFile(join(root, selection.policy_path));
+          const replay = evaluateLensPolicy(replayPolicy, registry, replayInput.record, readTextFile(join(root, selection.target_path)));
+          if (JSON.stringify(selection.deterministic_lenses) !== JSON.stringify(replay.deterministicLenses)) {
+            failures.push(makeFailure(artifactPath, selection, "lens_selection.deterministic_lenses", JSON.stringify(replay.deterministicLenses), JSON.stringify(selection.deterministic_lenses)));
+          }
+          if (JSON.stringify(selection.matched_domains) !== JSON.stringify(replay.matchedDomains)) {
+            failures.push(makeFailure(artifactPath, selection, "lens_selection.matched_domains", JSON.stringify(replay.matchedDomains), JSON.stringify(selection.matched_domains)));
+          }
+        }
+        if (selection.llm_proposal_path) {
+          const proposalPath = validatePathField(root, artifactPath, selection, "llm_proposal_path", failures, { mustExist: true });
+          if (proposalPath) {
+            const proposalRevision = computeArtifactSha(root, selection.llm_proposal_path);
+            if (selection.llm_proposal_revision !== proposalRevision) failures.push(makeFailure(artifactPath, selection, "lens_selection.llm_proposal_revision", proposalRevision, selection.llm_proposal_revision));
+            const proposal = readJsonFile(proposalPath);
+            if (proposal.schema_version !== 1 || !Array.isArray(proposal.additions)) {
+              failures.push(makeFailure(artifactPath, selection, "lens_selection.llm_proposal_path", "schema_version 1 proposal with additions", "invalid proposal contract"));
+            } else if (JSON.stringify(selection.llm_additions) !== JSON.stringify(proposal.additions)) {
+              failures.push(makeFailure(artifactPath, selection, "lens_selection.llm_additions", JSON.stringify(proposal.additions), JSON.stringify(selection.llm_additions)));
+            }
+          }
+        }
+      } catch (error) {
+        failures.push(makeFailure(artifactPath, record, "lens_selection_path", "valid bound lens selection", error.message));
+      }
     }
   }
   validateCompletionValidation(record, artifactPath, failures);

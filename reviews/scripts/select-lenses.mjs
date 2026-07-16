@@ -3,63 +3,64 @@ import { join } from "node:path";
 import {
   CONTRACT_VERSION,
   EXIT_CODES,
+  computeArtifactSha,
   ensureNode18,
+  normalizeRepoInputPath,
   parseCommonArgs,
   readJsonFile,
   repoRootFrom,
+  resolveReviewInput,
   usage
 } from "./validation-helpers.mjs";
+import { selectLenses } from "./lens-selection.mjs";
 
 ensureNode18();
-
 const scriptName = "select-lenses.mjs";
-
-function selectLenses(text, registry) {
-  const lower = text.toLowerCase();
-  const selected = new Set();
-  const statefulWorkflow = /(save|load|restore|delete|reset|update|defer|deferred|planner|apply)/.test(lower);
-  if (/(ui|user|workflow|screen|interaction|save|load|restore|delete|reset)/.test(lower)) {
-    selected.add("product-ux");
-    selected.add("test-strategy");
-  }
-  if (statefulWorkflow) {
-    selected.add("architecture");
-    selected.add("implementation");
-  }
-  if (/(persist|schema|migration|saved|record|storage|history|library)/.test(lower)) {
-    selected.add("data-model");
-  }
-  if (/(engine|service|contract|module|planner|apply|state ownership|abstraction)/.test(lower)) {
-    selected.add("architecture");
-    selected.add("implementation");
-  }
-  if (/(rollback|risk|migration|irreversible|production|privacy|security|race|stale)/.test(lower)) {
-    selected.add("risk");
-  }
-  if (selected.size === 0) selected.add("implementation");
-  return registry.lenses.map((entry) => entry.id).filter((id) => selected.has(id));
-}
 
 try {
   const opts = parseCommonArgs(process.argv.slice(2));
   if (opts.help) {
-    process.stdout.write(`${usage(scriptName, "[--feature-request <text>] [--constraints <text>] [--json]")}\n`);
+    process.stdout.write(`${usage(scriptName, "--target <path> (--review-input <path> | --feature-request <text>) [--lens a,b | --all-lenses] [--lens-proposal <path>] [--selection-fallback all] [--json]")}\n`);
     process.exit(EXIT_CODES.ok);
   }
   if (opts.version) {
     process.stdout.write(`${CONTRACT_VERSION}\n`);
     process.exit(EXIT_CODES.ok);
   }
+  if (!opts.target) throw Object.assign(new Error("missing --target"), { exitCode: EXIT_CODES.usage });
   const root = repoRootFrom(import.meta.url);
+  const targetPath = normalizeRepoInputPath(root, opts.target);
+  if (!targetPath) throw Object.assign(new Error("--target must resolve under the repository root"), { exitCode: EXIT_CODES.usage });
   const registry = readJsonFile(join(root, "reviews", "registry.json"));
-  const lenses = selectLenses(`${opts.featureRequest || ""}\n${opts.constraints || ""}`, registry);
-  if (opts.json) {
-    process.stdout.write(`${JSON.stringify({ event: "selected_lenses", lenses })}\n`);
-  } else {
-    for (const lens of lenses) process.stdout.write(`${lens}\n`);
+  const reviewInput = resolveReviewInput(root, opts);
+  const explicitLenses = opts.lens === null ? null : opts.lens.split(",").map((item) => item.trim()).filter(Boolean);
+  const proposalPath = opts.lensProposal ? normalizeRepoInputPath(root, opts.lensProposal) : null;
+  if (opts.lensProposal && !proposalPath) throw Object.assign(new Error("--lens-proposal must resolve under the repository root"), { exitCode: EXIT_CODES.usage });
+  let result;
+  try {
+    result = selectLenses({
+      root,
+      registry,
+      reviewInput: { ...reviewInput.record, revision: reviewInput.revision },
+      reviewInputPath: reviewInput.sourcePath,
+      targetPath,
+      targetRevision: computeArtifactSha(root, targetPath),
+      explicitLenses,
+      allLenses: opts.allLenses,
+      fallback: opts.selectionFallback,
+      proposalPath,
+      passId: opts.passId || "selection"
+    });
+  } catch (error) {
+    if (!error.exitCode) error.exitCode = EXIT_CODES.usage;
+    throw error;
   }
+  if (opts.json) process.stdout.write(`${JSON.stringify({ event: "lens_selection", ...result })}\n`);
+  else if (result.status === "resolved") result.selected_lenses.forEach((lens) => process.stdout.write(`${lens}\n`));
+  else process.stderr.write(`clarification required: ${result.clarification_question}\n`);
+  if (result.status !== "resolved") process.exit(EXIT_CODES.usage);
 } catch (error) {
-  process.stderr.write(`${usage(scriptName, "[--feature-request <text>] [--constraints <text>] [--json]")}\n`);
+  process.stderr.write(`${usage(scriptName, "--target <path> (--review-input <path> | --feature-request <text>) [--lens a,b | --all-lenses] [--lens-proposal <path>] [--selection-fallback all] [--json]")}\n`);
   process.stderr.write(`validation error: ${error.message}\n`);
   process.exit(error.exitCode || EXIT_CODES.internal);
 }

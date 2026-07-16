@@ -21,13 +21,7 @@
       "Compatibility / platform constraints"
     ]
   },
-  "default_selection_triggers": [
-    "user-facing workflow",
-    "new behavior requiring regression coverage",
-    "cross-module contract",
-    "runtime validation",
-    "error-state or edge-case handling"
-  ],
+  "selection_domains": ["user-facing-workflow", "stateful-workflow", "shared-contract", "runtime-validation", "migration-and-data"],
   "advisory_tool_expectations": [
     "Read the target plan or spec directly from disk.",
     "Inspect referenced testing guides or existing test paths when provided.",

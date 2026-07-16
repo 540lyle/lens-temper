@@ -4,6 +4,7 @@ import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSyn
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import { computeArtifactSha } from "./validation-helpers.mjs";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const node = process.execPath;
@@ -154,5 +155,135 @@ test("scalar compatibility materializes one normalized input and missing feature
     rmSync(scalarOut, { recursive: true, force: true });
     rmSync(missingOut, { recursive: true, force: true });
     rmSync(mixedOut, { recursive: true, force: true });
+  }
+});
+
+test("omitted --lens uses the canonical selector and binds its audit artifact", () => {
+  const outDir = makeOutDir();
+  try {
+    execFileSync(node, [
+      "reviews/scripts/run-plan-review.mjs",
+      "--target", target,
+      "--pass-id", "runner-auto-selection",
+      "--out", repoPath(outDir),
+      "--feature-request", "Add a user-facing dialog with an error state."
+    ], { cwd: repoRoot, encoding: "utf8" });
+    const selection = JSON.parse(readFileSync(join(outDir, "lens-selection.json"), "utf8"));
+    const ledger = JSON.parse(readFileSync(join(outDir, "ledger.json"), "utf8"));
+    assert.equal(selection.status, "resolved");
+    assert.equal(selection.matched_domains.some((entry) => entry.domain === "user-facing-workflow"), true);
+    assert.deepEqual(ledger.selected_lenses, selection.selected_lenses);
+    assert.equal(ledger.lens_selection_path, `${repoPath(outDir)}/lens-selection.json`);
+    assert.match(ledger.lens_selection_revision, /^(git|sha256):[a-f0-9]+$/);
+
+    selection.mode = "deterministic";
+    selection.matched_domains = [];
+    selection.deterministic_lenses = ["implementation"];
+    selection.llm_proposal_path = null;
+    selection.llm_proposal_revision = null;
+    selection.llm_additions = [];
+    selection.selected_lenses = ["implementation"];
+    writeFileSync(join(outDir, "lens-selection.json"), `${JSON.stringify(selection, null, 2)}\n`, "utf8");
+    ledger.selected_lenses = ["implementation"];
+    ledger.lens_selection_revision = computeArtifactSha(repoRoot, `${repoPath(outDir)}/lens-selection.json`);
+    writeFileSync(join(outDir, "ledger.json"), `${JSON.stringify(ledger, null, 2)}\n`, "utf8");
+    const stale = spawnSync(node, [
+      "reviews/scripts/validate-ledger.mjs",
+      `${repoPath(outDir)}/ledger.json`,
+      "--target-revision", ledger.target_revision
+    ], { cwd: repoRoot, encoding: "utf8" });
+    assert.notEqual(stale.status, 0);
+    assert.match(stale.stderr, /lens_selection\.(deterministic_lenses|matched_domains)/);
+  } finally {
+    rmSync(outDir, { recursive: true, force: true });
+  }
+});
+
+test("ambiguous automatic scope and empty explicit scope fail before artifacts", () => {
+  const ambiguousOut = makeOutDir();
+  const emptyOut = makeOutDir();
+  const sourceDir = makeOutDir();
+  try {
+    const ambiguousTarget = join(sourceDir, "ambiguous.md");
+    writeFileSync(ambiguousTarget, "# Internal Fixture\n\nNo domain details supplied.\n", "utf8");
+    const ambiguous = spawnSync(node, [
+      "reviews/scripts/run-plan-review.mjs",
+      "--target", repoPath(ambiguousTarget),
+      "--pass-id", "runner-ambiguous-selection",
+      "--out", repoPath(ambiguousOut),
+      "--feature-request", "Build an internal fixture."
+    ], { cwd: repoRoot, encoding: "utf8" });
+    assert.equal(ambiguous.status, 2);
+    assert.match(ambiguous.stderr, /clarification required/);
+    assert.deepEqual(readdirSync(ambiguousOut), []);
+
+    const empty = spawnSync(node, [
+      "reviews/scripts/run-plan-review.mjs",
+      "--target", target,
+      "--pass-id", "runner-empty-selection",
+      "--out", repoPath(emptyOut),
+      "--feature-request", "User-facing workflow.",
+      "--lens", " , "
+    ], { cwd: repoRoot, encoding: "utf8" });
+    assert.equal(empty.status, 2);
+    assert.match(empty.stderr, /must contain at least one lens id/);
+    assert.deepEqual(readdirSync(emptyOut), []);
+  } finally {
+    rmSync(ambiguousOut, { recursive: true, force: true });
+    rmSync(emptyOut, { recursive: true, force: true });
+    rmSync(sourceDir, { recursive: true, force: true });
+  }
+});
+
+test("runner supports explicit all-lenses scope", () => {
+  const outDir = makeOutDir();
+  try {
+    execFileSync(node, [
+      "reviews/scripts/run-plan-review.mjs",
+      "--target", target,
+      "--pass-id", "runner-all-lenses",
+      "--out", repoPath(outDir),
+      "--feature-request", "Narrow implementation plan.",
+      "--all-lenses"
+    ], { cwd: repoRoot, encoding: "utf8" });
+    const selection = JSON.parse(readFileSync(join(outDir, "lens-selection.json"), "utf8"));
+    const ledger = JSON.parse(readFileSync(join(outDir, "ledger.json"), "utf8"));
+    assert.equal(selection.mode, "all_lenses");
+    assert.equal(selection.selected_lenses.length, 6);
+    assert.equal(ledger.run_scope, "six_lens");
+  } finally {
+    rmSync(outDir, { recursive: true, force: true });
+  }
+});
+
+test("runner unions a validated evidence-backed lens proposal", () => {
+  const outDir = makeOutDir();
+  const sourceDir = makeOutDir();
+  try {
+    const proposalPath = join(sourceDir, "proposal.json");
+    writeFileSync(proposalPath, `${JSON.stringify({
+      schema_version: 1,
+      additions: [{
+        lens: "product-ux",
+        reason: "The restore race has a visible recovery decision.",
+        evidence: "Target: Save may run while deferred Restore is pending."
+      }]
+    }, null, 2)}\n`, "utf8");
+    execFileSync(node, [
+      "reviews/scripts/run-plan-review.mjs",
+      "--target", target,
+      "--pass-id", "runner-lens-proposal",
+      "--out", repoPath(outDir),
+      "--feature-request", "Resolve the deferred restore state transition.",
+      "--lens-proposal", repoPath(proposalPath)
+    ], { cwd: repoRoot, encoding: "utf8" });
+    const selection = JSON.parse(readFileSync(join(outDir, "lens-selection.json"), "utf8"));
+    assert.equal(selection.mode, "deterministic_plus_llm_additions");
+    assert.equal(selection.deterministic_lenses.includes("product-ux"), false);
+    assert.equal(selection.selected_lenses.includes("product-ux"), true);
+    assert.equal(selection.llm_additions[0].evidence.includes("Target:"), true);
+  } finally {
+    rmSync(outDir, { recursive: true, force: true });
+    rmSync(sourceDir, { recursive: true, force: true });
   }
 });

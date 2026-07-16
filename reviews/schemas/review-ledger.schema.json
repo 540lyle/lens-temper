@@ -28,6 +28,8 @@
     "target_revision": { "type": "string" },
     "review_input_path": { "type": "string" },
     "review_input_revision": { "type": "string" },
+    "lens_selection_path": { "type": "string" },
+    "lens_selection_revision": { "type": "string" },
     "status": {
       "enum": ["active", "completed", "error", "superseded", "stale"]
     },
@@ -132,7 +134,7 @@
         }
       },
       "then": {
-        "required": ["review_input_path", "review_input_revision"]
+        "required": ["review_input_path", "review_input_revision", "lens_selection_path", "lens_selection_revision"]
       }
     },
     {

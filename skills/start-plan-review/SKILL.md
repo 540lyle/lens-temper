@@ -30,7 +30,21 @@ and selected role manifests before running a review.
 
 ## Procedure
 
-1. Select the smallest lens set that covers the plan risk.
+1. Resolve lens scope before creating the ledger or spawning reviewers:
+   - If the user explicitly names lenses, validate each id against
+     `reviews/registry.json` and use exactly that set. Do not add or remove
+     lenses; stop on unknown or duplicate ids.
+   - Otherwise, run `reviews/scripts/select-lenses.mjs` against the normalized
+     canonical review input and current target text. Treat
+     `deterministic_lenses` as the required minimum.
+   - The orchestrator may add registry-valid lenses through a validated
+     `--lens-proposal`. Each addition needs a concise reason and concrete
+     evidence from the canonical review input or target. Additions are unioned
+     with the deterministic minimum and may never remove or replace it.
+   - If deterministic selection returns no lenses, stop for clarification
+     before creating artifacts or reviewers. Use
+     `--selection-fallback all` only when that conservative fallback was
+     explicitly authorized.
 2. Create or update a ledger with deterministic target, template, and lens
    revisions plus the repository-relative review input path and normalized
    review input revision. Stop if the feature request is missing.

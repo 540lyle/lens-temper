@@ -35,7 +35,7 @@
   "run_scope": "selected_lenses",
   "completion_validation": {
     "validator_name": "validate-completion-summary",
-    "validator_contract_version": "2.0.0",
+    "validator_contract_version": "3.0.0",
     "passed": true,
     "validated_review_record_ids": [
       "review-implementation-1"
@@ -44,5 +44,7 @@
     "failures": []
   },
   "review_input_revision": "sha256:dc29a2b9712d8555b2b607998bd97d25cc3a61dbc0e447dd8dee1865a6c3833d",
-  "review_input_path": "reviews/examples/review-input.valid.json"
+  "review_input_path": "reviews/examples/review-input.valid.json",
+  "lens_selection_path": "reviews/examples/lens-selection.valid.json",
+  "lens_selection_revision": "git:026d67795a975789c4aad0609f3d8cc88391e3f6"
 }

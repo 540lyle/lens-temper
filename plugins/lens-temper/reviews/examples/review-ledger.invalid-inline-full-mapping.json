@@ -23,7 +23,7 @@
   "artifact_visibility": "public_safe",
   "completion_validation": {
     "validator_name": "validate-completion-summary",
-    "validator_contract_version": "2.0.0",
+    "validator_contract_version": "3.0.0",
     "passed": false,
     "validated_review_record_ids": [
       "review-implementation-1"

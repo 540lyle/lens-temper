@@ -1,6 +1,6 @@
 # Plan Review System
 
-> Version 1.7
+> Version 1.8
 
 This folder contains reusable review prompts for evaluating implementation plans,
 plus task-specific review input packets that assemble the context for one plan review run.
@@ -101,6 +101,8 @@ Ledger fields:
 | `target_revision` | yes | Deterministic content identifier for the target plan/spec. Prefer `git hash-object -- <target_path>`; use a SHA-256 file hash only when `git hash-object` is unavailable. Do not use timestamps or vague notes for rerunnable reviews. |
 | `review_input_path` | yes for full runs | Repository-relative path to the normalized review input JSON snapshot. |
 | `review_input_revision` | yes for full runs | SHA-256 of the normalized review input. It must match across ledger, events, current reviews, synthesis, and completion output. |
+| `lens_selection_path` | yes for full runs | Repository-relative path to the audited lens-selection record. |
+| `lens_selection_revision` | yes for full runs | Deterministic revision of the lens-selection record bound to the ledger. |
 | `run_mode` | yes | Claim authority: `full`, `inline`, or `advisory`. |
 | `run_scope` | yes | `six_lens` or `selected_lenses`. |
 | `execution_mode` | yes | `manual_or_imported`, `fresh_spawned_lens_reviewers`, or `fresh_spawned_orchestrator`. |
@@ -194,14 +196,52 @@ Primary and secondary owner lenses should evaluate their categories substantivel
 
 Cross-cutting findings follow the same materiality rules as other findings. A category can block implementation only when the issue is material for the feature and review lens.
 
-## Default Lens Selection
+## Lens Selection Contract
 
-Use the smallest lens set that covers the risk, but do not skip the user-facing review path for workflow features.
+Resolve lens scope before creating the ledger or spawning reviewers.
+`reviews/manifests/lens-selection.json` and
+`reviews/scripts/lens-selection.mjs` are the source of truth.
 
-- User-facing workflow plans should include at least Product & UX and Test Strategy.
-- Persistence, saved-record, library, history, or schema plans should also include Data Model.
-- Shared domain engines, services, or cross-module contract plans should also include Architecture and Implementation.
-- Risky rollout, migration, or irreversible user-data changes should also include Risk.
+1. **Explicit scope is exact.** When the user supplies lens ids, validate them
+   against `reviews/registry.json` and use exactly that set. Do not infer
+   additions or removals. Unknown or duplicate lens ids are a validation stop.
+   An explicit all-lenses request selects the complete registry set.
+2. **Otherwise, deterministic code establishes the required minimum.** It
+   evaluates the normalized canonical review input and current target text with
+   Unicode-normalized, phrase-boundary matching. `deterministic_lenses` may not
+   be reduced by model judgment.
+3. **The orchestrator may add, never subtract.** Each proposed addition must
+   name a registry-valid lens and provide a concise reason plus concrete
+   evidence from the canonical review input or target. Inherited conversation
+   and model confidence are not selection evidence. The final set is the union
+   of the deterministic minimum and validated additions.
+4. **Ambiguity fails closed.** If deterministic selection returns zero lenses,
+   stop with `needs_clarification`, even when an LLM proposal exists. Resolve to
+   all lenses only when the caller explicitly authorized the conservative
+   `--selection-fallback all` behavior.
+
+The runner stores the selection mode, policy and input revisions,
+deterministic minimum, validated additions, evidence, and final selected set in
+`lens-selection.json`. The policy manifest, not duplicated prose phrase lists,
+owns the current domain mapping.
+
+An optional `--lens-proposal <repo-relative-path>` uses this validated shape:
+
+```json
+{
+  "schema_version": 1,
+  "additions": [
+    {
+      "lens": "product-ux",
+      "reason": "The plan introduces an operator retry decision.",
+      "evidence": "Target section Error recovery defines visible retry states."
+    }
+  ]
+}
+```
+
+Proposal validation is structural and additive. It does not turn inherited
+conversation, confidence, or unsupported interpretation into evidence.
 
 ## Standard Inputs
 
@@ -304,8 +344,10 @@ when omitted from scalar compatibility input, the runner writes explicit
 `--previous-adjudications` options remain a compatibility path and cannot be
 mixed with `--review-input`.
 
-`reviews/scripts/run-plan-review.mjs` creates a normalized `review-input.json`
-and two reviewer-facing files per selected lens:
+`reviews/scripts/run-plan-review.mjs` creates a normalized `review-input.json`,
+an audited `lens-selection.json`, and two reviewer-facing files per selected
+lens. Omitting `--lens` invokes the canonical selector; `--all-lenses` is the
+explicit complete-registry mode.
 
 - `<lens>.prompt.md`: the assembled reviewer packet with the target plan, template, lens, constraints, and deterministic revisions.
 - `<lens>.spawn.md`: the compact host-to-subagent handoff prompt. Use this as the spawned agent's initial prompt when the host can start the reviewer in the repository root.

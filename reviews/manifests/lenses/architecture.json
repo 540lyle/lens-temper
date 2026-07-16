@@ -20,13 +20,7 @@
       "Compatibility / platform constraints"
     ]
   },
-  "default_selection_triggers": [
-    "shared domain engines",
-    "services",
-    "cross-module contracts",
-    "new abstractions",
-    "state ownership changes"
-  ],
+  "selection_domains": ["stateful-workflow", "shared-contract"],
   "advisory_tool_expectations": [
     "Read the target plan or spec directly from disk.",
     "Inspect referenced architecture, interface, and ownership docs when provided.",

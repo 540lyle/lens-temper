@@ -19,13 +19,7 @@
     ],
     "secondary": []
   },
-  "default_selection_triggers": [
-    "risky rollout",
-    "migration",
-    "irreversible user-data change",
-    "production failure mode",
-    "security, privacy, reliability, or rollback concern"
-  ],
+  "selection_domains": ["migration-and-data", "operational-risk"],
   "advisory_tool_expectations": [
     "Read the target plan or spec directly from disk.",
     "Inspect referenced rollout, observability, privacy, or operations docs when provided.",

@@ -17,6 +17,7 @@ import {
   usage
 } from "./validation-helpers.mjs";
 import { EXECUTION_MODES, RUN_MODES, RUN_SCOPES } from "./validation-contracts.mjs";
+import { validateLensSelectionRecord } from "./lens-selection.mjs";
 
 ensureNode18();
 
@@ -29,7 +30,7 @@ function lensSetEquals(left, right) {
 try {
   const opts = parseCommonArgs(process.argv.slice(2));
   if (opts.help) {
-    process.stdout.write(`${usage(scriptName, "--target <path> --pass-id <id> [--review-input <path>] [--lens a,b] [--run-mode inline|advisory|full] [--execution-mode manual_or_imported|fresh_spawned_lens_reviewers|fresh_spawned_orchestrator] [--out <path>] [--json]")}\n`);
+    process.stdout.write(`${usage(scriptName, "--target <path> --pass-id <id> [--review-input <path>] [--lens-selection <path>] [--lens a,b] [--run-mode inline|advisory|full] [--execution-mode manual_or_imported|fresh_spawned_lens_reviewers|fresh_spawned_orchestrator] [--out <path>] [--json]")}\n`);
     process.exit(EXIT_CODES.ok);
   }
   if (opts.version) {
@@ -99,7 +100,35 @@ try {
     process.stderr.write(`validation error: full run mode requires --review-input\n`);
     process.exit(EXIT_CODES.usage);
   }
+  if (runMode === "full" && !opts.lensSelection) {
+    process.stderr.write(`validation error: full run mode requires --lens-selection\n`);
+    process.exit(EXIT_CODES.usage);
+  }
   const reviewInput = opts.reviewInput ? resolveReviewInput(root, opts) : null;
+  let lensSelection = null;
+  let lensSelectionPath = null;
+  if (opts.lensSelection) {
+    lensSelectionPath = normalizeRepoInputPath(root, opts.lensSelection);
+    if (!lensSelectionPath) {
+      process.stderr.write(`validation error: --lens-selection must resolve under the repository root\n`);
+      process.exit(EXIT_CODES.usage);
+    }
+    lensSelection = readJsonFile(resolveRepoPath(root, lensSelectionPath));
+    const selectionFailures = validateLensSelectionRecord(root, lensSelection, registry, {
+      pass_id: opts.passId,
+      target_path: targetPath,
+      target_revision: targetRevision,
+      review_input_path: reviewInput?.sourcePath,
+      review_input_revision: reviewInput?.revision
+    });
+    if (!lensSetEquals(new Set(lensSelection.selected_lenses || []), selectedSet)) {
+      selectionFailures.push("selected_lenses do not match --lens");
+    }
+    if (selectionFailures.length > 0) {
+      process.stderr.write(`validation error: invalid lens selection: ${selectionFailures.join("; ")}\n`);
+      process.exit(EXIT_CODES.usage);
+    }
+  }
   const eventsPath = opts.eventsPath || (opts.out ? opts.out.replace(/[^/]+$/, "events.jsonl") : archiveRunPath(targetPath, opts.passId).replace(/\/?$/, "/events.jsonl"));
   if (!isRepoRelativePath(eventsPath)) {
     process.stderr.write(`validation error: --events-path must be repository-relative\n`);
@@ -113,6 +142,10 @@ try {
     ...(reviewInput ? {
       review_input_path: reviewInput.sourcePath,
       review_input_revision: reviewInput.revision
+    } : {}),
+    ...(lensSelection ? {
+      lens_selection_path: lensSelectionPath,
+      lens_selection_revision: computeArtifactSha(root, lensSelectionPath)
     } : {}),
     status: "active",
     run_mode: runMode,

@@ -21,6 +21,10 @@ test("archive rewrites run artifacts to archive-local paths", () => {
     const runPath = match[1];
     const ledger = JSON.parse(readFileSync(resolve(repoRoot, runPath, "ledger.json"), "utf8"));
     assert.equal(ledger.review_input_path, `${runPath}/review-input.json`);
+    assert.equal(ledger.lens_selection_path, `${runPath}/lens-selection.json`);
+    assert.equal(existsSync(resolve(repoRoot, ledger.lens_selection_path)), true);
+    const selection = JSON.parse(readFileSync(resolve(repoRoot, ledger.lens_selection_path), "utf8"));
+    assert.equal(selection.review_input_path, ledger.review_input_path);
     assert.equal(ledger.events_path, `${runPath}/events.jsonl`);
     assert.ok(ledger.review_record_artifacts.every((entry) => entry.artifact_path.startsWith(`${runPath}/reviews/`)));
     assert.ok(ledger.synthesis_record_artifacts.every((entry) => entry.artifact_path.startsWith(`${runPath}/synthesis/`)));

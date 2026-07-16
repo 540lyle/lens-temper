@@ -20,13 +20,7 @@
       "Compatibility / platform constraints"
     ]
   },
-  "default_selection_triggers": [
-    "user-facing workflow",
-    "UI refresh",
-    "interaction states",
-    "saved-record or mutation behavior",
-    "accessibility-sensitive behavior"
-  ],
+  "selection_domains": ["user-facing-workflow"],
   "advisory_tool_expectations": [
     "Read the target plan or spec directly from disk.",
     "Inspect referenced product, UX, or accessibility docs when provided.",

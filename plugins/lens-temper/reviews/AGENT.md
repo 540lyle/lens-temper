@@ -26,6 +26,9 @@ workflow from repository files instead of prior chat context.
   asks for a project-specific private review run.
 - Treat changes to the default lens set as review-contract changes. Update the
   registry, lens manifests, documentation, and evaluator fixtures together.
+- Resolve automatic lens scope through the canonical selection policy and
+  script. Model judgment may add evidence-backed lenses but may not subtract
+  deterministic lenses or resolve a zero-match input.
 - Prefer path-based prompt assembly when the reviewer has workspace access.
 - Materialize one canonical review input JSON and record its normalized revision
   together with deterministic target, template, and lens revisions when running

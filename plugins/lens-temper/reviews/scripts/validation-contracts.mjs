@@ -1,4 +1,4 @@
-export const CONTRACT_VERSION = "2.0.0";
+export const CONTRACT_VERSION = "3.0.0";
 export const SCHEMA_VERSION = 2;
 
 export const EXIT_CODES = {
@@ -57,6 +57,7 @@ export const EXECUTION_MODES = [
 export const TRACE_EVENT_NAMES = [
   "orchestrator_started",
   "ledger_created",
+  "lens_selection_created",
   "prompt_packet_created",
   "spawn_prompt_created",
   "reviewer_spawned",
@@ -143,6 +144,33 @@ export const ARTIFACT_VISIBILITY = [
   "public_safe",
   "private_local_only"
 ];
+
+export const LENS_IDS = [
+  "architecture",
+  "implementation",
+  "risk",
+  "test-strategy",
+  "product-ux",
+  "data-model"
+];
+
+export const LENS_SELECTION_REQUIRED_FIELDS = [
+  "schema_version",
+  "status",
+  "pass_id",
+  "target_path",
+  "target_revision",
+  "review_input_path",
+  "review_input_revision",
+  "policy_path",
+  "policy_revision",
+  "matched_domains",
+  "deterministic_lenses",
+  "llm_additions",
+  "selected_lenses"
+];
+
+export const LENS_ADDITIONS_REQUIRED_FIELDS = ["schema_version", "additions"];
 
 export const COMPLETION_SUMMARY_REQUIRED_FIELDS = [
   "schema_version",
@@ -260,7 +288,9 @@ export const LEDGER_REQUIRED_FIELDS = [
 
 export const LEDGER_FULL_REQUIRED_FIELDS = [
   "review_input_path",
-  "review_input_revision"
+  "review_input_revision",
+  "lens_selection_path",
+  "lens_selection_revision"
 ];
 
 export const COMPLETION_SUMMARY_FULL_REQUIRED_FIELDS = [
@@ -276,6 +306,35 @@ export const REVIEW_INPUT_REQUIRED_FIELDS = [
 ];
 
 export const SCHEMA_CONTRACTS = {
+  "lens-selection.schema.json": {
+    required: LENS_SELECTION_REQUIRED_FIELDS,
+    conditionalRequired: {
+      "status.resolved": ["mode", "llm_proposal_path", "llm_proposal_revision"],
+      "status.needs_clarification": ["clarification_question"]
+    },
+    enums: {
+      status: ["resolved", "needs_clarification"],
+      mode: ["explicit", "all_lenses", "deterministic", "deterministic_plus_llm_additions", "conservative_fallback"]
+    },
+    arrayItemRequired: {
+      matched_domains: ["domain", "source", "phrase", "lenses"],
+      llm_additions: ["lens", "reason", "evidence"]
+    },
+    arrayItemEnums: {
+      deterministic_lenses: LENS_IDS,
+      "llm_additions.lens": LENS_IDS,
+      selected_lenses: LENS_IDS
+    }
+  },
+  "lens-additions.schema.json": {
+    required: LENS_ADDITIONS_REQUIRED_FIELDS,
+    arrayItemRequired: {
+      additions: ["lens", "reason", "evidence"]
+    },
+    arrayItemEnums: {
+      "additions.lens": LENS_IDS
+    }
+  },
   "review-output.schema.json": {
     required: REVIEW_REQUIRED_FIELDS,
     conditionalRequired: {

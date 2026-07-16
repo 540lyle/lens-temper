@@ -228,16 +228,15 @@ claim, and only when the artifacts validate.
 
 ## When To Compose Individual Lenses
 
-Use selected lenses when the spec risk is narrow:
+Use selected lenses when the spec risk is narrow. Explicit lens ids are exact;
+otherwise the canonical selector establishes a deterministic minimum and the
+orchestrator may add evidence-backed lenses without removing that minimum.
+The policy, ambiguity behavior, and current domain mappings live in
+[`reviews/README.md`](reviews/README.md#lens-selection-contract) rather than
+being duplicated here.
 
-- UI behavior only: Product & UX plus Test Strategy
-- storage or restore behavior: Data Model plus Product & UX and Test Strategy
-- shared service or engine contract: Architecture plus Implementation and Test
-  Strategy
-- rollout, migration, or operational concern: Risk plus the domain lens
-
-Selected-lens reviews are still useful and can be full reviews, but they should
-be labeled as selected-lens scope rather than a complete LensTemper pass.
+Selected-lens reviews can still be full reviews, but they must be labeled as
+selected-lens scope rather than a complete LensTemper pass.
 
 ## When Not To Use LensTemper
 
@@ -315,8 +314,10 @@ node reviews/scripts/assemble-review-prompt.mjs --target docs/plans/my-plan.md -
 node reviews/scripts/run-review-evals.mjs
 ```
 
-`run-plan-review.mjs` validates and snapshots the review contract, then prepares
-ledgers and prompt packets. Reviewer execution is
+`run-plan-review.mjs` validates and snapshots the review contract, resolves or
+validates lens scope, records `lens-selection.json`, then prepares ledgers and
+prompt packets. Omitting `--lens` invokes the canonical selector; use
+`--all-lenses` for an explicit complete-registry run. Reviewer execution is
 still provided by the host, such as Codex subagents, Claude subagents, Cursor
 Background Agents, or another verified fresh-agent mechanism. Cursor is
 conditional full only when its run proves fresh reviewer isolation and artifact

@@ -5,6 +5,7 @@ import {
   CONTRACT_VERSION,
   EXIT_CODES,
   archiveRunPath,
+  computeArtifactSha,
   ensureNode18,
   isRepoRelativePath,
   loadValidatedRunContext,
@@ -61,6 +62,15 @@ async function main() {
     copies.push(copyRepoArtifact(root, source, target));
   };
   mapCopy(sourceLedger.review_input_path, `${archiveRepoPath}/review-input.json`);
+  const sourceSelection = readJsonFile(resolveRepoPath(root, sourceLedger.lens_selection_path));
+  const lensSelectionPath = `${archiveRepoPath}/lens-selection.json`;
+  pathMap.set(sourceLedger.lens_selection_path, lensSelectionPath);
+  let lensProposalPath = sourceSelection.llm_proposal_path;
+  if (lensProposalPath) {
+    const archivedProposalPath = `${archiveRepoPath}/lens-additions.json`;
+    mapCopy(lensProposalPath, archivedProposalPath);
+    lensProposalPath = archivedProposalPath;
+  }
   if (opts.inputPacket) mapCopy(opts.inputPacket, `${archiveRepoPath}/input.packet.md`);
   if (opts.final) mapCopy(opts.final, `${archiveRepoPath}/final.md`);
 
@@ -83,6 +93,14 @@ async function main() {
     return { ...portableRecord, artifact_path: artifactPath, markdown_artifact_path: markdownPath };
   }));
   await Promise.all(copies);
+
+  const archivedSelection = {
+    ...sourceSelection,
+    review_input_path: `${archiveRepoPath}/review-input.json`,
+    ...(sourceSelection.llm_proposal_path ? { llm_proposal_path: lensProposalPath } : {})
+  };
+  await writeFile(resolveRepoPath(root, lensSelectionPath), `${JSON.stringify(archivedSelection, null, 2)}\n`, "utf8");
+  const lensSelectionRevision = computeArtifactSha(root, lensSelectionPath);
 
   const recordWrites = [
     ...archivedReviews.map((record) => writeFile(resolveRepoPath(root, record.artifact_path), `${JSON.stringify(record, null, 2)}\n`, "utf8")),
@@ -107,6 +125,8 @@ async function main() {
   const archivedLedger = {
     ...sourceLedger,
     review_input_path: `${archiveRepoPath}/review-input.json`,
+    lens_selection_path: lensSelectionPath,
+    lens_selection_revision: lensSelectionRevision,
     ...(eventsPath ? { events_path: eventsPath } : {}),
     review_record_artifacts: archivedReviews.map((record) => ({ record_id: record.record_id, artifact_path: record.artifact_path })),
     synthesis_record_artifacts: archivedSynthesis.map((record) => ({ record_id: record.record_id, artifact_path: record.artifact_path })),

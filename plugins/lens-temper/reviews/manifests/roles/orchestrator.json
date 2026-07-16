@@ -9,7 +9,7 @@
     "reviews/AGENT.md"
   ],
   "responsibilities": [
-    "Select the smallest lens set that covers the target plan's risk.",
+    "Resolve lens scope through the canonical deterministic selector, then union any validated evidence-backed additions without removing the deterministic minimum.",
     "Create and maintain review ledger state.",
     "Set run_mode, run_scope, and execution_mode consistently before reviewers run.",
     "Spawn or otherwise run independent lens reviewers with fresh context.",
@@ -23,6 +23,8 @@
     "target_revision",
     "review_input_path",
     "review_input_revision",
+    "lens_selection_path",
+    "lens_selection_revision",
     "feature_request",
     "constraints",
     "selected_lenses"

@@ -41,7 +41,8 @@ function checkSchemaDrift(root) {
   const propertyFor = (schema, path) => path.split(".").reduce((current, part) => current?.properties?.[part], schema);
   const itemPropertyFor = (schema, path) => {
     const [arrayName, fieldName] = path.split(".");
-    return schema.properties?.[arrayName]?.items?.properties?.[fieldName];
+    const items = schema.properties?.[arrayName]?.items;
+    return fieldName ? items?.properties?.[fieldName] : items;
   };
   for (const [schemaName, contract] of Object.entries(SCHEMA_CONTRACTS)) {
     const schemaPath = `reviews/schemas/${schemaName}`;
