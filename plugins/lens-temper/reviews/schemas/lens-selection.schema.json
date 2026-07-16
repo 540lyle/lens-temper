@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "LensTemper Lens Selection",
+  "type": "object",
+  "required": [
+    "schema_version", "status", "pass_id", "target_path", "target_revision",
+    "review_input_path", "review_input_revision", "policy_path", "policy_revision",
+    "matched_domains", "deterministic_lenses", "llm_additions", "selected_lenses"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "status": { "enum": ["resolved", "needs_clarification"] },
+    "pass_id": { "type": "string" },
+    "target_path": { "type": "string" },
+    "target_revision": { "type": "string" },
+    "review_input_path": { "type": ["string", "null"] },
+    "review_input_revision": { "type": "string" },
+    "policy_path": { "const": "reviews/manifests/lens-selection.json" },
+    "policy_revision": { "type": "string" },
+    "mode": { "enum": ["explicit", "all_lenses", "deterministic", "deterministic_plus_llm_additions", "conservative_fallback"] },
+    "matched_domains": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["domain", "source", "phrase", "lenses"],
+        "properties": {
+          "domain": { "type": "string" },
+          "source": { "enum": ["feature_request", "relevant_context", "constraints", "previous_adjudications", "target"] },
+          "phrase": { "type": "string" },
+          "lenses": {
+            "type": "array",
+            "items": { "enum": ["architecture", "implementation", "risk", "test-strategy", "product-ux", "data-model"] },
+            "uniqueItems": true
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "deterministic_lenses": {
+      "type": "array",
+      "items": { "enum": ["architecture", "implementation", "risk", "test-strategy", "product-ux", "data-model"] },
+      "uniqueItems": true
+    },
+    "llm_proposal_path": { "type": ["string", "null"] },
+    "llm_proposal_revision": { "type": ["string", "null"] },
+    "llm_additions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["lens", "reason", "evidence"],
+        "properties": {
+          "lens": { "enum": ["architecture", "implementation", "risk", "test-strategy", "product-ux", "data-model"] },
+          "reason": { "type": "string", "minLength": 1 },
+          "evidence": { "type": "string", "minLength": 1 }
+        },
+        "additionalProperties": false
+      }
+    },
+    "selected_lenses": {
+      "type": "array",
+      "items": { "enum": ["architecture", "implementation", "risk", "test-strategy", "product-ux", "data-model"] },
+      "uniqueItems": true
+    },
+    "clarification_question": { "type": "string" }
+  },
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "const": "resolved" } } },
+      "then": { "required": ["mode", "llm_proposal_path", "llm_proposal_revision"] }
+    },
+    {
+      "if": { "properties": { "status": { "const": "needs_clarification" } } },
+      "then": { "required": ["clarification_question"] }
+    }
+  ]
+}

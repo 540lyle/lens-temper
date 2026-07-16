@@ -1,0 +1,67 @@
+{
+  "schema_version": "1.0",
+  "id": "lens-selection-policy",
+  "description": "Deterministic minimum lens selection. Matching is Unicode-normalized, case-insensitive, and phrase-boundary aware.",
+  "clarification_question": "The supplied review input and target do not establish a review risk domain. Name the affected behavior or select lenses explicitly before reviewers are started.",
+  "domains": [
+    {
+      "id": "user-facing-workflow",
+      "lenses": ["test-strategy", "product-ux"],
+      "phrases": [
+        "user-facing", "user visible", "interaction flow", "screen", "dialog",
+        "button", "form", "toast", "loading state", "empty state", "error state",
+        "accessibility", "operator chooses", "customer workflow", "ui"
+      ]
+    },
+    {
+      "id": "stateful-workflow",
+      "lenses": ["architecture", "implementation", "test-strategy"],
+      "phrases": [
+        "state transition", "state ownership", "stateful", "saved state", "save", "load",
+        "restore", "delete", "reset", "defer", "deferred", "apply"
+      ]
+    },
+    {
+      "id": "shared-contract",
+      "lenses": ["architecture", "implementation", "test-strategy"],
+      "phrases": [
+        "cross-module", "module boundary", "shared service", "shared engine", "shared utility",
+        "api contract", "interface contract", "new abstraction", "dependency ordering"
+      ]
+    },
+    {
+      "id": "implementation-complexity",
+      "lenses": ["implementation"],
+      "phrases": [
+        "multi-step", "implementation plan", "platform constraint", "sequencing risk",
+        "tooling change", "compatibility handling"
+      ]
+    },
+    {
+      "id": "runtime-validation",
+      "lenses": ["test-strategy"],
+      "phrases": [
+        "runtime validation", "regression coverage", "negative path", "edge case",
+        "error handling", "validation command", "pass criteria", "fail criteria"
+      ]
+    },
+    {
+      "id": "migration-and-data",
+      "lenses": ["implementation", "risk", "test-strategy", "data-model"],
+      "phrases": [
+        "persistence", "persisted", "saved record", "stored record", "schema change",
+        "database", "storage contract", "migration", "backfill", "data integrity",
+        "backward compatibility", "library feature", "history feature"
+      ]
+    },
+    {
+      "id": "operational-risk",
+      "lenses": ["risk"],
+      "phrases": [
+        "rollback", "security", "privacy", "authorization", "authentication",
+        "irreversible", "production failure", "blast radius", "kill switch",
+        "race condition", "stale state", "rollout"
+      ]
+    }
+  ]
+}
