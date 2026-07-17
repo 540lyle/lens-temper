@@ -44,6 +44,7 @@ try {
     artifactRoot: root,
     targetRevision: context?.ledger.target_revision || opts.targetRevision,
     reviewInputRevision: context?.ledger.review_input_revision || opts.reviewInputRevision,
+    ledger: context?.ledger,
     inputPath
   });
 

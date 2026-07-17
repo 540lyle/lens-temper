@@ -29,7 +29,7 @@ flowchart TD
   Select --> Prep["Create ledger, events.jsonl, and hash target"]
   Prep --> Generate["Generate per-lens prompt packets and spawn handoffs"]
 
-  Generate --> Wave["Spawn detached-context read-only lens reviewers<br/>Architecture, Implementation, Risk, Test Strategy, Product and UX, Data Model"]
+  Generate --> Wave["Spawn detached-context read-only lens reviewers<br/>Seven standard-v2 core lenses plus triggered specialists"]
 
   Wave --> Outputs["Capture structured reviewer outputs"]
   Outputs --> Close["Close reviewer agents"]
@@ -58,6 +58,9 @@ flowchart TD
   template, lens, constraints, and deterministic revisions.
 - `lens-selection.json` records explicit scope or the policy-derived minimum,
   any validated evidence-backed LLM additions, and the final selected set.
+- A normal full run starts from the registry's `standard-v2` core profile and
+  unions deterministically triggered specialists such as Natty. Reviewer waves
+  may be batched to fit host capacity without changing `required_lens_ids`.
 - `*.spawn.md` is the compact host-to-subagent handoff. It uses
   repository-relative paths and tells the reviewer to read the packet from disk.
 - `<pass-id>.orchestrator.md` is the optional detached-orchestrator packet. It

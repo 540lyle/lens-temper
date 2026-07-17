@@ -49,6 +49,7 @@ function runSelection(targetText, featureRequest, options = {}) {
       explicitLenses: options.explicitLenses ?? null,
       allLenses: options.allLenses ?? false,
       fallback: options.fallback ?? null,
+      coreProfileId: options.coreProfileId ?? null,
       passId: "selection-test"
     });
     if (result.status === "resolved") {
@@ -182,6 +183,25 @@ test("explicit and conservative all-lens modes are deterministic", () => {
   const fallback = runSelection("Internal fixture.", "Build an internal fixture.", { fallback: "all" });
   assert.equal(fallback.mode, "conservative_fallback");
   assert.deepEqual(fallback.selected_lenses, registry.lenses.map((entry) => entry.id));
+});
+
+test("standard-v2 selects seven core lenses and triggers Natty only for an LLM authority boundary", () => {
+  const ordinary = runSelection("Internal implementation plan.", "Implement a tooling change.", {
+    coreProfileId: "standard-v2"
+  });
+  assert.equal(ordinary.mode, "core_profile");
+  assert.equal(ordinary.selected_lenses.length, 7);
+  assert.equal(ordinary.selected_lenses.includes("security"), true);
+  assert.equal(ordinary.selected_lenses.includes("natty"), false);
+
+  const llmBoundary = runSelection(
+    "Use LLM generated structured output to choose a tool route.",
+    "Add a natural language command.",
+    { coreProfileId: "standard-v2" }
+  );
+  assert.equal(llmBoundary.selected_lenses.length, 8);
+  assert.equal(llmBoundary.selected_lenses.includes("natty"), true);
+  assert.equal(llmBoundary.matched_domains.some((entry) => entry.domain === "llm-authority-boundary"), true);
 });
 
 test("lens manifests reference the canonical policy without duplicated trigger lists", () => {

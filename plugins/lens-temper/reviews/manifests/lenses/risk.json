@@ -13,7 +13,6 @@
   ],
   "cross_cutting_ownership": {
     "primary": [
-      "Security / privacy",
       "Reliability / rollback",
       "Observability / debuggability"
     ],
@@ -22,7 +21,7 @@
   "selection_domains": ["migration-and-data", "operational-risk"],
   "advisory_tool_expectations": [
     "Read the target plan or spec directly from disk.",
-    "Inspect referenced rollout, observability, privacy, or operations docs when provided.",
+    "Inspect referenced rollout, observability, recovery, or operations docs when provided.",
     "Separate material ship risks from theoretical risks."
   ]
 }

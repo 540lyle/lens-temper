@@ -92,10 +92,10 @@ conversation or history and reads only its run packet and permitted workspace
 files. If the host cannot provide that isolation, the review should stop instead
 of silently falling back to inline/advisory mode.
 
-To force all default lenses:
+To force the standard core profile:
 
 ```text
-Run a full LensTemper six-lens review of docs/plans/my-plan.md.
+Run a full LensTemper standard-v2 core review of docs/plans/my-plan.md.
 ```
 
 To limit the scope:
@@ -118,7 +118,7 @@ and cannot produce lockable completion claims.
 
 | Need | Use |
 |------|-----|
-| Highest-confidence spec review | Full six-lens review |
+| Highest-confidence spec review | Full standard-v2 core-profile review |
 | Narrow risk area | Selected-lens full review |
 | Fast early feedback | Inline advisory review |
 | Verify fixes after review | Rerun decider, then rerun affected lenses |
@@ -198,22 +198,30 @@ is heavier than a single critique prompt:
 For rough sketches, small changes, or early brainstorming, use inline advisory
 review and label it as advisory.
 
-## The Default Lenses
+## Core Lenses And Specialists
 
-LensTemper ships with six default lenses:
+LensTemper's `standard-v2` profile requires seven core lenses:
 
 | Lens | Use it for |
 |------|------------|
 | Architecture | Boundaries, ownership, coupling, abstraction, maintainability |
 | Implementation | Sequencing, feasibility, missing engineering work, execution clarity |
 | Risk | Rollout risk, regressions, failure modes, observability, recovery |
+| Security | Trust boundaries, authn/authz, secrets, injection, SSRF, exploitability |
 | Test Strategy | Coverage, edge cases, validation, regression prevention |
 | Product & UX | User-visible behavior, states, copy, recovery paths, accessibility |
 | Data Model | Schemas, storage, migrations, compatibility, integrity |
 
-## When To Use All Lenses
+Natty is a triggered specialist for probabilistic-to-authoritative boundaries:
+agent or skill design, natural-language commands, LLM-generated structured
+output, model-selected tools or routes, tool-returned data entering model
+context, RAG-driven decisions, LLM-derived state or confidence, and
+model-generated writes or authoritative narration. When one of those surfaces
+is detected, Natty becomes required for that run; otherwise she is omitted.
 
-Use the full six-lens pass when the plan is broad, high-risk, or intended to
+## When To Use The Core Profile
+
+Use the full core-profile pass when the plan is broad, high-risk, or intended to
 be implementation-ready without more human interpretation. Examples:
 
 - a new user-facing workflow
@@ -223,8 +231,9 @@ be implementation-ready without more human interpretation. Examples:
 - release or rollout plans
 - work that already had regressions or disputed review feedback
 
-Only a full six-lens run may make an unqualified `LensTemper pass complete`
-claim, and only when the artifacts validate.
+Only a full run whose named core profile passes may make an unqualified
+`LensTemper pass complete` claim. The required set may include triggered
+specialists without changing the core profile's identity.
 
 ## When To Compose Individual Lenses
 
@@ -254,7 +263,7 @@ Use inline/advisory mode for quick feedback, but label it honestly.
 ### Full Plan Review
 
 ```text
-Use LensTemper to run a full six-lens review of
+Use LensTemper to run a full standard-v2 core-profile review of
 docs/plans/saved-setups-v2.md. Spawn detached-context reviewer subagents, one
 per lens, and do not fall back to inline review.
 ```
@@ -317,8 +326,9 @@ node reviews/scripts/run-review-evals.mjs
 
 `run-plan-review.mjs` validates and snapshots the review contract, resolves or
 validates lens scope, records `lens-selection.json`, then prepares ledgers and
-prompt packets. Omitting `--lens` invokes the canonical selector; use
-`--all-lenses` for an explicit complete-registry run. Reviewer execution is
+prompt packets. Omitting `--lens` selects the default core profile plus any
+deterministically triggered specialists; use `--all-lenses` only for an
+explicit complete-registry run. Reviewer execution is
 still provided by the host, such as Codex subagents, Claude subagents, Cursor
 Background Agents, or another verified fresh-agent mechanism. Cursor is
 conditional full only when its run proves fresh reviewer isolation and artifact

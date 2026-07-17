@@ -38,11 +38,12 @@ existing parent table.
 The V2 maximum is the total number of active threads in the session, including
 the root.
 With `10`, the root and up to nine descendants may be active at once. A
-six-lens `full_hosted` run uses seven slots; a six-lens `full_detached` run uses
-eight: root, detached orchestrator, and six reviewers. `10` is therefore a
-headroom recommendation, not a LensTemper invariant. Codex owns thread
-scheduling, and reviewer execution may be concurrent or sequential without
-changing claim authority.
+seven-lens `standard-v2` `full_hosted` run uses eight slots; a `full_detached`
+run uses nine: root, detached orchestrator, and seven reviewers. A triggered
+specialist can consume the tenth slot. Hosts with a lower cap must run the same
+required set in capability-aware batches; batching changes scheduling, not
+claim authority or completion requirements. `10` is headroom guidance, not a
+LensTemper invariant.
 
 `agents.max_depth = 2` is Codex-specific setup for the
 root -> detached orchestrator -> reviewer path. It is not required for

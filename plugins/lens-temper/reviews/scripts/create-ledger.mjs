@@ -16,7 +16,7 @@ import {
   resolveRepoPath,
   usage
 } from "./validation-helpers.mjs";
-import { EXECUTION_MODES, RUN_MODES, RUN_SCOPES } from "./validation-contracts.mjs";
+import { EXECUTION_MODES, LEDGER_SCHEMA_VERSION, RUN_MODES, RUN_SCOPES } from "./validation-contracts.mjs";
 import { validateLensSelectionRecord } from "./lens-selection.mjs";
 
 ensureNode18();
@@ -65,21 +65,30 @@ try {
     }
   }
   const targetRevision = computeArtifactSha(root, targetPath);
-  const allLensIds = registry.lenses.map((entry) => entry.id);
+  const coreProfileId = opts.coreProfile || registry.default_core_profile_id;
+  const coreProfile = (registry.core_profiles || []).find((entry) => entry.id === coreProfileId);
+  if (!coreProfile || !Array.isArray(coreProfile.required_lens_ids) || coreProfile.required_lens_ids.length === 0) {
+    process.stderr.write(`validation error: registry default core profile is invalid\n`);
+    process.exit(EXIT_CODES.usage);
+  }
   const runMode = opts.runMode || "inline";
   if (!RUN_MODES.includes(runMode)) {
     process.stderr.write(`validation error: --run-mode must be one of ${RUN_MODES.join(", ")}\n`);
     process.exit(EXIT_CODES.usage);
   }
-  const allLensSet = new Set(allLensIds);
-  const selectedIsSixLens = lensSetEquals(selectedSet, allLensSet);
-  const runScope = opts.runScope || (selectedIsSixLens ? "six_lens" : "selected_lenses");
+  const coreLensSet = new Set(coreProfile.required_lens_ids);
+  const selectedIncludesCore = [...coreLensSet].every((lens) => selectedSet.has(lens));
+  const runScope = opts.runScope || (runMode === "full" && selectedIncludesCore ? "core_profile" : "selected_lenses");
   if (!RUN_SCOPES.includes(runScope)) {
     process.stderr.write(`validation error: --run-scope must be one of ${RUN_SCOPES.join(", ")}\n`);
     process.exit(EXIT_CODES.usage);
   }
-  if (runScope === "six_lens" && !selectedIsSixLens) {
-    process.stderr.write(`validation error: six_lens run-scope requires exactly the registry lens set\n`);
+  if (runScope === "core_profile" && !selectedIncludesCore) {
+    process.stderr.write(`validation error: core_profile run-scope requires every ${coreProfileId} core lens\n`);
+    process.exit(EXIT_CODES.usage);
+  }
+  if (runScope === "core_profile" && runMode !== "full") {
+    process.stderr.write(`validation error: core_profile run-scope requires full run mode\n`);
     process.exit(EXIT_CODES.usage);
   }
   const defaultExecutionMode = runMode === "full" ? "fresh_spawned_lens_reviewers" : "manual_or_imported";
@@ -135,7 +144,7 @@ try {
     process.exit(EXIT_CODES.usage);
   }
   const ledger = {
-    schema_version: 2,
+    schema_version: LEDGER_SCHEMA_VERSION,
     pass_id: opts.passId,
     target_path: targetPath,
     target_revision: targetRevision,
@@ -150,6 +159,12 @@ try {
     status: "active",
     run_mode: runMode,
     run_scope: runScope,
+    ...(runScope === "core_profile" ? {
+      core_profile_id: coreProfileId,
+      required_lens_ids: selected,
+      completed_lens_ids: [],
+      core_gate_passed: false
+    } : {}),
     execution_mode: executionMode,
     events_path: eventsPath,
     selected_lenses: selected,

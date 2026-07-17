@@ -3,6 +3,21 @@
   "name": "LensTemper review registry",
   "description": "Machine-readable discovery index for the LensTemper Markdown review workflow.",
   "paths_are_relative_to": "repository_root",
+  "default_core_profile_id": "standard-v2",
+  "core_profiles": [
+    {
+      "id": "standard-v2",
+      "required_lens_ids": [
+        "architecture",
+        "implementation",
+        "risk",
+        "security",
+        "test-strategy",
+        "product-ux",
+        "data-model"
+      ]
+    }
+  ],
   "entrypoints": {
     "workflow": "reviews/README.md",
     "agent_instructions": "reviews/AGENT.md",
@@ -288,6 +303,10 @@
       "manifest_path": "reviews/manifests/lenses/risk.json"
     },
     {
+      "id": "security",
+      "manifest_path": "reviews/manifests/lenses/security.json"
+    },
+    {
       "id": "test-strategy",
       "manifest_path": "reviews/manifests/lenses/test-strategy.json"
     },
@@ -298,6 +317,10 @@
     {
       "id": "data-model",
       "manifest_path": "reviews/manifests/lenses/data-model.json"
+    },
+    {
+      "id": "natty",
+      "manifest_path": "reviews/manifests/lenses/natty.json"
     }
   ],
   "roles": [

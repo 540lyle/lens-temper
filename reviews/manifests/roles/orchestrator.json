@@ -43,6 +43,6 @@
     "Every current review, synthesis, event, and completion artifact must report the ledger review_input_revision.",
     "Completed spawned reviewers must have agent_id present, output_captured=true, and closed=true.",
     "Completed detached orchestration must include events_path with orchestrator-owned reviewer_spawned, reviewer_completed, and reviewer_closed events for current reviewers.",
-    "Only full six_lens runs may claim unqualified LensTemper pass completion."
+    "Only full core_profile runs with core_gate_passed=true may claim unqualified LensTemper pass completion."
   ]
 }

@@ -11,7 +11,7 @@
         "type": "object",
         "required": ["lens", "reason", "evidence"],
         "properties": {
-          "lens": { "enum": ["architecture", "implementation", "risk", "test-strategy", "product-ux", "data-model"] },
+          "lens": { "enum": ["architecture", "implementation", "risk", "security", "test-strategy", "product-ux", "data-model", "natty"] },
           "reason": { "type": "string", "minLength": 1 },
           "evidence": { "type": "string", "minLength": 1 }
         },

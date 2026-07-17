@@ -9,6 +9,8 @@ import {
   CLAIM_FLAG_KEYS,
   COMPLETION_SUMMARY_REQUIRED_FIELDS,
   COMPLETION_SUMMARY_FULL_REQUIRED_FIELDS,
+  COMPLETION_SUMMARY_CORE_PROFILE_REQUIRED_FIELDS,
+  COMPLETION_SUMMARY_SCHEMA_VERSION,
   CONTRACT_VERSION,
   CROSS_CUTTING_KEYS,
   CROSS_CUTTING_STATUS_VALUES,
@@ -19,6 +21,8 @@ import {
   FINDING_SEVERITIES,
   LEDGER_REQUIRED_FIELDS,
   LEDGER_FULL_REQUIRED_FIELDS,
+  LEDGER_CORE_PROFILE_REQUIRED_FIELDS,
+  LEDGER_SCHEMA_VERSION,
   LEDGER_STATUSES,
   LOCK_STATES,
   PROVENANCE_BASIS_VALUES,
@@ -87,7 +91,8 @@ export function parseCommonArgs(argv) {
     allLenses: false,
     lensProposal: null,
     lensSelection: null,
-    selectionFallback: null
+    selectionFallback: null,
+    coreProfile: null
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -382,9 +387,9 @@ export function validateEnum(value, allowed, artifactPath, record, field, failur
   }
 }
 
-export function validateSchemaVersion(record, artifactPath, failures) {
-  if (record.schema_version !== SCHEMA_VERSION) {
-    failures.push(makeFailure(artifactPath, record, "schema_version", SCHEMA_VERSION, record.schema_version));
+export function validateSchemaVersion(record, artifactPath, failures, expected = SCHEMA_VERSION) {
+  if (record.schema_version !== expected) {
+    failures.push(makeFailure(artifactPath, record, "schema_version", expected, record.schema_version));
   }
 }
 
@@ -791,8 +796,39 @@ function validateLedgerLensScope(root, record, artifactPath, failures) {
       failures.push(makeFailure(artifactPath, record, "selected_lenses", "known registry lens id", lens));
     }
   }
-  if (record.run_scope === "six_lens" && !setEquals(selectedLensSet, registryLensSet)) {
-    failures.push(makeFailure(artifactPath, record, "selected_lenses", `exact registry lens set for six_lens: ${registryLensIds.join(",")}`, (record.selected_lenses || []).join(",")));
+  if (record.run_scope === "core_profile") {
+    if (record.run_mode !== "full") failures.push(makeFailure(artifactPath, record, "run_mode", "full for core_profile scope", record.run_mode));
+    const profile = (registry.core_profiles || []).find((entry) => entry.id === record.core_profile_id);
+    if (!profile) {
+      failures.push(makeFailure(artifactPath, record, "core_profile_id", "known registry core profile", record.core_profile_id));
+      return;
+    }
+    const coreLensSet = new Set(profile.required_lens_ids || []);
+    for (const lens of coreLensSet) {
+      if (!selectedLensSet.has(lens)) {
+        failures.push(makeFailure(artifactPath, record, "selected_lenses", `include core profile lens ${lens}`, (record.selected_lenses || []).join(",")));
+      }
+    }
+    const requiredLensSet = validateUniqueArrayItems(record, "required_lens_ids", artifactPath, failures);
+    const completedLensSet = validateUniqueArrayItems(record, "completed_lens_ids", artifactPath, failures);
+    if (!setEquals(requiredLensSet, selectedLensSet)) {
+      failures.push(makeFailure(artifactPath, record, "required_lens_ids", "exact selected_lenses for a core-profile run", (record.required_lens_ids || []).join(",")));
+    }
+    for (const lens of completedLensSet) {
+      if (!requiredLensSet.has(lens)) failures.push(makeFailure(artifactPath, record, "completed_lens_ids", "subset of required_lens_ids", lens));
+    }
+    if (typeof record.core_gate_passed !== "boolean") {
+      failures.push(makeFailure(artifactPath, record, "core_gate_passed", "boolean", record.core_gate_passed));
+    }
+    if (record.core_gate_passed && !setEquals(completedLensSet, requiredLensSet)) {
+      failures.push(makeFailure(artifactPath, record, "completed_lens_ids", "all required lenses when core_gate_passed is true", (record.completed_lens_ids || []).join(",")));
+    }
+    if (record.core_gate_passed && (record.status !== "completed" || record.completion_validation?.passed !== true)) {
+      failures.push(makeFailure(artifactPath, record, "core_gate_passed", "completed ledger with passed completion validation", true));
+    }
+    if (record.status === "completed" && record.run_mode === "full" && record.core_gate_passed !== true) {
+      failures.push(makeFailure(artifactPath, record, "core_gate_passed", true, record.core_gate_passed));
+    }
   }
 }
 
@@ -1038,7 +1074,8 @@ export function validateLedgerRecord(record, options = {}) {
   const failures = [];
   requireFields(record, LEDGER_REQUIRED_FIELDS, artifactPath, failures);
   if (record.run_mode === "full") requireFields(record, LEDGER_FULL_REQUIRED_FIELDS, artifactPath, failures);
-  validateSchemaVersion(record, artifactPath, failures);
+  if (record.run_scope === "core_profile") requireFields(record, LEDGER_CORE_PROFILE_REQUIRED_FIELDS, artifactPath, failures);
+  validateSchemaVersion(record, artifactPath, failures, LEDGER_SCHEMA_VERSION);
   validateEnum(record.status, LEDGER_STATUSES, artifactPath, record, "status", failures);
   validateEnum(record.execution_mode, EXECUTION_MODES, artifactPath, record, "execution_mode", failures);
   validateRunMode(record, artifactPath, failures);
@@ -1099,6 +1136,24 @@ export function validateLedgerRecord(record, options = {}) {
           }
           if (JSON.stringify(selection.matched_domains) !== JSON.stringify(replay.matchedDomains)) {
             failures.push(makeFailure(artifactPath, selection, "lens_selection.matched_domains", JSON.stringify(replay.matchedDomains), JSON.stringify(selection.matched_domains)));
+          }
+        }
+        if (["core_profile", "core_profile_plus_llm_additions"].includes(selection.mode) && selection.review_input_path) {
+          const profile = (registry.core_profiles || []).find((entry) => entry.id === selection.core_profile_id);
+          if (!profile) {
+            failures.push(makeFailure(artifactPath, selection, "lens_selection.core_profile_id", "known registry core profile", selection.core_profile_id));
+          } else {
+            const replayInput = resolveReviewInput(root, { reviewInput: selection.review_input_path });
+            const replayPolicy = readJsonFile(join(root, selection.policy_path));
+            const replay = evaluateLensPolicy(replayPolicy, registry, replayInput.record, readTextFile(join(root, selection.target_path)));
+            const expectedSet = new Set([...profile.required_lens_ids, ...replay.deterministicLenses]);
+            const expected = registry.lenses.map((entry) => entry.id).filter((id) => expectedSet.has(id));
+            if (JSON.stringify(selection.deterministic_lenses) !== JSON.stringify(expected)) {
+              failures.push(makeFailure(artifactPath, selection, "lens_selection.deterministic_lenses", JSON.stringify(expected), JSON.stringify(selection.deterministic_lenses)));
+            }
+            if (JSON.stringify(selection.matched_domains) !== JSON.stringify(replay.matchedDomains)) {
+              failures.push(makeFailure(artifactPath, selection, "lens_selection.matched_domains", JSON.stringify(replay.matchedDomains), JSON.stringify(selection.matched_domains)));
+            }
           }
         }
         if (selection.llm_proposal_path) {
@@ -1242,7 +1297,8 @@ export function validateCompletionSummaryRecord(record, options = {}) {
   const failures = [];
   requireFields(record, COMPLETION_SUMMARY_REQUIRED_FIELDS, artifactPath, failures);
   if (record.run_mode === "full") requireFields(record, COMPLETION_SUMMARY_FULL_REQUIRED_FIELDS, artifactPath, failures);
-  validateSchemaVersion(record, artifactPath, failures);
+  if (record.run_scope === "core_profile") requireFields(record, COMPLETION_SUMMARY_CORE_PROFILE_REQUIRED_FIELDS, artifactPath, failures);
+  validateSchemaVersion(record, artifactPath, failures, COMPLETION_SUMMARY_SCHEMA_VERSION);
   validateRunMode(record, artifactPath, failures);
   validateEnum(record.run_scope, RUN_SCOPES, artifactPath, record, "run_scope", failures);
   validatePathField(root, artifactPath, record, "target_path", failures, { mustExist: false });
@@ -1252,7 +1308,30 @@ export function validateCompletionSummaryRecord(record, options = {}) {
   if (options.reviewInputRevision && record.review_input_revision !== options.reviewInputRevision) {
     failures.push(makeFailure(artifactPath, record, "review_input_revision", options.reviewInputRevision, record.review_input_revision));
   }
+  if (options.ledger) {
+    for (const field of ["run_mode", "run_scope", "core_profile_id", "core_gate_passed"]) {
+      if (options.ledger[field] !== undefined && record[field] !== options.ledger[field]) {
+        failures.push(makeFailure(artifactPath, record, field, options.ledger[field], record[field]));
+      }
+    }
+    for (const field of ["required_lens_ids", "completed_lens_ids"]) {
+      if (options.ledger[field] !== undefined && JSON.stringify(record[field]) !== JSON.stringify(options.ledger[field])) {
+        failures.push(makeFailure(artifactPath, record, field, JSON.stringify(options.ledger[field]), JSON.stringify(record[field])));
+      }
+    }
+  }
   validateClaimFlags(record, artifactPath, failures);
+
+  if (record.run_scope === "core_profile") {
+    if (record.run_mode !== "full") failures.push(makeFailure(artifactPath, record, "run_mode", "full for core_profile scope", record.run_mode));
+    const required = validateUniqueArrayItems(record, "required_lens_ids", artifactPath, failures);
+    const completed = validateUniqueArrayItems(record, "completed_lens_ids", artifactPath, failures);
+    if (record.core_gate_passed !== true) failures.push(makeFailure(artifactPath, record, "core_gate_passed", true, record.core_gate_passed));
+    if (!setEquals(required, completed)) failures.push(makeFailure(artifactPath, record, "completed_lens_ids", "exact required_lens_ids", (record.completed_lens_ids || []).join(",")));
+    if (record.claim_flags?.completion !== true || record.claim_flags?.review_complete !== true) {
+      failures.push(makeFailure(artifactPath, record, "claim_flags", "completion and review_complete true for passed core profile", JSON.stringify(record.claim_flags)));
+    }
+  }
 
   const text = String(record.summary_text || "");
   const forbiddenClaims = [

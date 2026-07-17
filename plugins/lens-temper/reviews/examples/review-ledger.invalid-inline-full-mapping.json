@@ -1,5 +1,5 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "pass_id": "example-pass",
   "target_path": "reviews/examples/artifacts/target.valid.md",
   "target_revision": "git:73eaed921475be235f6684abdd2ce19a4e367c7f",
@@ -23,7 +23,7 @@
   "artifact_visibility": "public_safe",
   "completion_validation": {
     "validator_name": "validate-completion-summary",
-    "validator_contract_version": "3.0.0",
+    "validator_contract_version": "4.0.0",
     "passed": false,
     "validated_review_record_ids": [
       "review-implementation-1"

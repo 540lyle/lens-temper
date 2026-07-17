@@ -58,9 +58,31 @@
       "id": "operational-risk",
       "lenses": ["risk"],
       "phrases": [
-        "rollback", "security", "privacy", "authorization", "authentication",
-        "irreversible", "production failure", "blast radius", "kill switch",
+        "rollback", "irreversible", "production failure", "blast radius", "kill switch",
         "race condition", "stale state", "rollout"
+      ]
+    },
+    {
+      "id": "security-boundary",
+      "lenses": ["security"],
+      "phrases": [
+        "security", "privacy", "authorization", "authentication", "authn", "authz",
+        "secret", "credential", "token", "trust boundary", "privilege", "injection",
+        "ssrf", "rce", "path traversal", "untrusted input", "external payload",
+        "outbound request", "redirect", "allowlist"
+      ]
+    },
+    {
+      "id": "llm-authority-boundary",
+      "lenses": ["natty"],
+      "phrases": [
+        "agent design", "skill design", "agent instruction", "skill instruction",
+        "natural language command", "free text", "user utterance", "intent classification",
+        "structured model output", "llm generated", "model generated", "model selected tool",
+        "model selected route", "tool routing", "mcp tool", "tool returned data",
+        "rag result", "retrieval augmented", "llm derived identity", "llm confidence",
+        "model confidence", "llm derived filter", "llm derived state", "model generated write",
+        "authoritative narration", "prompt injection", "disambiguation"
       ]
     }
   ]
