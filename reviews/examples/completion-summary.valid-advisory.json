@@ -1,5 +1,5 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "run_mode": "advisory",
   "run_scope": "selected_lenses",
   "target_path": "reviews/examples/artifacts/target.valid.md",

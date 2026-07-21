@@ -60,8 +60,9 @@ function asMarkdown(ledger, synthesis, synthesisPath, lensScores) {
   } else if (ledger.run_mode === "full" && ledger.run_scope === "selected_lenses") {
     lines.push("Full LensTemper review for selected lenses only");
     lines.push("");
-  } else if (ledger.run_mode === "full" && ledger.run_scope === "six_lens") {
+  } else if (ledger.run_mode === "full" && ledger.run_scope === "core_profile" && ledger.core_gate_passed) {
     lines.push("LensTemper pass complete");
+    lines.push(`Core profile: ${ledger.core_profile_id}`);
     lines.push("");
   }
   lines.push(`Final assessment: ${synthesis.final_assessment || "not recorded"}`);
@@ -132,6 +133,12 @@ try {
     schema_version: ledger.schema_version,
     run_mode: ledger.run_mode,
     run_scope: ledger.run_scope,
+    ...(ledger.run_scope === "core_profile" ? {
+      core_profile_id: ledger.core_profile_id,
+      required_lens_ids: ledger.required_lens_ids,
+      completed_lens_ids: ledger.completed_lens_ids,
+      core_gate_passed: ledger.core_gate_passed
+    } : {}),
     final_assessment: synthesis.final_assessment,
     target_path: ledger.target_path,
     target_revision: ledger.target_revision,
@@ -154,6 +161,7 @@ try {
     artifactRoot: root,
     targetRevision: ledger.target_revision,
     reviewInputRevision: ledger.review_input_revision,
+    ledger,
     artifactPath: "emit-completion-summary"
   });
   if (summaryFailures.length > 0) {

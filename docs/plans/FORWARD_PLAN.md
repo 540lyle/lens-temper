@@ -35,7 +35,7 @@ The reusable workflow baseline is in place:
 - Role manifests distinguish orchestrator, lens reviewer, synthesis owner, and
   rerun decider responsibilities.
 - `reviews/AGENT.md` defines discovery order and review safety rules.
-- `reviews/reviewer-template.md` and the six lens prompts now carry the
+- `reviews/reviewer-template.md` and the core/specialist lens prompts now carry the
   stateful-workflow sweep directly in the operational reviewer prompt path.
 - Root `skills/` entrypoints make the workflow installable as a portable skill
   package across Codex, Claude Code, Cursor, and other Agent Skills-style hosts.
@@ -50,7 +50,8 @@ agent runtime.
 
 ## Non-Goals
 
-- Do not add more default lenses. The six-lens cap is intentional.
+- Do not let host concurrency limits define the review taxonomy. The named core
+  profile and triggered specialists are contract data; hosts may batch them.
 - Do not build a full agent runtime before validators and ledger state prove
   value.
 - Do not require a specific host agent platform.
@@ -78,15 +79,19 @@ reviews/synthesize-review-feedback.md
 reviews/lenses/lens-architecture.md
 reviews/lenses/lens-implementation.md
 reviews/lenses/lens-risk.md
+reviews/lenses/lens-security.md
 reviews/lenses/lens-test-strategy.md
 reviews/lenses/lens-product-ux.md
 reviews/lenses/lens-data-model.md
+reviews/lenses/lens-natty.md
 reviews/manifests/lenses/architecture.json
 reviews/manifests/lenses/implementation.json
 reviews/manifests/lenses/risk.json
+reviews/manifests/lenses/security.json
 reviews/manifests/lenses/test-strategy.json
 reviews/manifests/lenses/product-ux.json
 reviews/manifests/lenses/data-model.json
+reviews/manifests/lenses/natty.json
 reviews/manifests/roles/orchestrator.json
 reviews/manifests/roles/lens-reviewer.json
 reviews/manifests/roles/synthesis-owner.json
@@ -398,9 +403,12 @@ template enum: `Strong`, `Usable with fixes`, `High risk`, or `Incomplete`.
 `Ready to implement`, `Ready with minor clarifications`, `Needs revision`, or
 `Not implementation-ready`.
 
-The current artifact contract uses `schema_version: 2`. Validators must reject missing,
-non-integer, or unknown schema versions rather than attempting best-effort
-parsing.
+Artifact schema versions are record-specific rather than global. Review input,
+review output, and synthesis output use `schema_version: 2`; lens selection uses
+`schema_version: 2`; review ledger and completion summary use
+`schema_version: 3`; lens additions use `schema_version: 1`. Validators must
+reject missing, non-integer, or unsupported versions rather than attempting
+best-effort parsing.
 
 `finding_id` values must be stable slugs. They should be derived from the issue
 domain and summary, not from list position, and synthesis records should include

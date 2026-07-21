@@ -12,13 +12,25 @@
     "summary_text"
   ],
   "properties": {
-    "schema_version": { "const": 2 },
+    "schema_version": { "const": 3 },
     "run_mode": {
       "enum": ["full", "inline", "advisory"]
     },
     "run_scope": {
-      "enum": ["six_lens", "selected_lenses"]
+      "enum": ["core_profile", "selected_lenses"]
     },
+    "core_profile_id": { "type": "string", "minLength": 1 },
+    "required_lens_ids": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    },
+    "completed_lens_ids": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    },
+    "core_gate_passed": { "type": "boolean" },
     "target_path": { "type": "string" },
     "target_revision": { "type": "string" },
     "review_input_revision": { "type": "string" },
@@ -41,6 +53,12 @@
       "if": { "properties": { "run_mode": { "const": "full" } } },
       "then": {
         "required": ["review_input_revision"]
+      }
+    },
+    {
+      "if": { "properties": { "run_scope": { "const": "core_profile" } } },
+      "then": {
+        "required": ["core_profile_id", "required_lens_ids", "completed_lens_ids", "core_gate_passed"]
       }
     }
   ]

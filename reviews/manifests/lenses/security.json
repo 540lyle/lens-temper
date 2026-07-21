@@ -1,0 +1,25 @@
+{
+  "schema_version": "1.0",
+  "id": "security",
+  "kind": "lens",
+  "display_name": "Security",
+  "prompt_path": "reviews/lenses/lens-security.md",
+  "domain_focus": [
+    "trust boundaries",
+    "authentication and authorization",
+    "secrets and credentials",
+    "injection and unintended execution",
+    "SSRF and network trust",
+    "exploitability"
+  ],
+  "cross_cutting_ownership": {
+    "primary": ["Security / privacy"],
+    "secondary": []
+  },
+  "selection_domains": ["security-boundary"],
+  "advisory_tool_expectations": [
+    "Read the target plan or spec directly from disk.",
+    "Trace untrusted input across authority, execution, data, and network boundaries.",
+    "Separate confirmed exploit claims from missing-control or underspecified-boundary findings."
+  ]
+}

@@ -32,14 +32,10 @@ async function runNode(root, args) {
   return stdout;
 }
 
-function lensSetEquals(left, right) {
-  return left.size === right.size && [...left].every((item) => right.has(item));
-}
-
 try {
   const opts = parseCommonArgs(process.argv.slice(2));
   if (opts.help) {
-    process.stdout.write(`${usage(scriptName, "--target <path> --pass-id <id> (--review-input <path> | --feature-request <text>) [--relevant-context <text>] [--constraints <text>] [--previous-adjudications <text>] [--lens a,b | --all-lenses] [--lens-proposal <path>] [--selection-fallback all] [--execution-mode fresh_spawned_lens_reviewers|fresh_spawned_orchestrator] [--out <dir>]")}\n`);
+    process.stdout.write(`${usage(scriptName, "--target <path> --pass-id <id> (--review-input <path> | --feature-request <text>) [--relevant-context <text>] [--constraints <text>] [--previous-adjudications <text>] [--lens a,b | --all-lenses | --core-profile <id>] [--lens-proposal <path>] [--selection-fallback all] [--execution-mode fresh_spawned_lens_reviewers|fresh_spawned_orchestrator] [--out <dir>]")}\n`);
     process.exit(EXIT_CODES.ok);
   }
   if (opts.version) {
@@ -58,8 +54,10 @@ try {
     process.stderr.write(`validation error: --target must resolve under the repository root\n`);
     process.exit(EXIT_CODES.usage);
   }
-  const registryLensIds = registry.lenses.map((entry) => entry.id);
-  const registryLensSet = new Set(registryLensIds);
+  const defaultCoreProfile = (registry.core_profiles || []).find((entry) => entry.id === registry.default_core_profile_id);
+  if (!defaultCoreProfile || !Array.isArray(defaultCoreProfile.required_lens_ids)) {
+    throw Object.assign(new Error("registry default core profile is invalid"), { exitCode: EXIT_CODES.usage });
+  }
   const outDir = opts.out || `reviews/archive/${opts.passId}`;
   if (!isRepoRelativePath(outDir)) {
     process.stderr.write(`validation error: --out must be repository-relative\n`);
@@ -81,6 +79,9 @@ try {
   const explicitLenses = opts.lens === null
     ? null
     : opts.lens.split(",").map((item) => item.trim()).filter(Boolean);
+  if (opts.coreProfile && (explicitLenses || opts.allLenses)) {
+    throw Object.assign(new Error("--core-profile cannot be combined with --lens or --all-lenses"), { exitCode: EXIT_CODES.usage });
+  }
   let selection;
   try {
     selection = selectLenses({
@@ -93,6 +94,7 @@ try {
       explicitLenses,
       allLenses: opts.allLenses,
       fallback: opts.selectionFallback,
+      coreProfileId: (!explicitLenses && !opts.allLenses && !opts.selectionFallback) ? (opts.coreProfile || registry.default_core_profile_id) : null,
       proposalPath,
       passId: opts.passId
     });
@@ -106,7 +108,9 @@ try {
   }
   const lenses = selection.selected_lenses;
   const lensSet = new Set(lenses);
-  const runScope = lensSetEquals(lensSet, registryLensSet) ? "six_lens" : "selected_lenses";
+  const activeCoreProfile = (registry.core_profiles || []).find((entry) => entry.id === (selection.core_profile_id || registry.default_core_profile_id));
+  const coreLensSet = new Set(activeCoreProfile.required_lens_ids);
+  const runScope = [...coreLensSet].every((lens) => lensSet.has(lens)) ? "core_profile" : "selected_lenses";
   mkdirSync(resolvedOutDir, { recursive: true });
   writeFileSync(resolveRepoPath(root, reviewInputPath), serializeReviewInput(reviewInput.record), "utf8");
   const lensSelectionPath = `${outDir}/lens-selection.json`;
@@ -122,6 +126,7 @@ try {
     "--pass-id", opts.passId,
     "--lens", lenses.join(","),
     "--run-mode", "full",
+    ...(runScope === "core_profile" ? ["--core-profile", activeCoreProfile.id] : []),
     "--execution-mode", executionMode,
     "--review-input", reviewInputPath,
     "--lens-selection", lensSelectionPath,
@@ -157,6 +162,7 @@ try {
       "--ledger", ledgerPath,
       "--events-path", eventsPath,
       "--review-input", reviewInputPath,
+      ...(runScope === "core_profile" ? ["--core-profile", activeCoreProfile.id] : []),
       "--out", orchestratorPath,
       "--quiet"
     ]);

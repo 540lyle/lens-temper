@@ -8,7 +8,7 @@
     "matched_domains", "deterministic_lenses", "llm_additions", "selected_lenses"
   ],
   "properties": {
-    "schema_version": { "const": 1 },
+    "schema_version": { "const": 2 },
     "status": { "enum": ["resolved", "needs_clarification"] },
     "pass_id": { "type": "string" },
     "target_path": { "type": "string" },
@@ -17,7 +17,8 @@
     "review_input_revision": { "type": "string" },
     "policy_path": { "const": "reviews/manifests/lens-selection.json" },
     "policy_revision": { "type": "string" },
-    "mode": { "enum": ["explicit", "all_lenses", "deterministic", "deterministic_plus_llm_additions", "conservative_fallback"] },
+    "mode": { "enum": ["explicit", "all_lenses", "deterministic", "deterministic_plus_llm_additions", "core_profile", "core_profile_plus_llm_additions", "conservative_fallback"] },
+    "core_profile_id": { "type": "string", "minLength": 1 },
     "matched_domains": {
       "type": "array",
       "items": {
@@ -27,9 +28,10 @@
           "domain": { "type": "string" },
           "source": { "enum": ["feature_request", "relevant_context", "constraints", "previous_adjudications", "target"] },
           "phrase": { "type": "string" },
+          "rule": { "type": "string", "minLength": 1 },
           "lenses": {
             "type": "array",
-            "items": { "enum": ["architecture", "implementation", "risk", "test-strategy", "product-ux", "data-model"] },
+            "items": { "enum": ["architecture", "implementation", "risk", "security", "test-strategy", "product-ux", "data-model", "natty"] },
             "uniqueItems": true
           }
         },
@@ -38,7 +40,7 @@
     },
     "deterministic_lenses": {
       "type": "array",
-      "items": { "enum": ["architecture", "implementation", "risk", "test-strategy", "product-ux", "data-model"] },
+      "items": { "enum": ["architecture", "implementation", "risk", "security", "test-strategy", "product-ux", "data-model", "natty"] },
       "uniqueItems": true
     },
     "llm_proposal_path": { "type": ["string", "null"] },
@@ -49,7 +51,7 @@
         "type": "object",
         "required": ["lens", "reason", "evidence"],
         "properties": {
-          "lens": { "enum": ["architecture", "implementation", "risk", "test-strategy", "product-ux", "data-model"] },
+          "lens": { "enum": ["architecture", "implementation", "risk", "security", "test-strategy", "product-ux", "data-model", "natty"] },
           "reason": { "type": "string", "minLength": 1 },
           "evidence": { "type": "string", "minLength": 1 }
         },
@@ -58,7 +60,7 @@
     },
     "selected_lenses": {
       "type": "array",
-      "items": { "enum": ["architecture", "implementation", "risk", "test-strategy", "product-ux", "data-model"] },
+      "items": { "enum": ["architecture", "implementation", "risk", "security", "test-strategy", "product-ux", "data-model", "natty"] },
       "uniqueItems": true
     },
     "clarification_question": { "type": "string" }
@@ -72,6 +74,10 @@
     {
       "if": { "properties": { "status": { "const": "needs_clarification" } } },
       "then": { "required": ["clarification_question"] }
+    },
+    {
+      "if": { "properties": { "mode": { "enum": ["core_profile", "core_profile_plus_llm_additions"] } } },
+      "then": { "required": ["core_profile_id"] }
     }
   ]
 }

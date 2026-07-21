@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "status": "resolved",
   "pass_id": "example-pass",
   "target_path": "reviews/examples/artifacts/target.valid.md",
@@ -7,7 +7,7 @@
   "review_input_path": "reviews/examples/review-input.valid.json",
   "review_input_revision": "sha256:dc29a2b9712d8555b2b607998bd97d25cc3a61dbc0e447dd8dee1865a6c3833d",
   "policy_path": "reviews/manifests/lens-selection.json",
-  "policy_revision": "git:90aacde13f152d1acadb5b352c60056e3b454896",
+  "policy_revision": "git:2055e9524aa663b94b4e9462dac656b8959e6575",
   "mode": "explicit",
   "matched_domains": [],
   "deterministic_lenses": ["implementation"],

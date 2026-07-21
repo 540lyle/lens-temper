@@ -20,7 +20,7 @@ const scriptName = "select-lenses.mjs";
 try {
   const opts = parseCommonArgs(process.argv.slice(2));
   if (opts.help) {
-    process.stdout.write(`${usage(scriptName, "--target <path> (--review-input <path> | --feature-request <text>) [--lens a,b | --all-lenses] [--lens-proposal <path>] [--selection-fallback all] [--json]")}\n`);
+    process.stdout.write(`${usage(scriptName, "--target <path> (--review-input <path> | --feature-request <text>) [--lens a,b | --all-lenses | --core-profile <id>] [--lens-proposal <path>] [--selection-fallback all] [--json]")}\n`);
     process.exit(EXIT_CODES.ok);
   }
   if (opts.version) {
@@ -48,6 +48,7 @@ try {
       explicitLenses,
       allLenses: opts.allLenses,
       fallback: opts.selectionFallback,
+      coreProfileId: opts.coreProfile,
       proposalPath,
       passId: opts.passId || "selection"
     });
@@ -60,7 +61,7 @@ try {
   else process.stderr.write(`clarification required: ${result.clarification_question}\n`);
   if (result.status !== "resolved") process.exit(EXIT_CODES.usage);
 } catch (error) {
-  process.stderr.write(`${usage(scriptName, "--target <path> (--review-input <path> | --feature-request <text>) [--lens a,b | --all-lenses] [--lens-proposal <path>] [--selection-fallback all] [--json]")}\n`);
+  process.stderr.write(`${usage(scriptName, "--target <path> (--review-input <path> | --feature-request <text>) [--lens a,b | --all-lenses | --core-profile <id>] [--lens-proposal <path>] [--selection-fallback all] [--json]")}\n`);
   process.stderr.write(`validation error: ${error.message}\n`);
   process.exit(error.exitCode || EXIT_CODES.internal);
 }

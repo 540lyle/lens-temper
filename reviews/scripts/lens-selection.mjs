@@ -13,7 +13,7 @@ export { LENS_ADDITIONS_SCHEMA_VERSION, LENS_SELECTION_SCHEMA_VERSION } from "./
 export function loadLensSelectionPolicy(root, registry) {
   const path = "reviews/manifests/lens-selection.json";
   const policy = readJsonFile(`${root}/${path}`);
-  if (policy.schema_version !== "1.0" || !Array.isArray(policy.domains) || policy.domains.length === 0) {
+  if (policy.schema_version !== "1.1" || !Array.isArray(policy.domains) || policy.domains.length === 0) {
     throw new Error("invalid lens-selection policy");
   }
   const ids = new Set();
@@ -23,8 +23,26 @@ export function loadLensSelectionPolicy(root, registry) {
     ids.add(domain.id);
     if (!Array.isArray(domain.lenses) || domain.lenses.length === 0) throw new Error(`policy domain ${domain.id} requires lenses`);
     validateLensIds(registry, domain.lenses, `policy domain ${domain.id}`);
-    if (!Array.isArray(domain.phrases) || domain.phrases.length === 0 || domain.phrases.some((phrase) => typeof phrase !== "string" || !phrase.trim())) {
+    const hasPhrases = Array.isArray(domain.phrases) && domain.phrases.length > 0;
+    const hasRules = Array.isArray(domain.rules) && domain.rules.length > 0;
+    if (hasPhrases === hasRules) throw new Error(`policy domain ${domain.id} requires exactly one of phrases or rules`);
+    if (hasPhrases && domain.phrases.some((phrase) => typeof phrase !== "string" || !phrase.trim())) {
       throw new Error(`policy domain ${domain.id} requires non-empty phrases`);
+    }
+    for (const [ruleIndex, rule] of (domain.rules || []).entries()) {
+      if (!rule || typeof rule.id !== "string" || !rule.id.trim()) throw new Error(`policy domain ${domain.id} rule ${ruleIndex} requires an id`);
+      const hasAny = Array.isArray(rule.any_of) && rule.any_of.length > 0;
+      const hasAll = Array.isArray(rule.all_of) && rule.all_of.length > 0;
+      if (hasAny === hasAll) throw new Error(`policy domain ${domain.id} rule ${rule.id} requires exactly one of any_of or all_of`);
+      if (hasAny && rule.any_of.some((phrase) => typeof phrase !== "string" || !phrase.trim())) {
+        throw new Error(`policy domain ${domain.id} rule ${rule.id} requires non-empty any_of phrases`);
+      }
+      if (hasAll && rule.all_of.some((group) => !Array.isArray(group) || group.length === 0 || group.some((phrase) => typeof phrase !== "string" || !phrase.trim()))) {
+        throw new Error(`policy domain ${domain.id} rule ${rule.id} requires non-empty all_of phrase groups`);
+      }
+      if (rule.except_any !== undefined && (!Array.isArray(rule.except_any) || rule.except_any.length === 0 || rule.except_any.some((phrase) => typeof phrase !== "string" || !phrase.trim()))) {
+        throw new Error(`policy domain ${domain.id} rule ${rule.id} requires non-empty except_any phrases when supplied`);
+      }
     }
   }
   return { path, revision: computeArtifactSha(root, path), policy };
@@ -78,6 +96,18 @@ export function validateLensSelectionRecord(root, record, registry, expected = {
         if (JSON.stringify(record.matched_domains) !== JSON.stringify(replay.matchedDomains)) failures.push("matched_domains do not match policy replay");
       }
     }
+    if (options.replay !== false && ["core_profile", "core_profile_plus_llm_additions"].includes(record?.mode)) {
+      const profile = (registry.core_profiles || []).find((entry) => entry.id === record.core_profile_id);
+      if (!profile) failures.push("core_profile_id must reference a known registry core profile");
+      else if (record.review_input_path) {
+        const reviewInput = resolveReviewInput(root, { reviewInput: record.review_input_path });
+        const policy = loadLensSelectionPolicy(root, registry);
+        const replay = evaluateLensPolicy(policy.policy, registry, reviewInput.record, readTextFile(`${root}/${record.target_path}`));
+        const expected = orderedKnownLenses(registry, new Set([...profile.required_lens_ids, ...replay.deterministicLenses]));
+        if (JSON.stringify(record.deterministic_lenses) !== JSON.stringify(expected)) failures.push("deterministic_lenses do not match core-profile policy replay");
+        if (JSON.stringify(record.matched_domains) !== JSON.stringify(replay.matchedDomains)) failures.push("matched_domains do not match policy replay");
+      }
+    }
   } catch (error) {
     failures.push(error.message);
   }
@@ -94,6 +124,7 @@ export function selectLenses({
   explicitLenses = null,
   allLenses = false,
   fallback = null,
+  coreProfileId = null,
   proposalPath = null,
   passId = "selection"
 }) {
@@ -102,6 +133,9 @@ export function selectLenses({
   if (explicitLenses && fallback) throw new Error("--lens cannot be combined with --selection-fallback");
   if (allLenses && proposalPath) throw new Error("--all-lenses cannot be combined with --lens-proposal");
   if (allLenses && fallback) throw new Error("--all-lenses cannot be combined with --selection-fallback");
+  if (explicitLenses && coreProfileId) throw new Error("--lens cannot be combined with --core-profile");
+  if (allLenses && coreProfileId) throw new Error("--all-lenses cannot be combined with --core-profile");
+  if (fallback && coreProfileId) throw new Error("--selection-fallback cannot be combined with --core-profile");
   if (fallback && fallback !== "all") throw new Error("--selection-fallback must be all when supplied");
 
   const policy = loadLensSelectionPolicy(root, registry);
@@ -121,8 +155,17 @@ export function selectLenses({
   } else {
     const evaluated = evaluateLensPolicy(policy.policy, registry, reviewInput, readTextFile(`${root}/${targetPath}`));
     matchedDomains = evaluated.matchedDomains;
-    deterministicLenses = evaluated.deterministicLenses;
-    if (deterministicLenses.length === 0) {
+    if (coreProfileId) {
+      const profile = (registry.core_profiles || []).find((entry) => entry.id === coreProfileId);
+      if (!profile || !Array.isArray(profile.required_lens_ids) || profile.required_lens_ids.length === 0) throw new Error(`unknown or invalid core profile ${coreProfileId}`);
+      validateLensIds(registry, profile.required_lens_ids, `core profile ${coreProfileId}`);
+      deterministicLenses = orderedKnownLenses(registry, new Set([...profile.required_lens_ids, ...evaluated.deterministicLenses]));
+      proposal = loadLensAdditions(root, proposalPath, registry);
+      mode = proposal.additions.length > 0 ? "core_profile_plus_llm_additions" : "core_profile";
+    } else {
+      deterministicLenses = evaluated.deterministicLenses;
+    }
+    if (!coreProfileId && deterministicLenses.length === 0) {
       if (fallback === "all") {
         mode = "conservative_fallback";
         deterministicLenses = allIds;
@@ -145,7 +188,7 @@ export function selectLenses({
           selected_lenses: []
         };
       }
-    } else {
+    } else if (!coreProfileId) {
       proposal = loadLensAdditions(root, proposalPath, registry);
       mode = proposal.additions.length > 0 ? "deterministic_plus_llm_additions" : "deterministic";
     }
@@ -164,6 +207,7 @@ export function selectLenses({
     policy_path: policy.path,
     policy_revision: policy.revision,
     mode,
+    ...(coreProfileId ? { core_profile_id: coreProfileId } : {}),
     matched_domains: matchedDomains,
     deterministic_lenses: deterministicLenses,
     llm_proposal_path: proposal.path,

@@ -1,0 +1,24 @@
+{
+  "schema_version": "1.0",
+  "id": "natty",
+  "kind": "lens",
+  "display_name": "Natty",
+  "prompt_path": "reviews/lenses/lens-natty.md",
+  "domain_focus": [
+    "natural-language intent boundaries",
+    "LLM-generated structured output",
+    "deterministic resolution and disambiguation",
+    "tool-returned data re-entering model context",
+    "model-generated writes and authoritative narration"
+  ],
+  "cross_cutting_ownership": {
+    "primary": [],
+    "secondary": ["Security / privacy", "Reliability / rollback"]
+  },
+  "selection_domains": ["llm-authority-boundary"],
+  "advisory_tool_expectations": [
+    "Read the target plan or spec directly from disk.",
+    "Trace each probabilistic-to-authoritative boundary before applying probes.",
+    "Require deterministic code to own schemas, validation, resolution, dispatch, and writes."
+  ]
+}

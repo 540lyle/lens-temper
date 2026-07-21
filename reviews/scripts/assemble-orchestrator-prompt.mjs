@@ -38,10 +38,6 @@ function resolveSelectedLenses(registry, lensOption) {
   return selected;
 }
 
-function lensSetEquals(left, right) {
-  return left.size === right.size && [...left].every((item) => right.has(item));
-}
-
 function buildOrchestratorPrompt({
   passId,
   targetPath,
@@ -138,7 +134,7 @@ Use these event names when they occur: \`orchestrator_started\`, \`ledger_create
   explicitly requested inline or advisory mode.
 - Stop before synthesis if any current reviewer output is missing, stale, unvalidated, uncaptured, or not closed.
 - Stop before completion if the ledger, events log, reviewer outputs, synthesis, and archive evidence disagree.
-- Stop before completion if selected lens scope is confused with a six-lens pass.
+- Stop before completion if selected-lens scope is confused with a passed core profile.
 
 # Claim Rules
 - Treat reviewer outputs as lockable only when they are validated, current for \`${targetRevision}\`, captured into artifacts, and closed.
@@ -153,7 +149,7 @@ Use these event names when they occur: \`orchestrator_started\`, \`ledger_create
 try {
   const opts = parseCommonArgs(process.argv.slice(2));
   if (opts.help) {
-    process.stdout.write(`${usage(scriptName, "--target <path> --pass-id <id> --review-input <path> [--lens a,b] [--run-scope six_lens|selected_lenses] [--ledger <path>] [--events-path <path>] [--out <path>]")}\n`);
+    process.stdout.write(`${usage(scriptName, "--target <path> --pass-id <id> --review-input <path> [--lens a,b] [--run-scope core_profile|selected_lenses] [--ledger <path>] [--events-path <path>] [--out <path>]")}\n`);
     process.exit(EXIT_CODES.ok);
   }
   if (opts.version) {
@@ -178,13 +174,17 @@ try {
     process.exit(EXIT_CODES.read);
   }
   const selectedLenses = resolveSelectedLenses(registry, opts.lens);
-  const allLensIds = registry.lenses.map((entry) => entry.id);
+  const coreProfile = (registry.core_profiles || []).find((entry) => entry.id === (opts.coreProfile || registry.default_core_profile_id));
+  if (!coreProfile || !Array.isArray(coreProfile.required_lens_ids)) {
+    process.stderr.write(`validation error: registry default core profile is invalid\n`);
+    process.exit(EXIT_CODES.usage);
+  }
   const selectedLensSet = new Set(selectedLenses);
-  const allLensSet = new Set(allLensIds);
-  const selectedIsSixLens = lensSetEquals(selectedLensSet, allLensSet);
-  const runScope = opts.runScope || (selectedIsSixLens ? "six_lens" : "selected_lenses");
-  if (runScope === "six_lens" && !selectedIsSixLens) {
-    process.stderr.write(`validation error: six_lens run-scope requires exactly the registry lens set\n`);
+  const coreLensSet = new Set(coreProfile.required_lens_ids);
+  const selectedIncludesCore = [...coreLensSet].every((lens) => selectedLensSet.has(lens));
+  const runScope = opts.runScope || (selectedIncludesCore ? "core_profile" : "selected_lenses");
+  if (runScope === "core_profile" && !selectedIncludesCore) {
+    process.stderr.write(`validation error: core_profile run-scope requires every ${coreProfile.id} core lens\n`);
     process.exit(EXIT_CODES.usage);
   }
   const outPath = opts.out || `reviews/archive/${opts.passId}/${opts.passId}.orchestrator.md`;

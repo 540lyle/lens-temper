@@ -51,6 +51,20 @@
       "severity": "critical"
     },
     {
+      "id": "indirect-tool-injection-unbounded",
+      "path": "reviews/evals/fixtures/indirect-tool-injection-unbounded.md",
+      "expected_finding": "tool-returned data can inject an authoritative model decision",
+      "must_contain": ["tool-returned data", "model context", "authoritative narration", "indirect prompt injection"],
+      "severity": "critical"
+    },
+    {
+      "id": "security-authorization-boundary-missing",
+      "path": "reviews/evals/fixtures/security-authorization-boundary-missing.md",
+      "expected_finding": "privileged dispatch lacks an authorization trust boundary",
+      "must_contain": ["external payload", "authorization", "trust boundary", "privilege boundary"],
+      "severity": "critical"
+    },
+    {
       "id": "false-positive-bait",
       "path": "reviews/evals/fixtures/false-positive-bait.md",
       "expected_finding": "no material blocker should be raised",
@@ -127,19 +141,45 @@
         "constraint sentinel",
         "review input revision"
       ]
+    },
+    {
+      "id": "natty-authority-boundary-in-assembled-prompt",
+      "target": "reviews/evals/fixtures/indirect-tool-injection-unbounded.md",
+      "lens": "natty",
+      "pass_id": "eval-natty-prompt",
+      "must_contain": [
+        "untrusted candidate parse",
+        "indirect prompt injection",
+        "tool-returned data",
+        "deterministic verification",
+        "bounded and attributed"
+      ]
+    },
+    {
+      "id": "security-trust-boundary-in-assembled-prompt",
+      "target": "reviews/evals/fixtures/security-authorization-boundary-missing.md",
+      "lens": "security",
+      "pass_id": "eval-security-prompt",
+      "must_contain": [
+        "exploitability and trust boundaries",
+        "underspecified authorization",
+        "least-privilege",
+        "deny-by-default",
+        "more than 80% exploit confidence"
+      ]
     }
   ],
   "expected_report": {
-    "fixtures": 15,
+    "fixtures": 17,
     "eval_method": "fixture_keyword_smoke",
     "critical_recall": "not_measured",
-    "critical_fixture_keyword_coverage": "14/14",
+    "critical_fixture_keyword_coverage": "16/16",
     "false_positive_blockers": "not_measured",
     "noncritical_fixture_keyword_matches": 0,
     "keyword_missing_rate": "0.00",
-    "schema_validity": "15/15",
+    "schema_validity": "17/17",
     "rerun_decision_accuracy": "not_measured",
-    "prompt_assertions": "1/1",
+    "prompt_assertions": "3/3",
     "recommendation": "keep"
   }
 }

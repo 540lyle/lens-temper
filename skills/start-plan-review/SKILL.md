@@ -34,17 +34,17 @@ and selected role manifests before running a review.
    - If the user explicitly names lenses, validate each id against
      `reviews/registry.json` and use exactly that set. Do not add or remove
      lenses; stop on unknown or duplicate ids.
-   - Otherwise, run `reviews/scripts/select-lenses.mjs` against the normalized
-     canonical review input and current target text. Treat
-     `deterministic_lenses` as the required minimum.
+   - Otherwise, use the registry's default core profile and run the canonical
+     selector against the normalized review input and current target. The core
+     lenses are always required; any deterministically triggered specialists
+     are added to the run's required set.
    - The orchestrator may add registry-valid lenses through a validated
      `--lens-proposal`. Each addition needs a concise reason and concrete
      evidence from the canonical review input or target. Additions are unioned
      with the deterministic minimum and may never remove or replace it.
-   - If deterministic selection returns no lenses, stop for clarification
-     before creating artifacts or reviewers. Use
-     `--selection-fallback all` only when that conservative fallback was
-     explicitly authorized.
+   - Focused selector-only workflows may still stop for clarification when no
+     domain matches. A normal full review does not: the core profile supplies
+     the required baseline.
 2. Create or update a ledger with deterministic target, template, and lens
    revisions plus the repository-relative review input path and normalized
    review input revision. Stop if the feature request is missing.
@@ -97,7 +97,15 @@ and selected role manifests before running a review.
 9. Assemble synthesis with
    `reviews/scripts/run-synthesis.mjs --ledger <run>/ledger.json`, then archive
    completed runs with `reviews/scripts/archive-review-run.mjs`.
+10. After current review and synthesis artifacts are attached, finalize derived
+    readiness state with
+    `reviews/scripts/update-ledger.mjs --ledger <run>/ledger.json --finalize --write`.
+    Do not author `completed_lens_ids`, `completion_validation`, ledger
+    completion status, or `core_gate_passed` directly.
 
 The orchestrator may update ledger state. Lens reviewers may not.
 Detached orchestration may not claim completion unless `events.jsonl`, ledger,
 reviewer outputs, synthesis, and archive evidence agree.
+Unqualified completion additionally requires `run_scope: core_profile`, a
+registry-valid `core_profile_id`, every entry in `required_lens_ids` in
+`completed_lens_ids`, and `core_gate_passed: true`.

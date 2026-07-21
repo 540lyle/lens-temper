@@ -9,7 +9,7 @@ Evaluate the plan from a delivery, operational, and failure-risk perspective. Fo
 - Migration risk
 - Production failure modes
 - Observability and diagnostic gaps
-- Accessibility, performance, and security concerns
+- Reliability and operational concerns, including containment and recovery
 - Failure containment and blast radius
 - Rollback capability
 - Hidden assumptions about user behavior or system state
@@ -23,7 +23,11 @@ Evaluate the plan from a delivery, operational, and failure-risk perspective. Fo
 - Are telemetry, logging, and alerting sufficient to detect problems?
 - Are feature flags, staged rollouts, or kill switches used where appropriate?
 - Does the plan account for invalid data, missing data, race conditions, or stale state?
-- Are security, performance, and accessibility implications addressed or at least acknowledged?
+- Are performance and accessibility implications addressed or at least acknowledged?
+
+Security is owned by the Security lens. Report a security issue here only when
+it directly changes rollout, containment, observability, rollback, or recovery;
+do not duplicate exploit analysis or treat Security as a Risk subcategory.
 
 ## Stateful Workflow Ownership
 

@@ -22,7 +22,7 @@
     "synthesis_record_artifacts"
   ],
   "properties": {
-    "schema_version": { "const": 2 },
+    "schema_version": { "const": 3 },
     "pass_id": { "type": "string" },
     "target_path": { "type": "string" },
     "target_revision": { "type": "string" },
@@ -37,8 +37,21 @@
       "enum": ["full", "inline", "advisory"]
     },
     "run_scope": {
-      "enum": ["six_lens", "selected_lenses"]
+      "enum": ["core_profile", "selected_lenses"]
     },
+    "core_profile_id": { "type": "string", "minLength": 1 },
+    "required_lens_ids": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    },
+    "completed_lens_ids": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true,
+      "readOnly": true
+    },
+    "core_gate_passed": { "type": "boolean", "readOnly": true },
     "execution_mode": {
       "enum": ["fresh_spawned_lens_reviewers", "fresh_spawned_orchestrator", "manual_or_imported"]
     },
@@ -68,6 +81,7 @@
     },
     "completion_validation": {
       "type": "object",
+      "readOnly": true,
       "required": [
         "validator_name",
         "validator_contract_version",
@@ -135,6 +149,16 @@
       },
       "then": {
         "required": ["review_input_path", "review_input_revision", "lens_selection_path", "lens_selection_revision"]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "run_scope": { "const": "core_profile" }
+        }
+      },
+      "then": {
+        "required": ["core_profile_id", "required_lens_ids", "completed_lens_ids", "core_gate_passed"]
       }
     },
     {

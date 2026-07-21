@@ -1,5 +1,7 @@
-export const CONTRACT_VERSION = "3.0.0";
+export const CONTRACT_VERSION = "4.1.0";
 export const SCHEMA_VERSION = 2;
+export const LEDGER_SCHEMA_VERSION = 3;
+export const COMPLETION_SUMMARY_SCHEMA_VERSION = 3;
 
 export const EXIT_CODES = {
   ok: 0,
@@ -77,7 +79,7 @@ export const RUN_MODES = [
 ];
 
 export const RUN_SCOPES = [
-  "six_lens",
+  "core_profile",
   "selected_lenses"
 ];
 
@@ -149,9 +151,11 @@ export const LENS_IDS = [
   "architecture",
   "implementation",
   "risk",
+  "security",
   "test-strategy",
   "product-ux",
-  "data-model"
+  "data-model",
+  "natty"
 ];
 
 export const LENS_SELECTION_REQUIRED_FIELDS = [
@@ -293,8 +297,22 @@ export const LEDGER_FULL_REQUIRED_FIELDS = [
   "lens_selection_revision"
 ];
 
+export const LEDGER_CORE_PROFILE_REQUIRED_FIELDS = [
+  "core_profile_id",
+  "required_lens_ids",
+  "completed_lens_ids",
+  "core_gate_passed"
+];
+
 export const COMPLETION_SUMMARY_FULL_REQUIRED_FIELDS = [
   "review_input_revision"
+];
+
+export const COMPLETION_SUMMARY_CORE_PROFILE_REQUIRED_FIELDS = [
+  "core_profile_id",
+  "required_lens_ids",
+  "completed_lens_ids",
+  "core_gate_passed"
 ];
 
 export const REVIEW_INPUT_REQUIRED_FIELDS = [
@@ -314,7 +332,7 @@ export const SCHEMA_CONTRACTS = {
     },
     enums: {
       status: ["resolved", "needs_clarification"],
-      mode: ["explicit", "all_lenses", "deterministic", "deterministic_plus_llm_additions", "conservative_fallback"]
+      mode: ["explicit", "all_lenses", "deterministic", "deterministic_plus_llm_additions", "core_profile", "core_profile_plus_llm_additions", "conservative_fallback"]
     },
     arrayItemRequired: {
       matched_domains: ["domain", "source", "phrase", "lenses"],
@@ -381,7 +399,8 @@ export const SCHEMA_CONTRACTS = {
     required: LEDGER_REQUIRED_FIELDS,
     conditionalRequired: {
       "execution_mode.fresh_spawned_orchestrator": ["events_path"],
-      "run_mode.full": LEDGER_FULL_REQUIRED_FIELDS
+      "run_mode.full": LEDGER_FULL_REQUIRED_FIELDS,
+      "run_scope.core_profile": LEDGER_CORE_PROFILE_REQUIRED_FIELDS
     },
     enums: {
       status: LEDGER_STATUSES,
@@ -401,7 +420,8 @@ export const SCHEMA_CONTRACTS = {
   "completion-summary.schema.json": {
     required: COMPLETION_SUMMARY_REQUIRED_FIELDS,
     conditionalRequired: {
-      "run_mode.full": COMPLETION_SUMMARY_FULL_REQUIRED_FIELDS
+      "run_mode.full": COMPLETION_SUMMARY_FULL_REQUIRED_FIELDS,
+      "run_scope.core_profile": COMPLETION_SUMMARY_CORE_PROFILE_REQUIRED_FIELDS
     },
     enums: {
       run_mode: RUN_MODES,

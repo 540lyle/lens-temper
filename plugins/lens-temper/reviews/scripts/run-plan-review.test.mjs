@@ -199,7 +199,7 @@ test("omitted --lens uses the canonical selector and binds its audit artifact", 
   }
 });
 
-test("ambiguous automatic scope and empty explicit scope fail before artifacts", () => {
+test("default core profile handles domain-light input while empty explicit scope fails", () => {
   const ambiguousOut = makeOutDir();
   const emptyOut = makeOutDir();
   const sourceDir = makeOutDir();
@@ -213,9 +213,13 @@ test("ambiguous automatic scope and empty explicit scope fail before artifacts",
       "--out", repoPath(ambiguousOut),
       "--feature-request", "Build an internal fixture."
     ], { cwd: repoRoot, encoding: "utf8" });
-    assert.equal(ambiguous.status, 2);
-    assert.match(ambiguous.stderr, /clarification required/);
-    assert.deepEqual(readdirSync(ambiguousOut), []);
+    assert.equal(ambiguous.status, 0);
+    const coreLedger = JSON.parse(readFileSync(join(ambiguousOut, "ledger.json"), "utf8"));
+    assert.equal(coreLedger.run_scope, "core_profile");
+    assert.equal(coreLedger.core_profile_id, "standard-v2");
+    assert.equal(coreLedger.required_lens_ids.length, 7);
+    assert.equal(coreLedger.required_lens_ids.includes("security"), true);
+    assert.equal(coreLedger.required_lens_ids.includes("natty"), false);
 
     const empty = spawnSync(node, [
       "reviews/scripts/run-plan-review.mjs",
@@ -249,8 +253,10 @@ test("runner supports explicit all-lenses scope", () => {
     const selection = JSON.parse(readFileSync(join(outDir, "lens-selection.json"), "utf8"));
     const ledger = JSON.parse(readFileSync(join(outDir, "ledger.json"), "utf8"));
     assert.equal(selection.mode, "all_lenses");
-    assert.equal(selection.selected_lenses.length, 6);
-    assert.equal(ledger.run_scope, "six_lens");
+    assert.equal(selection.selected_lenses.length, 8);
+    assert.equal(ledger.run_scope, "core_profile");
+    assert.equal(ledger.core_profile_id, "standard-v2");
+    assert.deepEqual(ledger.required_lens_ids, selection.selected_lenses);
   } finally {
     rmSync(outDir, { recursive: true, force: true });
   }
@@ -264,9 +270,9 @@ test("runner unions a validated evidence-backed lens proposal", () => {
     writeFileSync(proposalPath, `${JSON.stringify({
       schema_version: 1,
       additions: [{
-        lens: "product-ux",
-        reason: "The restore race has a visible recovery decision.",
-        evidence: "Target: Save may run while deferred Restore is pending."
+        lens: "natty",
+        reason: "A specialist should inspect the proposed model-owned state decision.",
+        evidence: "Target: a model-owned state decision is proposed in the review packet."
       }]
     }, null, 2)}\n`, "utf8");
     execFileSync(node, [
@@ -278,9 +284,9 @@ test("runner unions a validated evidence-backed lens proposal", () => {
       "--lens-proposal", repoPath(proposalPath)
     ], { cwd: repoRoot, encoding: "utf8" });
     const selection = JSON.parse(readFileSync(join(outDir, "lens-selection.json"), "utf8"));
-    assert.equal(selection.mode, "deterministic_plus_llm_additions");
-    assert.equal(selection.deterministic_lenses.includes("product-ux"), false);
-    assert.equal(selection.selected_lenses.includes("product-ux"), true);
+    assert.equal(selection.mode, "core_profile_plus_llm_additions");
+    assert.equal(selection.deterministic_lenses.includes("natty"), false);
+    assert.equal(selection.selected_lenses.includes("natty"), true);
     assert.equal(selection.llm_additions[0].evidence.includes("Target:"), true);
   } finally {
     rmSync(outDir, { recursive: true, force: true });

@@ -31,6 +31,7 @@ test("create-ledger defaults to inline manual/imported mode", () => {
   const ledger = createLedger();
   assert.equal(ledger.run_mode, "inline");
   assert.equal(ledger.execution_mode, "manual_or_imported");
+  assert.equal(ledger.run_scope, "selected_lenses");
 });
 
 test("create-ledger supports explicit full spawned reviewer mode", () => {

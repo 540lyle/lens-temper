@@ -48,7 +48,10 @@ LensTemper supports three host-neutral run families:
 
 `run_mode` is separate from `execution_mode`. `full` supports `fresh_spawned_lens_reviewers` and `fresh_spawned_orchestrator`; `inline` and `advisory` require `manual_or_imported`.
 
-Use `run_scope: six_lens` only when all six manifest-backed lenses are current. Only `full` plus `six_lens` may say unqualified `LensTemper pass complete`. A selected-lens full run must say `Full LensTemper review for selected lenses only`.
+Use `run_scope: core_profile` when the selected set contains every lens required
+by the named profile. Only `full` plus a passed core profile may say unqualified
+`LensTemper pass complete`. A selected-lens full run must say `Full LensTemper
+review for selected lenses only`.
 
 Completion and lockable claims are blocked unless the ledger and artifacts prove the run. Detached completion also requires agreement among `events.jsonl`, ledger, reviewer outputs, synthesis, and archive evidence. The completion validator checks structured `claim_flags` and generated text for completion, lock-state, all-5, and review-complete wording.
 
@@ -104,7 +107,11 @@ Ledger fields:
 | `lens_selection_path` | yes for full runs | Repository-relative path to the audited lens-selection record. |
 | `lens_selection_revision` | yes for full runs | Deterministic revision of the lens-selection record bound to the ledger. |
 | `run_mode` | yes | Claim authority: `full`, `inline`, or `advisory`. |
-| `run_scope` | yes | `six_lens` or `selected_lenses`. |
+| `run_scope` | yes | `core_profile` or `selected_lenses`. |
+| `core_profile_id` | for core-profile runs | Named registry profile, currently `standard-v2`. |
+| `required_lens_ids` | for core-profile runs | Every lens required for this run: the profile core plus triggered specialists. |
+| `completed_lens_ids` | for core-profile runs | Required lenses with current validated completion evidence. |
+| `core_gate_passed` | for core-profile runs | True only when all required lenses and completion evidence pass. |
 | `execution_mode` | yes | `manual_or_imported`, `fresh_spawned_lens_reviewers`, or `fresh_spawned_orchestrator`. |
 | `events_path` | yes for detached | Repository-relative path to the run's `events.jsonl` trace. |
 | `completion_validation` | yes | Validation evidence record with validator name/version, pass flag, validated records, and field-level failures. |
@@ -121,9 +128,18 @@ Ledger fields:
 | `lock_state` | yes | One of `active`, `failing`, `passing_locked`, `rerun_required`, `converged_locked`. Keep this separate from `status`; `status` describes reviewer lifecycle outcome, while `lock_state` describes whether the lens still needs review. |
 | `rerun_reason` | required for reruns | Why this lens is being rerun, tied to a material issue or domain-relevant plan/spec change. |
 | `finding_decisions` | recommended after synthesis | Per-finding synthesis decisions: `accepted`, `rejected`, `downgraded`, or `deferred`, with a short reason when the decision affects rerun scope. |
+
 | `previous_adjudications` | optional for reruns | Short list of previously rejected, downgraded, or non-material findings that fresh rerun reviewers may ignore unless the updated target reintroduces material evidence. |
 | `artifact_path` | optional | Path where the review output or synthesis is stored, if any. |
 | `closed` | yes for spawned agents | Whether the reviewer was closed after output capture. Keep this separate from `status`; `status` describes reviewer lifecycle outcome, while `closed` records cleanup. |
+
+Ledger readiness fields are derived, not author-supplied. Attach current review
+and synthesis artifacts with `reviews/scripts/update-ledger.mjs`, then run
+`update-ledger.mjs --ledger <run>/ledger.json --finalize --write`. Finalization
+recomputes `completed_lens_ids`, binds completion validation to the exact current
+review and synthesis records, and sets `core_gate_passed` only when the complete
+trust chain validates. Caller-authored readiness values are overwritten and the
+write is rejected if the derived ledger does not validate.
 
 Synthesis owner:
 
@@ -162,32 +178,37 @@ Rerun protocol:
 - If one lens finds a defect and the plan/spec changes, close completed reviewers from the prior pass before starting the next pass. Preserve locked lens outputs as current unless the change affects that lens's domain.
 - If the same lens returns repeated non-material or preference-only findings after material fixes, record them as optional polish and stop rerunning that lens.
 - The review is complete when every selected lens is either `passing_locked`, `converged_locked`, or has only accepted non-blocking issues, all material blockers are resolved or explicitly deferred by the synthesis owner, and all spawned agents are closed.
-  Unqualified completion also requires `run_mode: full`, `run_scope: six_lens`, successful `completion_validation`, and no missing current reviewer evidence.
+  Unqualified completion also requires `run_mode: full`, `run_scope: core_profile`, `core_gate_passed: true`, successful `completion_validation`, and no missing current reviewer evidence.
 
 ## Available Lenses
 
-The standard process uses six default lenses because they cover distinct review
-concerns. Changing that default set is a review-contract change: update the
-registry, lens manifests, documentation, and evaluator fixtures together.
+The `standard-v2` core profile uses seven lenses because Security and
+operational Risk are separate P0 readiness perspectives. Changing that core set
+is a review-contract change: add a new named profile or update the registry,
+lens manifests, documentation, and evaluator fixtures together.
 
 | Lens | File | Focus |
 |------|------|-------|
 | Architecture | `lenses/lens-architecture.md` | Boundaries, coupling, abstraction, ownership |
 | Implementation | `lenses/lens-implementation.md` | Sequencing, feasibility, execution clarity |
 | Risk | `lenses/lens-risk.md` | Failure modes, rollback, observability |
+| Security | `lenses/lens-security.md` | Trust boundaries, authn/authz, secrets, injection, SSRF, exploitability |
 | Test Strategy | `lenses/lens-test-strategy.md` | Coverage, edge cases, verification |
 | Product & UX | `lenses/lens-product-ux.md` | User-visible behavior, states, accessibility |
 | Data Model | `lenses/lens-data-model.md` | Schema, migration, storage, contracts |
+| Natty (triggered specialist) | `lenses/lens-natty.md` | LLM-to-authority boundaries, deterministic resolution, conversational safety |
 
 ## Cross-Cutting Sweep
 
-Every lens review must include a short cross-cutting sweep. The goal is to catch serious spec-review concerns without adding more default lenses or slowing the six-agent pass.
+Every lens review must include a short cross-cutting sweep. The goal is to catch
+serious adjacent concerns without blurring the ownership of core lenses or
+triggered specialists.
 
 Primary and secondary owner lenses should evaluate their categories substantively. Non-owner lenses may write `Not applicable from this lens` unless they see clear material evidence. For each category, the reviewer must either report a material issue, report non-blocking polish, or write `Not applicable from this lens`.
 
 | Category | Primary lens owner | Secondary lens owners |
 |----------|--------------------|-----------------------|
-| Security / privacy | Risk | Architecture, Data Model, Implementation |
+| Security / privacy | Security | Architecture, Data Model, Implementation |
 | Accessibility | Product & UX | Test Strategy, Implementation |
 | Performance | Architecture | Implementation, Test Strategy, Product & UX |
 | Reliability / rollback | Risk | Test Strategy, Implementation |
@@ -206,19 +227,28 @@ Resolve lens scope before creating the ledger or spawning reviewers.
    against `reviews/registry.json` and use exactly that set. Do not infer
    additions or removals. Unknown or duplicate lens ids are a validation stop.
    An explicit all-lenses request selects the complete registry set.
-2. **Otherwise, deterministic code establishes the required minimum.** It
-   evaluates the normalized canonical review input and current target text with
-   Unicode-normalized, phrase-boundary matching. `deterministic_lenses` may not
-   be reduced by model judgment.
+2. **Otherwise, a full run starts from the named core profile.** Deterministic
+   code evaluates the normalized canonical review input and current target with
+   Unicode-normalized exact phrases and bounded co-occurrence rules, then
+   unions triggered specialists with the profile's core lenses.
+   `deterministic_lenses` may not be reduced by model judgment. Natty is
+   selected when one paragraph or bounded text window establishes a
+   natural-language, model-output, tool-return, or retrieval boundary that can
+   affect resolution, authoritative state, narration, write, or dispatch.
+   Negated safety requirements such as “the model must not write state” still
+   establish a boundary. Generic mentions of an LLM, MCP tool, free-text field,
+   or RAG do not select Natty unless an authority-boundary rule also matches.
+   Explicit absence statements may be encoded as narrow rule exclusions; the
+   selector does not attempt general natural-language negation parsing.
 3. **The orchestrator may add, never subtract.** Each proposed addition must
    name a registry-valid lens and provide a concise reason plus concrete
    evidence from the canonical review input or target. Inherited conversation
    and model confidence are not selection evidence. The final set is the union
    of the deterministic minimum and validated additions.
-4. **Ambiguity fails closed.** If deterministic selection returns zero lenses,
-   stop with `needs_clarification`, even when an LLM proposal exists. Resolve to
-   all lenses only when the caller explicitly authorized the conservative
-   `--selection-fallback all` behavior.
+4. **Focused-selector ambiguity fails closed.** A selector-only or focused
+   automatic request with zero matched domains stops with
+   `needs_clarification`, even when an LLM proposal exists. A normal full run
+   still has its core-profile baseline and does not need a domain match.
 
 The runner stores the selection mode, policy and input revisions,
 deterministic minimum, validated additions, evidence, and final selected set in
@@ -379,6 +409,6 @@ For spawned-agent runs, prefer path-based assembly over pasted content when the 
 - `previous_adjudications`: reruns only; short list of already-settled non-material findings
 - `instructions`: read all of those files directly from disk, ignore inherited conversation context, and return only the structured review output
 
-Generated spawn prompts should be outcome-first: role, goal, success criteria, context, and constraints. They should not duplicate the full review packet, include absolute local paths, or claim six-lens completion for selected-lens runs.
+Generated spawn prompts should be outcome-first: role, goal, success criteria, context, and constraints. They should not duplicate the full review packet, include absolute local paths, or claim core-profile completion for selected-lens runs.
 
 Reject or mark stale any current review, synthesis, or completion output whose reported target revision or review input revision does not match the ledger. Changing the feature request, relevant context, constraints, or previous adjudications invalidates current outputs even when the target plan itself is unchanged.

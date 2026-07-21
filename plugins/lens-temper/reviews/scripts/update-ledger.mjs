@@ -2,6 +2,7 @@
 import { writeFileSync } from "node:fs";
 import {
   CONTRACT_VERSION,
+  deriveCoreProfileCompletionState,
   EXIT_CODES,
   ensureNode18,
   isRepoRelativePath,
@@ -20,15 +21,15 @@ const scriptName = "update-ledger.mjs";
 try {
   const opts = parseCommonArgs(process.argv.slice(2));
   if (opts.help) {
-    process.stdout.write(`${usage(scriptName, "--ledger <ledger-json> [--review <review-json>] [--synthesis <synthesis-json>] --write")}\n`);
+    process.stdout.write(`${usage(scriptName, "--ledger <ledger-json> [--review <review-json>] [--synthesis <synthesis-json>] [--finalize] --write")}\n`);
     process.exit(EXIT_CODES.ok);
   }
   if (opts.version) {
     process.stdout.write(`${CONTRACT_VERSION}\n`);
     process.exit(EXIT_CODES.ok);
   }
-  if (!opts.ledger || (!opts.review && !opts.synthesis)) {
-    process.stderr.write(`${usage(scriptName, "--ledger <ledger-json> [--review <review-json>] [--synthesis <synthesis-json>] --write")}\n`);
+  if (!opts.ledger || (!opts.review && !opts.synthesis && !opts.finalize)) {
+    process.stderr.write(`${usage(scriptName, "--ledger <ledger-json> [--review <review-json>] [--synthesis <synthesis-json>] [--finalize] --write")}\n`);
     process.stderr.write(`validation error: missing ledger or artifact path\n`);
     process.exit(EXIT_CODES.usage);
   }
@@ -50,6 +51,27 @@ try {
     ledger.synthesis_record_artifacts = ledger.synthesis_record_artifacts.filter((entry) => entry.record_id !== synthesis.record_id);
     ledger.synthesis_record_artifacts.push({ record_id: synthesis.record_id, artifact_path: opts.synthesis });
   }
+  if (ledger.run_scope === "core_profile") {
+    const derived = deriveCoreProfileCompletionState(root, ledger);
+    ledger.completed_lens_ids = derived.completed_lens_ids;
+    ledger.core_gate_passed = false;
+  }
+  if (opts.finalize) {
+    ledger.status = "completed";
+    ledger.completion_validation = {
+      validator_name: "validate-completion-summary",
+      validator_contract_version: CONTRACT_VERSION,
+      passed: true,
+      validated_review_record_ids: [...(ledger.current_review_record_ids || [])],
+      validated_synthesis_record_id: (ledger.synthesis_record_ids || []).at(-1) || "",
+      failures: []
+    };
+    if (ledger.run_scope === "core_profile") {
+      const derived = deriveCoreProfileCompletionState(root, ledger);
+      ledger.completed_lens_ids = derived.completed_lens_ids;
+      ledger.core_gate_passed = derived.core_gate_passed;
+    }
+  }
   const failures = validateLedgerRecord(ledger, { artifactRoot: root, targetRevision: ledger.target_revision, artifactPath: opts.ledger });
   if (failures.length > 0) {
     process.stderr.write(failures.map((failure) => `${failure.artifact_path} field=${failure.field} expected=${failure.expected} actual=${failure.actual}`).join("\n"));
@@ -67,7 +89,7 @@ try {
     process.stdout.write(`${JSON.stringify(ledger, null, 2)}\n`);
   }
 } catch (error) {
-  process.stderr.write(`${usage(scriptName, "--ledger <ledger-json> [--review <review-json>] [--synthesis <synthesis-json>] --write")}\n`);
+    process.stderr.write(`${usage(scriptName, "--ledger <ledger-json> [--review <review-json>] [--synthesis <synthesis-json>] [--finalize] --write")}\n`);
   process.stderr.write(`validation error: ${error.message}\n`);
   process.exit(error.exitCode || EXIT_CODES.internal);
 }
