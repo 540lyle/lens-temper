@@ -403,9 +403,12 @@ template enum: `Strong`, `Usable with fixes`, `High risk`, or `Incomplete`.
 `Ready to implement`, `Ready with minor clarifications`, `Needs revision`, or
 `Not implementation-ready`.
 
-The current artifact contract uses `schema_version: 2`. Validators must reject missing,
-non-integer, or unknown schema versions rather than attempting best-effort
-parsing.
+Artifact schema versions are record-specific rather than global. Review input,
+review output, and synthesis output use `schema_version: 2`; lens selection uses
+`schema_version: 2`; review ledger and completion summary use
+`schema_version: 3`; lens additions use `schema_version: 1`. Validators must
+reject missing, non-integer, or unsupported versions rather than attempting
+best-effort parsing.
 
 `finding_id` values must be stable slugs. They should be derived from the issue
 domain and summary, not from list position, and synthesis records should include

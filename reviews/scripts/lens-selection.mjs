@@ -13,7 +13,7 @@ export { LENS_ADDITIONS_SCHEMA_VERSION, LENS_SELECTION_SCHEMA_VERSION } from "./
 export function loadLensSelectionPolicy(root, registry) {
   const path = "reviews/manifests/lens-selection.json";
   const policy = readJsonFile(`${root}/${path}`);
-  if (policy.schema_version !== "1.0" || !Array.isArray(policy.domains) || policy.domains.length === 0) {
+  if (policy.schema_version !== "1.1" || !Array.isArray(policy.domains) || policy.domains.length === 0) {
     throw new Error("invalid lens-selection policy");
   }
   const ids = new Set();
@@ -23,8 +23,26 @@ export function loadLensSelectionPolicy(root, registry) {
     ids.add(domain.id);
     if (!Array.isArray(domain.lenses) || domain.lenses.length === 0) throw new Error(`policy domain ${domain.id} requires lenses`);
     validateLensIds(registry, domain.lenses, `policy domain ${domain.id}`);
-    if (!Array.isArray(domain.phrases) || domain.phrases.length === 0 || domain.phrases.some((phrase) => typeof phrase !== "string" || !phrase.trim())) {
+    const hasPhrases = Array.isArray(domain.phrases) && domain.phrases.length > 0;
+    const hasRules = Array.isArray(domain.rules) && domain.rules.length > 0;
+    if (hasPhrases === hasRules) throw new Error(`policy domain ${domain.id} requires exactly one of phrases or rules`);
+    if (hasPhrases && domain.phrases.some((phrase) => typeof phrase !== "string" || !phrase.trim())) {
       throw new Error(`policy domain ${domain.id} requires non-empty phrases`);
+    }
+    for (const [ruleIndex, rule] of (domain.rules || []).entries()) {
+      if (!rule || typeof rule.id !== "string" || !rule.id.trim()) throw new Error(`policy domain ${domain.id} rule ${ruleIndex} requires an id`);
+      const hasAny = Array.isArray(rule.any_of) && rule.any_of.length > 0;
+      const hasAll = Array.isArray(rule.all_of) && rule.all_of.length > 0;
+      if (hasAny === hasAll) throw new Error(`policy domain ${domain.id} rule ${rule.id} requires exactly one of any_of or all_of`);
+      if (hasAny && rule.any_of.some((phrase) => typeof phrase !== "string" || !phrase.trim())) {
+        throw new Error(`policy domain ${domain.id} rule ${rule.id} requires non-empty any_of phrases`);
+      }
+      if (hasAll && rule.all_of.some((group) => !Array.isArray(group) || group.length === 0 || group.some((phrase) => typeof phrase !== "string" || !phrase.trim()))) {
+        throw new Error(`policy domain ${domain.id} rule ${rule.id} requires non-empty all_of phrase groups`);
+      }
+      if (rule.except_any !== undefined && (!Array.isArray(rule.except_any) || rule.except_any.length === 0 || rule.except_any.some((phrase) => typeof phrase !== "string" || !phrase.trim()))) {
+        throw new Error(`policy domain ${domain.id} rule ${rule.id} requires non-empty except_any phrases when supplied`);
+      }
     }
   }
   return { path, revision: computeArtifactSha(root, path), policy };

@@ -1,7 +1,7 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "id": "lens-selection-policy",
-  "description": "Deterministic minimum lens selection. Matching is Unicode-normalized, case-insensitive, and phrase-boundary aware.",
+  "description": "Deterministic minimum lens selection. Matching is Unicode-normalized and case-insensitive, using phrase boundaries plus bounded co-occurrence rules where a single keyword is insufficient.",
   "clarification_question": "The supplied review input and target do not establish a review risk domain. Name the affected behavior or select lenses explicitly before reviewers are started.",
   "domains": [
     {
@@ -75,14 +75,63 @@
     {
       "id": "llm-authority-boundary",
       "lenses": ["natty"],
-      "phrases": [
-        "agent design", "skill design", "agent instruction", "skill instruction",
-        "natural language command", "free text", "user utterance", "intent classification",
-        "structured model output", "llm generated", "model generated", "model selected tool",
-        "model selected route", "tool routing", "mcp tool", "tool returned data",
-        "rag result", "retrieval augmented", "llm derived identity", "llm confidence",
-        "model confidence", "llm derived filter", "llm derived state", "model generated write",
-        "authoritative narration", "prompt injection", "disambiguation"
+      "rules": [
+        {
+          "id": "agent-or-skill-design",
+          "any_of": [
+            "agent design", "skill design", "agent instruction", "skill instruction",
+            "agent prompt", "skill prompt", "system prompt"
+          ]
+        },
+        {
+          "id": "natural-language-resolution",
+          "all_of": [
+            ["natural language", "free text", "user utterance", "chat input", "conversational input"],
+            ["command", "intent", "resolve", "select", "choose", "classify", "route", "routing", "dispatch", "write", "persist", "authoritative"]
+          ]
+        },
+        {
+          "id": "model-owned-structure-or-state",
+          "except_any": [
+            "does not use an llm", "does not use a language model",
+            "no llm or model generated", "no model generated state", "without an llm"
+          ],
+          "all_of": [
+            ["llm", "language model", "model", "ai", "assistant"],
+            ["structured output", "json", "schema", "tool argument", "tool arguments", "identity", "confidence", "filter", "state", "write", "persist", "authoritative narration", "narration"]
+          ]
+        },
+        {
+          "id": "model-selected-tool-or-route",
+          "all_of": [
+            ["llm", "language model", "model", "ai", "assistant"],
+            ["choose tool", "chooses tool", "choose which tool", "chooses which tool", "select tool", "selects tool", "select which tool", "selected tool", "tool call", "route", "routing", "dispatcher"]
+          ]
+        },
+        {
+          "id": "tool-or-retrieval-reentry",
+          "except_any": [
+            "never enters model context", "does not enter model context",
+            "not sent to model context", "outside model context"
+          ],
+          "all_of": [
+            ["tool output", "tool result", "tool response", "mcp result", "api response", "rag", "retrieval result", "retrieved document", "retrieved context"],
+            ["model context", "prompt", "llm", "model", "assistant", "decision", "resolve", "route", "routing", "narration"]
+          ]
+        },
+        {
+          "id": "retrieved-instruction-payload",
+          "all_of": [
+            ["tool output", "tool result", "tool response", "mcp result", "api response", "retrieval result", "retrieved document", "retrieved context"],
+            ["ignore prior instructions", "override instructions", "system instruction", "select admin", "act as system"]
+          ]
+        },
+        {
+          "id": "direct-injection-surface",
+          "any_of": [
+            "prompt injection", "indirect prompt injection", "tool data injection", "retrieval poisoning"
+          ]
+        }
       ]
     }
   ]

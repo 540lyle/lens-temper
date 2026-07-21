@@ -24,7 +24,7 @@
   "artifact_visibility": "public_safe",
   "completion_validation": {
     "validator_name": "validate-completion-summary",
-    "validator_contract_version": "4.0.0",
+    "validator_contract_version": "4.1.0",
     "passed": true,
     "validated_review_record_ids": [
       "review-detached-implementation-1"
@@ -47,5 +47,5 @@
   "review_input_revision": "sha256:dc29a2b9712d8555b2b607998bd97d25cc3a61dbc0e447dd8dee1865a6c3833d",
   "review_input_path": "reviews/examples/review-input.valid.json",
   "lens_selection_path": "reviews/examples/lens-selection.valid-detached.json",
-  "lens_selection_revision": "git:de4948f7e742d1e6a025a58611f756e323b0baa7"
+  "lens_selection_revision": "git:c20cc178dc9f049f030cef4062c9807ce7e685f9"
 }

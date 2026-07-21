@@ -1,4 +1,4 @@
-export const CONTRACT_VERSION = "4.0.0";
+export const CONTRACT_VERSION = "4.1.0";
 export const SCHEMA_VERSION = 2;
 export const LEDGER_SCHEMA_VERSION = 3;
 export const COMPLETION_SUMMARY_SCHEMA_VERSION = 3;

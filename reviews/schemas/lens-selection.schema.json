@@ -28,6 +28,7 @@
           "domain": { "type": "string" },
           "source": { "enum": ["feature_request", "relevant_context", "constraints", "previous_adjudications", "target"] },
           "phrase": { "type": "string" },
+          "rule": { "type": "string", "minLength": 1 },
           "lenses": {
             "type": "array",
             "items": { "enum": ["architecture", "implementation", "risk", "security", "test-strategy", "product-ux", "data-model", "natty"] },

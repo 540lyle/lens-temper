@@ -48,9 +48,10 @@
     "completed_lens_ids": {
       "type": "array",
       "items": { "type": "string" },
-      "uniqueItems": true
+      "uniqueItems": true,
+      "readOnly": true
     },
-    "core_gate_passed": { "type": "boolean" },
+    "core_gate_passed": { "type": "boolean", "readOnly": true },
     "execution_mode": {
       "enum": ["fresh_spawned_lens_reviewers", "fresh_spawned_orchestrator", "manual_or_imported"]
     },
@@ -80,6 +81,7 @@
     },
     "completion_validation": {
       "type": "object",
+      "readOnly": true,
       "required": [
         "validator_name",
         "validator_contract_version",

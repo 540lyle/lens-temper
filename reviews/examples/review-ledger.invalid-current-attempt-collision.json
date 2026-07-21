@@ -33,7 +33,7 @@
   "run_scope": "selected_lenses",
   "completion_validation": {
     "validator_name": "validate-completion-summary",
-    "validator_contract_version": "4.0.0",
+    "validator_contract_version": "4.1.0",
     "passed": false,
     "validated_review_record_ids": [
       "review-duplicate-a",

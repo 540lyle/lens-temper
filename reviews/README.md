@@ -128,9 +128,18 @@ Ledger fields:
 | `lock_state` | yes | One of `active`, `failing`, `passing_locked`, `rerun_required`, `converged_locked`. Keep this separate from `status`; `status` describes reviewer lifecycle outcome, while `lock_state` describes whether the lens still needs review. |
 | `rerun_reason` | required for reruns | Why this lens is being rerun, tied to a material issue or domain-relevant plan/spec change. |
 | `finding_decisions` | recommended after synthesis | Per-finding synthesis decisions: `accepted`, `rejected`, `downgraded`, or `deferred`, with a short reason when the decision affects rerun scope. |
+
 | `previous_adjudications` | optional for reruns | Short list of previously rejected, downgraded, or non-material findings that fresh rerun reviewers may ignore unless the updated target reintroduces material evidence. |
 | `artifact_path` | optional | Path where the review output or synthesis is stored, if any. |
 | `closed` | yes for spawned agents | Whether the reviewer was closed after output capture. Keep this separate from `status`; `status` describes reviewer lifecycle outcome, while `closed` records cleanup. |
+
+Ledger readiness fields are derived, not author-supplied. Attach current review
+and synthesis artifacts with `reviews/scripts/update-ledger.mjs`, then run
+`update-ledger.mjs --ledger <run>/ledger.json --finalize --write`. Finalization
+recomputes `completed_lens_ids`, binds completion validation to the exact current
+review and synthesis records, and sets `core_gate_passed` only when the complete
+trust chain validates. Caller-authored readiness values are overwritten and the
+write is rejected if the derived ledger does not validate.
 
 Synthesis owner:
 
@@ -220,9 +229,17 @@ Resolve lens scope before creating the ledger or spawning reviewers.
    An explicit all-lenses request selects the complete registry set.
 2. **Otherwise, a full run starts from the named core profile.** Deterministic
    code evaluates the normalized canonical review input and current target with
-   Unicode-normalized, phrase-boundary matching, then unions triggered
-   specialists with the profile's core lenses. `deterministic_lenses` may not
-   be reduced by model judgment.
+   Unicode-normalized exact phrases and bounded co-occurrence rules, then
+   unions triggered specialists with the profile's core lenses.
+   `deterministic_lenses` may not be reduced by model judgment. Natty is
+   selected when one paragraph or bounded text window establishes a
+   natural-language, model-output, tool-return, or retrieval boundary that can
+   affect resolution, authoritative state, narration, write, or dispatch.
+   Negated safety requirements such as “the model must not write state” still
+   establish a boundary. Generic mentions of an LLM, MCP tool, free-text field,
+   or RAG do not select Natty unless an authority-boundary rule also matches.
+   Explicit absence statements may be encoded as narrow rule exclusions; the
+   selector does not attempt general natural-language negation parsing.
 3. **The orchestrator may add, never subtract.** Each proposed addition must
    name a registry-valid lens and provide a concise reason plus concrete
    evidence from the canonical review input or target. Inherited conversation

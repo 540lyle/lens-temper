@@ -97,6 +97,11 @@ and selected role manifests before running a review.
 9. Assemble synthesis with
    `reviews/scripts/run-synthesis.mjs --ledger <run>/ledger.json`, then archive
    completed runs with `reviews/scripts/archive-review-run.mjs`.
+10. After current review and synthesis artifacts are attached, finalize derived
+    readiness state with
+    `reviews/scripts/update-ledger.mjs --ledger <run>/ledger.json --finalize --write`.
+    Do not author `completed_lens_ids`, `completion_validation`, ledger
+    completion status, or `core_gate_passed` directly.
 
 The orchestrator may update ledger state. Lens reviewers may not.
 Detached orchestration may not claim completion unless `events.jsonl`, ledger,

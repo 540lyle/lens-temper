@@ -21,6 +21,42 @@ function phraseMatches(text, phrase) {
   return pattern.test(text);
 }
 
+function normalizedTextWindows(value, maxWords = 80, overlapWords = 20) {
+  const paragraphs = String(value || "")
+    .split(/\r?\n\s*\r?\n|\r?\n(?=\s*(?:[-*+] |\d+[.)] ))/u)
+    .map((part) => normalizeText(part))
+    .filter(Boolean);
+  const windows = [];
+  for (const paragraph of paragraphs) {
+    const words = paragraph.split(" ");
+    if (words.length <= maxWords) {
+      windows.push(paragraph);
+      continue;
+    }
+    const stride = maxWords - overlapWords;
+    for (let start = 0; start < words.length; start += stride) {
+      windows.push(words.slice(start, start + maxWords).join(" "));
+      if (start + maxWords >= words.length) break;
+    }
+  }
+  return windows;
+}
+
+function matchRule(windows, rule) {
+  for (const window of windows) {
+    if ((rule.except_any || []).some((candidate) => phraseMatches(window, candidate))) continue;
+    if (Array.isArray(rule.any_of)) {
+      const phrase = rule.any_of.find((candidate) => phraseMatches(window, candidate));
+      if (phrase) return { rule: rule.id, phrase };
+    }
+    if (Array.isArray(rule.all_of)) {
+      const phrases = rule.all_of.map((group) => group.find((candidate) => phraseMatches(window, candidate)));
+      if (phrases.every(Boolean)) return { rule: rule.id, phrase: phrases.join(" + ") };
+    }
+  }
+  return null;
+}
+
 export function orderedKnownLenses(registry, values) {
   const requested = new Set(values);
   return registry.lenses.map((entry) => entry.id).filter((id) => requested.has(id));
@@ -46,16 +82,27 @@ export function evaluateLensPolicy(policy, registry, reviewInput, targetText) {
     ["constraints", reviewInput.constraints],
     ["previous_adjudications", reviewInput.previous_adjudications],
     ["target", targetText]
-  ].map(([source, value]) => ({ source, text: normalizeText(value) }));
+  ].map(([source, value]) => ({
+    source,
+    text: normalizeText(value),
+    windows: normalizedTextWindows(value)
+  }));
   const selected = new Set();
   const matchedDomains = [];
   for (const domain of policy.domains) {
     validateLensIds(registry, domain.lenses, `policy domain ${domain.id}`);
     for (const source of sources) {
-      const phrase = domain.phrases.find((candidate) => phraseMatches(source.text, candidate));
-      if (!phrase) continue;
+      const ruleMatch = (domain.rules || []).map((rule) => matchRule(source.windows, rule)).find(Boolean);
+      const phrase = (domain.phrases || []).find((candidate) => phraseMatches(source.text, candidate));
+      if (!phrase && !ruleMatch) continue;
       domain.lenses.forEach((lens) => selected.add(lens));
-      matchedDomains.push({ domain: domain.id, source: source.source, phrase, lenses: domain.lenses });
+      matchedDomains.push({
+        domain: domain.id,
+        source: source.source,
+        phrase: ruleMatch?.phrase || phrase,
+        ...(ruleMatch ? { rule: ruleMatch.rule } : {}),
+        lenses: domain.lenses
+      });
       break;
     }
   }

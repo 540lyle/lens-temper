@@ -7,10 +7,12 @@ intent. The governing thesis:
 > **LLM = parser, explainer, conversational adapter.**
 > **MCP or deterministic code = resolver, validator, state machine, dispatcher, safety boundary.**
 
-The LLM must not be the source of truth for its own confidence, structured
-metadata, disambiguation, or schema-validated writes. Anything that asks the
-LLM to act as serializer, validator, resolver, or dispatcher belongs in
-deterministic code.
+The LLM may produce an untrusted candidate parse or explanation against a
+deterministic schema. It must not define the authoritative schema, treat its
+own confidence as trusted, resolve ambiguity, validate its own output, or cause
+a write, dispatch, state transition, identity decision, or authoritative
+narration without deterministic verification. Deterministic code owns
+authoritative resolution, validation, state transitions, and side effects.
 
 This is not a prose-quality critique. Review the plan as a specification for
 how untrusted natural language and tool-returned data become a trusted,
@@ -83,7 +85,8 @@ Apply the materiality gate before lowering a score. Classify findings as
 `[critical]`, `[major]`, or `[minor]`:
 
 - Silent first-match disambiguation
-- LLM-owned authoritative schema, validation, resolution, or output
+- LLM output accepted as authoritative schema, validated state, resolved
+  identity, write, dispatch, or narration without deterministic verification
 - No hard stop before an ambiguous or low-confidence decision
 - Indirect prompt injection through tool-returned data
 - Shape-valid but unverified values accepted as authoritative
