@@ -1,6 +1,6 @@
 {
   "name": "lens-temper",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "LensTemper runs structured spec-driven development reviews with detached-context reviewer subagents and lens-specific synthesis.",
   "skills": [
     {

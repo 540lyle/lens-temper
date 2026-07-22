@@ -23,7 +23,9 @@
 
 ## Remaining Public-Release Work
 
-- [ ] Add CI that runs fixture validation, evals, and script syntax checks.
+- [x] Add CI that runs fixture validation, evals, and script syntax checks.
+  (`.github/workflows/validate.yml` runs syntax checks, payload-sync
+  verification, and `validate-all.mjs`.)
 - [ ] Decide whether to add marketplace submission assets such as screenshots
   or platform-specific manifests.
 - [ ] Review maintainer identity, support channels, and release tagging before
