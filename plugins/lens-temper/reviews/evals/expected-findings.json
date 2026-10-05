@@ -75,14 +75,14 @@
       "id": "implementation-agent-invents-behavior",
       "path": "reviews/evals/fixtures/implementation-agent-invents-behavior.md",
       "expected_finding": "implementation agent must invent behavior",
-      "must_contain": ["choose", "invent", "default behavior", "unspecified"],
+      "must_contain": ["choose", "invent", "default behavior", "does not specify"],
       "severity": "critical"
     },
     {
       "id": "current-vs-remaining-scope-ambiguity",
       "path": "reviews/evals/fixtures/current-vs-remaining-scope-ambiguity.md",
       "expected_finding": "current versus remaining scope is ambiguous",
-      "must_contain": ["already implemented", "remaining", "current scope", "ambiguous"],
+      "must_contain": ["already implemented", "remaining", "current scope", "never identifies"],
       "severity": "critical"
     },
     {

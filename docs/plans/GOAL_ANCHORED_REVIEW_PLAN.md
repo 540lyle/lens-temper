@@ -1,6 +1,6 @@
 # Goal-Anchored Review Plan: LensTemper
 
-Status: Proposed. Phase 0 in progress.
+Status: Proposed. Phase 0 complete; Phase 1 next.
 
 ## Intent
 
@@ -33,8 +33,9 @@ removed one.
 
 Across several review rounds, a host agent applied every accepted finding to the
 spec and reran lenses until the run "passed". Each finding was correct in its
-own lens and wrong for the plan's goal. The spec drifted from its goal until it
-was inverted. Findings from a structural review of this repository:
+own lens and wrong for the plan's goal. The spec accreted scope and detail until
+it no longer matched what its author wanted. Findings from a structural review of
+this repository, refined by Phase 0 evidence:
 
 1. **The materiality bar rewards exhaustiveness.** "Flag every place the
    implementation agent would have to invent behavior", including copy and
@@ -49,10 +50,11 @@ was inverted. Findings from a structural review of this repository:
 3. **Synthesis merges and adds.** Rule 7 lets reviewer feedback alone support a
    new requirement. There is no rejection reason for "conflicts with the goal"
    or "adds unrequested scope", and no output slot for removals.
-4. **Open questions are dropped.** Every reviewer writes an Open Questions
-   section, but synthesis has no section for them. Only blocking issues reach
-   the host, so the host's only signal is "fix it", which usually means "add
-   it".
+4. **Open questions become edits.** Reviewers write Open Questions and synthesis
+   has an Unresolved Questions section, but questions are paired with "define X"
+   directives and reviewers recommend answers to decisions the plan marks as
+   pending. The host's only actionable signal is "fix it", which usually means
+   "add it".
 5. **Rerun mechanics cascade.** Locks are bound to a whole-file hash, so any edit
    stales every lens. `decide-reruns.mjs` trusts a caller-supplied lens list
    that overrides lock state. Pass caps exist only in prose.
@@ -103,13 +105,25 @@ as a deterministic pass or fail.
 - Fixture hygiene: remove the "Expected review finding" lines that leak answers,
   and rename the keyword lane to `fixture-lint` so it is not mistaken for a
   model eval.
+**Result (2026-10).** Across 95 classified findings from two archived real runs
+and a fresh baseline: about 23% served the plan's goal, 37% were implementer
+discretion, 28% settled or should have asked about author decisions, and 12%
+added scope. About 77% of blocking findings in the baseline did not meet the
+"goal fails without this" bar. Half of later-round findings targeted text an
+earlier round added. Goals survived as text; scope and detail grew (one plan
+2.35x). No goal inversion was observed; accretion was. Some growth bypassed
+synthesis entirely through unlogged host edits. Same-lens runs shared about
+60-75% of themes, verdict labels flipped with identical scores, and goal-relevant
+gaps were the most stable output.
+
 - Keep the capture repeatable without new tooling: the same reviewer prompts,
   the same target plans, repeated runs, and a fixed classification rubric
   (serves goal / adds scope / author decision / implementer discretion). Build
   a live eval script only if the manual capture proves too slow to repeat.
 
-**Exit:** a written baseline that shows the current failure modes with evidence,
-and a repeatable way to capture the same evidence after each later phase.
+**Exit:** met. Later captures use at least 3 runs per lens, include one
+synthesis pass, snapshot the round-0 plan, and report theme recall ("found in k
+of n runs") rather than raw counts.
 
 ### Phase 1: Stop rewarding drift (prompt changes)
 
@@ -138,10 +152,24 @@ and the lens most likely to add scope.
   "Rerun After Fixes" example, "implementation-ready without more human
   interpretation", the lock promise, the "clearly new material evidence" escape
   clause, the `[minor]` and "Optional polish" lines in the Strong example.
+- **Questions stay questions.** If the plan marks a decision as pending or
+  owner-owned, a finding asks the question and does not recommend an answer. An
+  item may not appear in both Open Questions and recommended changes. A declared
+  pending decision does not lower Completeness or the verdict. The goal-gate
+  restatement lists the plan's declared open decisions so reviewers route to
+  them instead of inventing parallel questions.
+- **Severity follows the goal gate.** `major` or blocking applies only when the
+  gate is met.
+- **Keep the incompatible-implementations clause** when replacing the
+  implementation-agent rule; the stable goal-relevant gaps in Phase 0 all fell
+  under it.
 - **Natty trigger** requires "llm" or "language model", not the bare "model".
+  This is a structural fix and does not count toward the Phase 1 exit.
 
-**Exit:** Phase 0 capture rerun shows fewer scope-adding findings on goal-sound
-plans with seeded omissions still found.
+**Exit (directional, at least 3 runs per lens):** the blocking share of
+implementer-discretion, author-decision and scope-adding findings drops; fewer
+pending decisions are settled per run; goal-relevant gaps found in Phase 0 are
+still found.
 
 ### Phase 2: Intent card and output contract
 
@@ -158,7 +186,11 @@ plans with seeded omissions still found.
 - **Three output groups.** Blocking gaps (the goal fails without a fix),
   Questions for the author (scope, trade-offs, intent, including reviewer Open
   Questions), Notes (archived, not pushed to the host).
-- **`decided_by`** on every applied decision (`human` or `policy`).
+- **`decided_by`** on every applied decision (`human` or `policy`), and every
+  host edit to the target cites a finding id or is logged as host-initiated, so
+  growth that bypasses synthesis is visible.
+- Deleting "or reviewer feedback" from rule 7 is consistent cleanup; Phase 0 did
+  not show it driving growth.
 
 ### Phase 3: Mechanics
 

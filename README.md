@@ -324,6 +324,12 @@ node reviews/scripts/assemble-review-prompt.mjs --target docs/plans/my-plan.md -
 node reviews/scripts/run-review-evals.mjs
 ```
 
+`run-review-evals.mjs` is the `fixture-lint` lane of `validate-all.mjs`. It
+checks fixture integrity only: each eval fixture still contains the terms that
+describe its planted gap, and assembled reviewer prompts still contain required
+probes. It does not run a reviewer model and does not measure reviewer recall or
+precision; those report fields stay `not_measured`.
+
 `run-plan-review.mjs` validates and snapshots the review contract, resolves or
 validates lens scope, records `lens-selection.json`, then prepares ledgers and
 prompt packets. Omitting `--lens` selects the default core profile plus any

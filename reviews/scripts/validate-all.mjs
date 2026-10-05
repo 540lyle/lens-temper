@@ -43,7 +43,7 @@ async function main() {
     { name: "unit-tests", args: ["--test", ...testFiles] },
     { name: "package", args: ["reviews/scripts/validate-package.mjs"] },
     { name: "fixtures", args: ["reviews/scripts/validate-review-fixtures.mjs"] },
-    { name: "evals", args: ["reviews/scripts/run-review-evals.mjs"] }
+    { name: "fixture-lint", args: ["reviews/scripts/run-review-evals.mjs"] }
   ];
   const results = await Promise.all(lanes.map((lane) => runLane(root, lane)));
   for (const result of results) {
