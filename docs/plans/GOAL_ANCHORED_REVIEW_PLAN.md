@@ -103,8 +103,10 @@ as a deterministic pass or fail.
 - Fixture hygiene: remove the "Expected review finding" lines that leak answers,
   and rename the keyword lane to `fixture-lint` so it is not mistaken for a
   model eval.
-- Scaffold a live eval lane that runs reviewers against fixtures and records
-  outputs for side-by-side human comparison.
+- Keep the capture repeatable without new tooling: the same reviewer prompts,
+  the same target plans, repeated runs, and a fixed classification rubric
+  (serves goal / adds scope / author decision / implementer discretion). Build
+  a live eval script only if the manual capture proves too slow to repeat.
 
 **Exit:** a written baseline that shows the current failure modes with evidence,
 and a repeatable way to capture the same evidence after each later phase.
