@@ -116,6 +116,28 @@ synthesis entirely through unlogged host edits. Same-lens runs shared about
 60-75% of themes, verdict labels flipped with identical scores, and goal-relevant
 gaps were the most stable output.
 
+**Provenance and limits.** Only the baseline exercised the current prompts with
+fresh-context reviewers. Both archived runs predate the detached orchestration
+and the implementation-agent rule, ran in-thread with no reviewer subagents, and
+left no ledger, so the scripts, hashes, locks and rerun decider were never
+exercised in any observed run. The archives show loop and host behavior, not
+current prompt behavior. Accretion appeared before the implementation-agent rule
+existed, so the iterate-to-pass loop drives growth independently of prompt
+wording. The first classification pass was not blind to this plan's hypotheses;
+a blind re-classification by independent raters is the check on that.
+
+What the evidence supports, contradicts and leaves untested:
+
+- *Supported (current prompts):* the materiality bar yields mostly non-goal
+  findings; reviewers settle pending owner decisions; Product & UX skews toward
+  scope and discretion.
+- *Supported (older, in-thread runs):* iterating to pass turns review into spec
+  writing; later rounds review earlier rounds' additions; questions become edits.
+- *Contradicted:* goal inversion (accretion was observed instead); synthesis
+  lacking a questions section; rule 7 as a growth driver (no evidence).
+- *Untested:* script-level mechanics as a cause of observed behavior; the
+  detached-independence thesis.
+
 - Keep the capture repeatable without new tooling: the same reviewer prompts,
   the same target plans, repeated runs, and a fixed classification rubric
   (serves goal / adds scope / author decision / implementer discretion). Build
@@ -193,6 +215,10 @@ still found.
   not show it driving growth.
 
 ### Phase 3: Mechanics
+
+Deprioritized. These defects are real in code, but no observed run used the
+scripts; real usage followed the prose. Do this phase after a real run shows the
+scripts in use, or fold the parts that matter into the prose in Phases 1-2.
 
 - **Lighter locks.** Each lens is `open` or `settled`. A lens reopens only when
   one of its own findings was applied, another lens's applied finding names it
