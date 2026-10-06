@@ -126,6 +126,15 @@ existed, so the iterate-to-pass loop drives growth independently of prompt
 wording. The first classification pass was not blind to this plan's hypotheses;
 a blind re-classification by independent raters is the check on that.
 
+**Blind check (two independent raters, rubric only).** Agreement with the
+original pass was about 80% (kappa about 0.7), and the original rater was not
+biased away from "serves goal". Held: most blocking findings do not serve the
+goal (73-85% across raters); Product & UX produces all blocking scope-adding
+findings. Weakened: reviewers do settle explicitly pending owner decisions in
+the Implementation lens, but about 1-2 per run, not about 5. Two of the three
+recall anchors are corroborated; the third is routine engineering. Baselines
+below use the blind raters' conservative reading.
+
 What the evidence supports, contradicts and leaves untested:
 
 - *Supported (current prompts):* the materiality bar yields mostly non-goal
@@ -185,6 +194,9 @@ and the lens most likely to add scope.
 - **Keep the incompatible-implementations clause** when replacing the
   implementation-agent rule; the stable goal-relevant gaps in Phase 0 all fell
   under it.
+- **A pending decision** means one the plan explicitly hands to its owner (an
+  open-questions or owner-decision list). Changing something the plan merely
+  recommends is not settling a pending decision.
 - **Natty trigger** requires "llm" or "language model", not the bare "model".
   This is a structural fix and does not count toward the Phase 1 exit.
 
@@ -208,6 +220,14 @@ still found.
 - **Three output groups.** Blocking gaps (the goal fails without a fix),
   Questions for the author (scope, trade-offs, intent, including reviewer Open
   Questions), Notes (archived, not pushed to the host).
+- **Questions for the author must earn the author's time.** Each question:
+  changes what happens next (if every answer leads to the same action, take the
+  conservative default and say so instead of asking); is written in plain
+  language with enough background to answer without reading the spec; offers
+  concrete choices and what each leads to; and is ranked by consequence, with
+  only the top few sent. Evidence: a ten-question spot-check written for agents
+  was unanswerable by the plan's owner, and only two answers would have changed
+  anything.
 - **`decided_by`** on every applied decision (`human` or `policy`), and every
   host edit to the target cites a finding id or is logged as host-initiated, so
   growth that bypasses synthesis is visible.
