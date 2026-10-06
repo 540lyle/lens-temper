@@ -74,6 +74,22 @@ export function loadLensAdditions(root, repoPath, registry) {
   return { path: repoPath, revision: computeArtifactSha(root, repoPath), additions };
 }
 
+// Domains whose mistakes are hard to undo: migrations and stored data,
+// authorization and secrets, and model or tool authority. A focused selection
+// that touches one of them names the opt-in core profile; it never adds it.
+const IRREVERSIBLE_DOMAINS = ["migration-and-data", "security-boundary", "llm-authority-boundary"];
+
+export function coreProfileHint(selection, registry) {
+  if (selection.status !== "resolved" || !["deterministic", "deterministic_plus_llm_additions"].includes(selection.mode)) return null;
+  const touched = [...new Set(selection.matched_domains.map((entry) => entry.domain).filter((domain) => IRREVERSIBLE_DOMAINS.includes(domain)))];
+  if (touched.length === 0) return null;
+  return `hint: the plan touches ${touched.join(", ")}; for irreversible work (migrations, authorization, money, tool authority) opt into the full core profile with --core-profile ${registry.default_core_profile_id}`;
+}
+
+export function clarificationMessage(selection, registry) {
+  return `clarification required: ${selection.clarification_question} Pass --lens <ids>, --core-profile ${registry.default_core_profile_id} for the full core profile, or --selection-fallback all.`;
+}
+
 export function validateLensSelectionRecord(root, record, registry, expected = {}, options = {}) {
   const failures = validateLensSelectionShape(record, registry);
   for (const [field, value] of Object.entries(expected)) {

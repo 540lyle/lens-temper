@@ -26,17 +26,11 @@ Evaluate the plan from a data modeling, schema, and storage perspective. Focus o
 - Does the plan account for data validation at the boundary and integrity at the storage layer?
 - Are indexes and query patterns considered for performance at realistic data volumes?
 
-## Stateful Workflow Ownership
+## Stateful Workflows
 
-For plans involving restore, load, save, update, delete, reset, deferred apply,
-planner/apply separation, persisted records, or active application state, own
-these checks:
-
-- Does the plan define absence semantics for `undefined`, `null`, empty string, empty array, empty object, missing key, and omitted planner fields?
-- Is saved data modeled as a full snapshot, patch, reference, or intent?
-- Can saving during transitional state create mixed records, stale references, or invalid partial snapshots?
-- Are legacy records, missing values, defaults, validation, and backfills handled before restore or apply reads the data?
-- Are delete/reset/update semantics represented durably enough to avoid resurrecting stale active state?
+The Implementation lens owns the stateful workflow sweep. Raise a stateful
+issue here only when the stored shape itself fails the goal gate, such as
+legacy records or missing values read before a default or backfill exists.
 
 ## Red Flags
 

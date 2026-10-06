@@ -38,6 +38,9 @@ test("--out ending in .json writes a valid completion-summary JSON record", () =
     assert.equal(summary.schema_version, 3);
     assert.equal(summary.target_revision, "git:73eaed921475be235f6684abdd2ce19a4e367c7f");
     assert.equal(summary.run_mode, "full");
+    assert.equal(summary.run_scope, "selected_lenses");
+    assert.equal(summary.claim_flags.completion, false, "a focused run delivers a review, not a complete pass");
+    assert.equal(summary.claim_flags.review_complete, false);
     assert.deepEqual(summary.rerun_or_lock_status.map((entry) => entry.lens_state), ["settled"]);
     assert.doesNotMatch(summary.verification_evidence, /validators passed/i);
     assert.match(summary.verification_evidence, /review records validated/i);
@@ -60,13 +63,45 @@ test("--out ending in .md keeps the human-readable Markdown summary", () => {
   try {
     emitSummary(outPath);
     const summary = readFileSync(resolve(repoRoot, outPath), "utf8");
-    assert.match(summary, /^Full LensTemper review for selected lenses only/m);
+    // A focused run delivers an unqualified review count but never claims a complete pass.
+    assert.match(summary, /^Full LensTemper review for selected lenses only: implementation$/m);
+    assert.doesNotMatch(summary, /LensTemper pass complete|review complete/i);
     assert.match(summary, /^Final assessment: Ready to implement/m);
-    assert.match(summary, /^\| implementation \| settled \| no \| /m, "legacy passing_locked maps to settled");
+    assert.match(summary, /^Review delivered: 0 blocking gaps, 1 minor issues, 0 questions$/m, "the synthesis delivered line is reported");
+    assert.match(summary, /^\| implementation \| Strong \| not recorded \| 5\/5 \| 5\/5 \| 5\/5 \| 5\/5 \| 5\/5 \| 5\/5 \| none \| settled \|$/m, "six scores and the lens state; legacy passing_locked maps to settled");
     assert.doesNotMatch(summary, /passing_locked/);
     assert.match(summary, /^Minor issues:\n- detached-lifecycle-valid: /m);
     assert.match(summary, /^Deferred risks:\n- None$/m);
     assert.match(summary, /^Questions for the author \(reviewer Open Questions are also in the synthesis/m);
+  } finally {
+    cleanup();
+  }
+});
+
+test("without a delivered line in the synthesis Markdown, the counts come from its decisions", () => {
+  cleanup();
+  try {
+    mkdirSync(resolve(repoRoot, tempDir), { recursive: true });
+    const record = JSON.parse(readFileSync(resolve(repoRoot, synthesis), "utf8"));
+    const markdownPath = `${tempDir}/synthesis.md`;
+    const markdown = readFileSync(resolve(repoRoot, record.markdown_artifact_path), "utf8").replace(/^Review delivered:.*$/m, "");
+    writeFileSync(resolve(repoRoot, markdownPath), markdown, "utf8");
+    const markdownSha = execFileSync("git", ["hash-object", "--", markdownPath], { cwd: repoRoot, encoding: "utf8" }).trim();
+    const synthesisPath = `${tempDir}/synthesis.json`;
+    const lineless = { ...record, artifact_path: synthesisPath, markdown_artifact_path: markdownPath, markdown_artifact_sha: `git:${markdownSha}` };
+    writeFileSync(resolve(repoRoot, synthesisPath), `${JSON.stringify(lineless, null, 2)}\n`, "utf8");
+    const ledgerRecord = JSON.parse(readFileSync(resolve(repoRoot, ledger), "utf8"));
+    const ledgerPath = `${tempDir}/ledger.json`;
+    const artifacts = ledgerRecord.synthesis_record_artifacts.map((entry) => ({ ...entry, artifact_path: synthesisPath }));
+    writeFileSync(resolve(repoRoot, ledgerPath), `${JSON.stringify({ ...ledgerRecord, synthesis_record_artifacts: artifacts }, null, 2)}\n`, "utf8");
+    const summary = JSON.parse(execFileSync(node, [
+      "reviews/scripts/emit-completion-summary.mjs",
+      "--ledger", ledgerPath,
+      "--synthesis", synthesisPath,
+      "--json"
+    ], { cwd: repoRoot, encoding: "utf8" }));
+    assert.deepEqual(summary.delivered, { blocking_gaps: 0, minor_issues: 1, questions: 0 });
+    assert.match(summary.summary_text, /^Review delivered: 0 blocking gaps, 1 minor issues, 0 questions$/m);
   } finally {
     cleanup();
   }

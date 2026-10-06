@@ -8,6 +8,7 @@ import {
   ensureNode18,
   isRepoRelativePath,
   normalizeRepoInputPath,
+  notFoundMessage,
   PACKAGE_ROOT,
   parseCommonArgs,
   projectRootFrom,
@@ -22,6 +23,7 @@ import {
 ensureNode18();
 
 const scriptName = "assemble-spawn-prompt.mjs";
+const usageText = "--target <path> --lens <id|manifest|path> --pass-id <id> --input-packet <path> --review-input <path> [--root <path>] [--out <path>] [--json]";
 
 function resolveLensManifest(registry, lensInput) {
   let lensManifestPath = lensInput;
@@ -71,16 +73,17 @@ Review \`${targetPath}\` through the ${lensDisplayName} lens and return a valid 
 # Success Criteria
 - Treat the current repository checkout as the source of truth.
 - Read the prompt packet at \`${inputPacketPath}\`.
-- Verify the target, review input, template, and lens revisions before reviewing.
 - Review exactly one lens: \`${lensId}\` (${lensDisplayName}).
 - Apply the template's Goal Gate first, using the packet's intent card as the
   goal reference when one is supplied. Raise \`[critical]\` or \`[major]\` only
   when the gate is met, and ask pending owner decisions without answering them.
   Zero findings is the expected result for a sound plan.
 - Return exactly the sections required by \`${templatePath}\`.
-- Complete the cross-cutting sweep and stateful workflow sweep.
+- Review the cross-cutting categories the packet says your lens owns; the
+  Implementation lens owns the stateful workflow sweep.
 - Include score-challenge evidence for every \`5/5\`.
-- Report missing files or revision mismatches as input problems.
+- Report missing or unreadable files as input problems. The scripts record
+  provenance and revisions; do not repeat them.
 
 # Context
 Pass ID: \`${passId}\`
@@ -119,7 +122,7 @@ function lensManifestDisplayName(lensId) {
 try {
   const opts = parseCommonArgs(process.argv.slice(2));
   if (opts.help) {
-    process.stdout.write(`${usage(scriptName, "--target <path> --lens <id|manifest|path> --pass-id <id> --input-packet <path> --review-input <path> [--root <path>] [--out <path>] [--json]")}\n`);
+    process.stdout.write(`${usage(scriptName, usageText)}\n`);
     process.exit(EXIT_CODES.ok);
   }
   if (opts.version) {
@@ -127,7 +130,7 @@ try {
     process.exit(EXIT_CODES.ok);
   }
   if (!opts.target || !opts.lens || !opts.passId || !opts.inputPacket || !opts.reviewInput) {
-    process.stderr.write(`${usage(scriptName, "--target <path> --lens <id|manifest|path> --pass-id <id> --input-packet <path> --review-input <path> [--out <path>]")}\n`);
+    process.stderr.write(`${usage(scriptName, usageText)}\n`);
     process.stderr.write(`validation error: missing --target, --lens, --pass-id, --input-packet, or --review-input\n`);
     process.exit(EXIT_CODES.usage);
   }
@@ -136,23 +139,23 @@ try {
   const registry = readRegistry();
   const targetPath = normalizeRepoInputPath(root, opts.target);
   if (!targetPath) {
-    process.stderr.write(`validation error: --target must resolve under the repository root\n`);
+    process.stderr.write(`validation error: --target must resolve under the project root ${root}\n`);
     process.exit(EXIT_CODES.usage);
   }
   const targetResolved = resolveRepoPath(root, targetPath);
   if (!targetResolved || !existsSync(targetResolved)) {
-    process.stderr.write(`validation error: target not found ${targetPath}\n`);
+    process.stderr.write(`validation error: ${notFoundMessage(root, targetPath, "target")}\n`);
     process.exit(EXIT_CODES.read);
   }
 
   const inputPacketPath = normalizeRepoInputPath(root, opts.inputPacket);
   if (!inputPacketPath) {
-    process.stderr.write(`validation error: --input-packet must resolve under the repository root\n`);
+    process.stderr.write(`validation error: --input-packet must resolve under the project root ${root}\n`);
     process.exit(EXIT_CODES.usage);
   }
   const inputPacketResolved = resolveRepoPath(root, inputPacketPath);
   if (!inputPacketResolved || !existsSync(inputPacketResolved)) {
-    process.stderr.write(`validation error: input packet not found ${inputPacketPath}\n`);
+    process.stderr.write(`validation error: ${notFoundMessage(root, inputPacketPath, "input packet")}\n`);
     process.exit(EXIT_CODES.read);
   }
 
@@ -224,7 +227,7 @@ try {
     process.stdout.write(prompt);
   }
 } catch (error) {
-  process.stderr.write(`${usage(scriptName, "--target <path> --lens <id|manifest|path> --pass-id <id> --input-packet <path> --review-input <path> [--out <path>]")}\n`);
+  process.stderr.write(`${usage(scriptName, usageText)}\n`);
   process.stderr.write(`validation error: ${error.message}\n`);
   process.exit(error.exitCode || EXIT_CODES.internal);
 }

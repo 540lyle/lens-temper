@@ -86,6 +86,9 @@ test("create-ledger records lineage and enforces approval and intent stability",
   const pass3 = createLedger(["--pass-id", "lineage-3", "--parent-ledger", ledger2Path]);
   assert.equal(pass3.status, 2);
   assert.match(pass3.stderr, /human_approval/);
+  assert.match(pass3.stderr, /--human-approval "<what the user approved>"/, "the refusal names the flag that fixes it");
+  assert.match(pass3.stderr, /actual=missing/);
+  assert.match(pass3.stderr, /--events-path <path>/, "the usage line on error is the full one");
   const approved = createLedger(["--pass-id", "lineage-3", "--parent-ledger", ledger2Path, "--human-approval", "Owner asked to rerun risk once more."]);
   assert.equal(approved.status, 0, approved.stderr);
   assert.deepEqual(JSON.parse(approved.stdout).human_approval, { decided_by: "human", summary: "Owner asked to rerun risk once more." });

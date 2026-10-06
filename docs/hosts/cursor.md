@@ -97,7 +97,7 @@ Cursor advisory output should:
 - Identify the target file and selected lenses.
 - Use the finding severity language from `reviews/reviewer-template.md`.
 - Follow the section structure in `reviews/reviewer-template.md`, including
-  `### Provenance`, `### Verdict`, and `### Scorecard`.
+  `### Goal Gate`, `### Verdict`, and `### Scorecard`.
 - Separate findings from open questions.
 - State that the result is advisory/reference.
 - Avoid lockable claims such as "full LensTemper review complete".
@@ -146,7 +146,8 @@ detached experiment that proves all of the following:
   summary.
 - `node reviews/scripts/validate-review-output.mjs <review.json> --ledger <run>/ledger.json` passes for each JSON review
   artifact.
-- `node reviews/scripts/validate-ledger.mjs` passes for the run ledger.
+- `node reviews/scripts/validate-ledger.mjs <run>/ledger.json --target-revision <hash> --audit`
+  passes for the run ledger; audit mode checks the events log.
 - `node reviews/scripts/validate-synthesis-output.mjs` passes for synthesis.
 - `node reviews/scripts/decide-reruns.mjs` records rerun decisions from applied findings.
 - `node reviews/scripts/emit-completion-summary.mjs --out <run>/completion-summary.json`

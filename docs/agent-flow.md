@@ -29,7 +29,7 @@ flowchart TD
   Select --> Prep["Create ledger, events.jsonl, and hash target"]
   Prep --> Generate["Generate per-lens prompt packets and spawn handoffs"]
 
-  Generate --> Wave["Spawn detached-context read-only lens reviewers<br/>Seven standard-v2 core lenses plus triggered specialists"]
+  Generate --> Wave["Spawn detached-context read-only lens reviewers<br/>Domain-selected lenses, or the opt-in standard-v2 core profile"]
 
   Wave --> Outputs["Capture structured reviewer outputs"]
   Outputs --> Close["Close reviewer agents"]
@@ -59,9 +59,11 @@ flowchart TD
   revisions.
 - `lens-selection.json` records explicit scope or the policy-derived minimum,
   any validated evidence-backed LLM additions, and the final selected set.
-- A normal full run starts from the registry's `standard-v2` core profile and
-  unions deterministically triggered specialists such as Natty. Reviewer waves
-  may be batched to fit host capacity without changing `required_lens_ids`.
+- A normal full run selects the lenses the plan's domains call for. The
+  registry's `standard-v2` core profile, which unions deterministically
+  triggered specialists such as Natty, is an opt-in for irreversible work.
+  Reviewer waves may be batched to fit host capacity without changing the
+  selected lenses.
 - `*.spawn.md` is the compact host-to-subagent handoff. It uses
   repository-relative paths and tells the reviewer to read the packet from disk.
 - `<pass-id>.orchestrator.md` is the optional detached-orchestrator packet. It
@@ -72,7 +74,8 @@ flowchart TD
   conversation history. Current Codex mechanics live in
   `docs/hosts/codex.md`.
 - `events.jsonl` records trace events for setup, reviewer lifecycle, validation,
-  synthesis, reruns, archive, and completion reporting.
+  synthesis, reruns, archive, and completion reporting. Validating it is an
+  opt-in audit (`validate-ledger.mjs --audit`).
 - Lens reviewers are independent, read-only, and limited to exactly one lens.
 - The active orchestrator, hosted or detached, owns synthesis, ledger state,
   rerun selection, lens states, archival, and completion claims.
@@ -86,5 +89,5 @@ flowchart TD
   reopens it; `decide-reruns.mjs` derives this from `target_edits`. A rerun is a
   new pass linked by `parent_pass_id`. Pass 2 is the one automatic rerun; later
   passes need the user's recorded approval.
-- Detached completion claims require agreement among `events.jsonl`, ledger,
-  reviewer outputs, synthesis, and archive evidence.
+- Detached completion claims require agreement among ledger, reviewer outputs,
+  synthesis, and archive evidence, and, in audit mode, `events.jsonl`.

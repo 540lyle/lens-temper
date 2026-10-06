@@ -69,14 +69,13 @@ behind the goal gate: an unanswered probe is a finding only when the gate is met
 
 ### Stateful Workflows and Persistence
 
-Trigger for restore, load, save, update, delete, reset, deferred apply,
-planner/apply separation, persisted records, drafts, background jobs, optimistic
-updates, stale data, or active UI/application state.
+Trigger for saved records, drafts, background jobs, optimistic updates, or stale
+data a user can see. The Implementation lens owns the stateful workflow sweep;
+ask only what the user perceives.
 
 Ask:
 
 - Can users tell whether the action completed, failed, is pending, was canceled, or was superseded?
-- Does visible UI state match persisted/application state after success, failure, cancellation, retry, undo, and deferred apply completion?
 - Are stale, unsaved, conflicted, or transitional states visible enough to prevent accidental mixed-context saves?
 - Are overwrite, rename, update, reset, restore, duplicate, delete, and undo meanings distinct from the user's perspective?
 - Does the user know which record, draft, version, environment, or context changed?

@@ -108,44 +108,17 @@ Evaluate the proposed plan through the provided lens. Complete every step below.
 
 Before lowering a score below `5`, ask: does this issue meet the goal gate? If not, it does not lower the score.
 
-Complete a cross-cutting sweep through your assigned lens:
-- Security / privacy
-- Accessibility
-- Performance
-- Reliability / rollback
-- Observability / debuggability
-- Compatibility / platform constraints
-
-For cross-cutting categories outside your lens domain, write `Not applicable from this lens` unless you see concrete material evidence. Do not silently skip a category.
+Cross-cutting sweep: the categories are Security / privacy, Accessibility, Performance, Reliability / rollback, Observability / debuggability, and Compatibility / platform constraints. This lens owns {{cross_cutting_owned}}; review those. Skip the others unless you see an issue there that meets the goal gate, and write no line for a category you skip.
 
 If the prompt includes previous adjudications, do not re-raise those findings unless the current target revision introduces new material evidence.
 
-### Stateful Workflow Sweep
-
-If the feature request, plan, or context includes restore, load, save, update,
-delete, reset, deferred apply, planner/apply separation, persisted records, or
-active UI/application state, complete this sweep through your assigned lens.
-If a question is outside your lens, say so briefly; do not silently skip it.
-
-- What does absence mean for each relevant value: `undefined`, `null`, empty string, empty array, empty object, missing key, or omitted planner field?
-- What existing active state must be preserved, replaced, cleared, invalidated, or resynced before and after the action?
-- Can restore or apply work be deferred, and what happens if the user saves, updates, deletes, resets, or starts a second restore before the deferred work runs?
-- Does every planner output field, action, and state transition have a matching App or application-layer apply path, and does every apply branch have a planner case that can produce it?
-- Is the saved data a full snapshot, patch, reference, or intent, and can saving during transitional state create mixed or invalid records?
-- Does visible UI state match persisted/application state after success, failure, cancellation, and retry?
-
-Treat an unanswered stateful-workflow question as material when it meets the
-goal gate: durable data can be lost or corrupted, or active state the goal
-depends on can go stale. Deferred restore or apply is behavior to review, not a
-pending decision. A scope deferral is acceptable only when the plan names the
-deferred behavior, owner, timing, and interim user/data semantics.
+The Implementation lens owns the stateful workflow sweep, and its questions are in that lens. Other lenses skip it unless they see a stateful issue that meets the goal gate through their own lens.
 
 ---
 
 ## Self-Check
 
 Before producing your final output, verify:
-- The provenance section identifies the pass, lens, target path, target revision/hash, and review input revision from the prompt. If a value is missing, state `not provided`; do not guess.
 - Every issue you raised references a specific part of the plan or a specific gap.
 - You have not invented repository details, APIs, or constraints not present in the inputs.
 - The goal gate restates the goal, non-goals, and open decisions, cites intent card goal ids when a card is supplied, and marks inferred values.
@@ -154,24 +127,13 @@ Before producing your final output, verify:
 - No pending decision is answered, and no item appears in both **Open Questions** and **Recommended Changes**.
 - Your scores are consistent with your findings: any score below `5` is backed by an issue that meets the goal gate, not by `[minor]` notes or declared pending decisions.
 - Any score of `5` has a concise score challenge: what would have made it a `4`, why that issue is not present, and what evidence supports no material issue.
-- The cross-cutting sweep includes all six categories and either names a finding or says `Not applicable from this lens`.
-- For stateful workflows, the stateful workflow sweep is explicitly addressed or marked outside this lens.
+- The cross-cutting sweep covers the categories this lens owns; any other category appears only with an issue that meets the goal gate.
 
 ---
 
 ## Output Format
 
-Return your review in exactly this structure. Do not add, remove, or rename sections.
-
-### Provenance
-
-- Pass ID:
-- Lens:
-- Target Path:
-- Target Revision:
-- Review Input Revision:
-- Template Revision:
-- Lens Revision:
+Return your review in exactly this structure. Do not add, remove, or rename sections. The scripts record provenance (pass, lens, target, and revisions); do not repeat it.
 
 ### Goal Gate
 
@@ -216,17 +178,10 @@ Then one line each:
 - Ranked by consequence, most consequential first. List every question; ranking never drops one. If every answer leads to the same action, keep the question and state the default that applies.
 
 ### Cross-Cutting Sweep
-Use exactly these categories. For each, include one concise bullet or `Not applicable from this lens`.
-
-- Security / privacy:
-- Accessibility:
-- Performance:
-- Reliability / rollback:
-- Observability / debuggability:
-- Compatibility / platform constraints:
+One concise bullet per owned category, named as in the sweep instruction, plus one for any other category with an issue that meets the goal gate.
 
 ### Stateful Workflow Sweep
-For non-stateful plans, write `Not applicable: no stateful workflow behavior in scope`.
+Other lenses: `Owned by the Implementation lens`, or a stateful issue that meets the goal gate. Implementation: answer each line, or write `Not applicable: no stateful workflow behavior in scope`.
 
 - Absence semantics:
 - Active state clearing/resync:

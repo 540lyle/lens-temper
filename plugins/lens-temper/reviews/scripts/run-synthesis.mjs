@@ -20,11 +20,12 @@ import {
 ensureNode18();
 
 const scriptName = "run-synthesis.mjs";
+const usageText = "--ledger <ledger-json> [--root <path>]";
 
 async function main() {
   const opts = parseCommonArgs(process.argv.slice(2));
   if (opts.help) {
-    process.stdout.write(`${usage(scriptName, "--ledger <ledger-json> [--root <path>]")}\n`);
+    process.stdout.write(`${usage(scriptName, usageText)}\n`);
     return;
   }
   if (opts.version) {
@@ -66,7 +67,7 @@ async function main() {
 }
 
 main().catch((error) => {
-  process.stderr.write(`${usage(scriptName, "--ledger <ledger-json>")}\n`);
+  process.stderr.write(`${usage(scriptName, usageText)}\n`);
   process.stderr.write(`validation error: ${error.message}\n`);
   process.exit(error.exitCode || EXIT_CODES.internal);
 });

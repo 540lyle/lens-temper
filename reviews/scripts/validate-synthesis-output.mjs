@@ -16,11 +16,12 @@ import {
 ensureNode18();
 
 const scriptName = "validate-synthesis-output.mjs";
+const usageText = "<synthesis-json> --ledger <ledger-json> [--root <path>] [--json] [--quiet]";
 
 try {
   const opts = parseCommonArgs(process.argv.slice(2));
   if (opts.help) {
-    process.stdout.write(`${usage(scriptName, "<synthesis-json> --ledger <ledger-json> [--root <path>] [--json] [--quiet]")}\n`);
+    process.stdout.write(`${usage(scriptName, usageText)}\n`);
     process.exit(EXIT_CODES.ok);
   }
   if (opts.version) {
@@ -28,7 +29,7 @@ try {
     process.exit(EXIT_CODES.ok);
   }
   if (opts.positional.length !== 1 || !opts.ledger) {
-    process.stderr.write(`${usage(scriptName, "<synthesis-json> --ledger <ledger-json> [--root <path>]")}\n`);
+    process.stderr.write(`${usage(scriptName, usageText)}\n`);
     process.stderr.write(`validation error: missing required argument\n`);
     process.exit(EXIT_CODES.usage);
   }
@@ -54,7 +55,7 @@ try {
   }
   process.exit(EXIT_CODES.ok);
 } catch (error) {
-  process.stderr.write(`${usage(scriptName, "<synthesis-json> --ledger <ledger-json> [--root <path>]")}\n`);
+  process.stderr.write(`${usage(scriptName, usageText)}\n`);
   process.stderr.write(`validation error: ${error.message}\n`);
   process.exit(error.exitCode || EXIT_CODES.internal);
 }

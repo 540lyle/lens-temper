@@ -45,7 +45,17 @@
       },
       "additionalProperties": true
     },
-    "summary_text": { "type": "string" }
+    "summary_text": { "type": "string" },
+    "delivered": {
+      "type": "object",
+      "description": "Counts behind the Review delivered line: the synthesis Blocking Gaps, Minor Issues, and Questions for the Author.",
+      "properties": {
+        "blocking_gaps": { "type": "integer", "minimum": 0 },
+        "minor_issues": { "type": "integer", "minimum": 0 },
+        "questions": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    }
   },
   "additionalProperties": true,
   "allOf": [

@@ -47,5 +47,5 @@
   "review_input_revision": "sha256:dc29a2b9712d8555b2b607998bd97d25cc3a61dbc0e447dd8dee1865a6c3833d",
   "review_input_path": "reviews/examples/review-input.valid.json",
   "lens_selection_path": "reviews/examples/lens-selection.valid-detached.json",
-  "lens_selection_revision": "git:321984bd04bb21b1fffaa4cafdc5358246cecd2f"
+  "lens_selection_revision": "git:d771138b06a2ab32d015d67201878f680a743ff6"
 }

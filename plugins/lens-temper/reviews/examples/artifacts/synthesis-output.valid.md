@@ -15,11 +15,11 @@
 
 ### Minor Issues
 
-- None.
+- Keep fixture and schema validation in lockstep so a schema change cannot leave the examples behind (implementation; suggested fix: validate both in one command).
 
 ### Notes
 
-- Keep fixture and schema validation in lockstep.
+- None.
 
 ### Recommended Plan Changes
 
@@ -58,12 +58,11 @@ No meaningful score conflicts.
 ### Lens Lock And Rerun Decisions
 
 - **Lens**: implementation
-- **Status**: passing_locked
-- **Reason**: No material blockers remain.
-- **Rerun needed**: no
+- **State**: settled
+- **Reason**: The current validated review is delivered and no finding was applied.
 
 ### Final Assessment
 
 Ready to implement
 
-Review delivered: 0 blocking gaps, 0 minor issues, 0 questions
+Review delivered: 0 blocking gaps, 1 minor issues, 0 questions

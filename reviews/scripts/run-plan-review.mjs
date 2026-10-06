@@ -7,6 +7,7 @@ import {
   CONTRACT_VERSION,
   EXIT_CODES,
   PACKAGE_ROOT,
+  archiveRunPath,
   buildPassLineage,
   computeArtifactSha,
   ensureNode18,
@@ -23,12 +24,13 @@ import {
   usage,
   writeRunEvent
 } from "./validation-helpers.mjs";
-import { selectLenses } from "./lens-selection.mjs";
+import { clarificationMessage, coreProfileHint, selectLenses } from "./lens-selection.mjs";
 import { APPLY_MODES } from "./validation-contracts.mjs";
 
 ensureNode18();
 
 const scriptName = "run-plan-review.mjs";
+const usageText = "--target <path> --pass-id <id> (--review-input <path> | --feature-request <text>) [--relevant-context <text>] [--constraints <text>] [--previous-adjudications <text>] [--lens a,b | --all-lenses | --core-profile <id>] [--lens-proposal <path>] [--selection-fallback all] [--execution-mode fresh_spawned_lens_reviewers|fresh_spawned_orchestrator] [--apply-mode interactive|auto] [--parent-ledger <path> [--human-approval <summary>]] [--root <path>] [--out <dir>]";
 
 const execFileAsync = promisify(execFile);
 
@@ -42,7 +44,7 @@ async function runScript(root, name, args) {
 try {
   const opts = parseCommonArgs(process.argv.slice(2));
   if (opts.help) {
-    process.stdout.write(`${usage(scriptName, "--target <path> --pass-id <id> (--review-input <path> | --feature-request <text>) [--relevant-context <text>] [--constraints <text>] [--previous-adjudications <text>] [--lens a,b | --all-lenses | --core-profile <id>] [--lens-proposal <path>] [--selection-fallback all] [--execution-mode fresh_spawned_lens_reviewers|fresh_spawned_orchestrator] [--apply-mode interactive|auto] [--parent-ledger <path> [--human-approval <summary>]] [--root <path>] [--out <dir>]")}\n`);
+    process.stdout.write(`${usage(scriptName, usageText)}\n`);
     process.exit(EXIT_CODES.ok);
   }
   if (opts.version) {
@@ -50,7 +52,7 @@ try {
     process.exit(EXIT_CODES.ok);
   }
   if (!opts.target || !opts.passId) {
-    process.stderr.write(`${usage(scriptName, "--target <path> --pass-id <id> (--review-input <path> | --feature-request <text>) [--lens a,b] [--out <dir>]")}\n`);
+    process.stderr.write(`${usage(scriptName, usageText)}\n`);
     process.stderr.write(`validation error: missing --target or --pass-id\n`);
     process.exit(EXIT_CODES.usage);
   }
@@ -58,25 +60,21 @@ try {
   const registry = readRegistry();
   const targetPath = normalizeRepoInputPath(root, opts.target);
   if (!targetPath) {
-    process.stderr.write(`validation error: --target must resolve under the project root\n`);
+    process.stderr.write(`validation error: --target must resolve under the project root ${root}\n`);
     process.exit(EXIT_CODES.usage);
   }
   const applyMode = opts.applyMode || "interactive";
   if (!APPLY_MODES.includes(applyMode)) {
     throw Object.assign(new Error(`--apply-mode must be one of ${APPLY_MODES.join(", ")}`), { exitCode: EXIT_CODES.usage });
   }
-  const defaultCoreProfile = (registry.core_profiles || []).find((entry) => entry.id === registry.default_core_profile_id);
-  if (!defaultCoreProfile || !Array.isArray(defaultCoreProfile.required_lens_ids)) {
-    throw Object.assign(new Error("registry default core profile is invalid"), { exitCode: EXIT_CODES.usage });
-  }
-  const outDir = opts.out || `reviews/archive/${opts.passId}`;
+  const outDir = opts.out || archiveRunPath(targetPath, opts.passId);
   if (!isRepoRelativePath(outDir)) {
     process.stderr.write(`validation error: --out must be repository-relative\n`);
     process.exit(EXIT_CODES.usage);
   }
   const resolvedOutDir = resolveRepoPath(root, outDir);
   if (!resolvedOutDir) {
-    process.stderr.write(`validation error: --out must resolve under the repository root\n`);
+    process.stderr.write(`validation error: --out must resolve under the project root ${root}\n`);
     process.exit(EXIT_CODES.usage);
   }
   const reviewInput = resolveReviewInput(root, opts);
@@ -84,7 +82,7 @@ try {
   const targetRevision = computeArtifactSha(root, targetPath);
   const proposalPath = opts.lensProposal ? normalizeRepoInputPath(root, opts.lensProposal) : null;
   if (opts.lensProposal && !proposalPath) {
-    process.stderr.write(`validation error: --lens-proposal must resolve under the repository root\n`);
+    process.stderr.write(`validation error: --lens-proposal must resolve under the project root ${root}\n`);
     process.exit(EXIT_CODES.usage);
   }
   // Validate lineage before writing anything. A rerun without an explicit
@@ -120,7 +118,9 @@ try {
       explicitLenses,
       allLenses: opts.allLenses,
       fallback: opts.selectionFallback,
-      coreProfileId: (!explicitLenses && !opts.allLenses && !opts.selectionFallback) ? (opts.coreProfile || registry.default_core_profile_id) : null,
+      // Default selection follows the spec's domains, as select-lenses.mjs
+      // does; the full core profile is an explicit opt-in.
+      coreProfileId: opts.coreProfile || null,
       proposalPath,
       passId: opts.passId
     });
@@ -129,14 +129,13 @@ try {
     throw error;
   }
   if (selection.status !== "resolved") {
-    process.stderr.write(`clarification required: ${selection.clarification_question}\n`);
+    process.stderr.write(`${clarificationMessage(selection, registry)}\n`);
     process.exit(EXIT_CODES.usage);
   }
   const lenses = selection.selected_lenses;
-  const lensSet = new Set(lenses);
-  const activeCoreProfile = (registry.core_profiles || []).find((entry) => entry.id === (selection.core_profile_id || registry.default_core_profile_id));
-  const coreLensSet = new Set(activeCoreProfile.required_lens_ids);
-  const runScope = [...coreLensSet].every((lens) => lensSet.has(lens)) ? "core_profile" : "selected_lenses";
+  // Only an explicit --core-profile makes a core-profile run; any other
+  // selection, even one that covers every core lens, is a selected-lens run.
+  const runScope = selection.core_profile_id ? "core_profile" : "selected_lenses";
   mkdirSync(resolvedOutDir, { recursive: true });
   writeFileSync(resolveRepoPath(root, reviewInputPath), serializeReviewInput(reviewInput.record), "utf8");
   const lensSelectionPath = `${outDir}/lens-selection.json`;
@@ -151,7 +150,7 @@ try {
     "--pass-id", opts.passId,
     "--lens", lenses.join(","),
     "--run-mode", "full",
-    ...(runScope === "core_profile" ? ["--core-profile", activeCoreProfile.id] : []),
+    ...(runScope === "core_profile" ? ["--core-profile", selection.core_profile_id] : []),
     "--execution-mode", executionMode,
     "--apply-mode", applyMode,
     ...(opts.parentLedger ? ["--parent-ledger", opts.parentLedger] : []),
@@ -190,7 +189,8 @@ try {
       "--events-path", eventsPath,
       "--review-input", reviewInputPath,
       "--apply-mode", applyMode,
-      ...(runScope === "core_profile" ? ["--core-profile", activeCoreProfile.id] : []),
+      "--run-scope", runScope,
+      ...(runScope === "core_profile" ? ["--core-profile", selection.core_profile_id] : []),
       "--out", orchestratorPath,
       "--quiet"
     ]);
@@ -240,12 +240,14 @@ try {
   }
   const orchestratorText = orchestratorPath ? `, ${orchestratorPath}` : "";
   process.stdout.write(`created ${reviewInputPath}, ${lensSelectionPath}, ${ledgerPath}${orchestratorText}, ${eventsPath}, ${lenses.length} prompt files, and ${lenses.length} spawn prompt files\n`);
+  const hint = coreProfileHint(selection, registry);
+  if (hint) process.stdout.write(`${hint}\n`);
   process.stdout.write(`reviewer execution remains host-provided; spawn reviewers with the generated *.spawn.md handoffs\n`);
   process.stdout.write(applyMode === "auto"
     ? `apply mode auto: after delivery, only accepted blocking findings that cite a stated goal may be applied, logged in target_edits with decided_by: policy; questions and minor issues wait for the user\n`
     : `apply mode interactive: apply nothing; deliver every blocking gap, question, and minor issue to the user\n`);
 } catch (error) {
-  process.stderr.write(`${usage(scriptName, "--target <path> --pass-id <id> (--review-input <path> | --feature-request <text>) [--lens a,b | --all-lenses] [--lens-proposal <path>] [--selection-fallback all] [--out <dir>]")}\n`);
+  process.stderr.write(`${usage(scriptName, usageText)}\n`);
   process.stderr.write(`validation error: ${error.message}\n`);
   process.exit(error.exitCode || EXIT_CODES.internal);
 }

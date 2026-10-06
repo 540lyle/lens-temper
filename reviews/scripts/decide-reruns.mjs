@@ -44,7 +44,7 @@ try {
     throw Object.assign(new Error("supply --ledger, or --lens for a run without a ledger"), { exitCode: EXIT_CODES.usage });
   }
   if (opts.ledger && opts.applied) {
-    throw Object.assign(new Error("with a ledger, applied findings come from its target_edits; log the edit there instead of passing --applied"), { exitCode: EXIT_CODES.usage });
+    throw Object.assign(new Error("with a ledger, applied findings come from its target_edits; record the edit with update-ledger.mjs --ledger <ledger> --applied <finding-id> --summary <text> --write"), { exitCode: EXIT_CODES.usage });
   }
   if (opts.write && !opts.ledger) {
     throw Object.assign(new Error("--write requires --ledger"), { exitCode: EXIT_CODES.usage });

@@ -29,5 +29,6 @@ verification runner.
 
 Return exactly the structure required by `reviews/reviewer-template.md`.
 Start with its goal gate, ask pending owner decisions as questions instead of
-answering them, complete the cross-cutting sweep, complete the stateful workflow
-sweep when it applies, and keep findings evidence-based.
+answering them, review the cross-cutting categories your lens owns, answer the
+stateful workflow sweep only as the Implementation lens, and keep findings
+evidence-based. Do not repeat provenance; the scripts stamp it.

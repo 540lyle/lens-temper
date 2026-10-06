@@ -22,6 +22,7 @@ import {
 
 ensureNode18();
 const scriptName = "archive-review-run.mjs";
+const usageText = "--ledger <ledger-json> [--input-packet <path>] [--final <path>] [--archive-root <path>] [--root <path>] [--json]";
 
 async function copyRepoArtifact(root, sourceRepoPath, targetRepoPath) {
   const source = resolveRepoPath(root, sourceRepoPath);
@@ -34,7 +35,7 @@ async function copyRepoArtifact(root, sourceRepoPath, targetRepoPath) {
 async function main() {
   const opts = parseCommonArgs(process.argv.slice(2));
   if (opts.help) {
-    process.stdout.write(`${usage(scriptName, "--ledger <ledger-json> [--input-packet <path>] [--final <path>] [--archive-root <path>] [--root <path>] [--json]")}\n`);
+    process.stdout.write(`${usage(scriptName, usageText)}\n`);
     return;
   }
   if (opts.version) {
@@ -48,7 +49,10 @@ async function main() {
   const sourceLedger = context.ledger;
   const archiveRoot = opts.archiveRoot || "reviews/archive";
   if (!isRepoRelativePath(archiveRoot)) throw Object.assign(new Error("--archive-root must be repository-relative"), { exitCode: EXIT_CODES.usage });
-  const planned = archiveRunPath(sourceLedger.target_path, sourceLedger.pass_id);
+  // The pass's archive is the directory its ledger recorded at creation, which
+  // is the run directory for runs prepared by run-plan-review: archiving then
+  // completes that directory in place and the pass keeps one ledger.
+  const planned = sourceLedger.archive_paths?.[0] || archiveRunPath(sourceLedger.target_path, sourceLedger.pass_id);
   const archiveRepoPath = archiveRoot === "reviews/archive" ? planned : `${archiveRoot}/${basename(planned)}`;
   const ledgerPath = `${archiveRepoPath}/ledger.json`;
   await mkdir(resolveRepoPath(root, archiveRepoPath), { recursive: true });
@@ -132,7 +136,6 @@ async function main() {
     synthesis_record_artifacts: archivedSynthesis.map((record) => ({ record_id: record.record_id, artifact_path: record.artifact_path })),
     archive_paths: Array.from(new Set([...(sourceLedger.archive_paths || []), archiveRepoPath]))
   };
-  await writeFile(resolveRepoPath(root, ledgerPath), `${JSON.stringify(archivedLedger, null, 2)}\n`, "utf8");
   const failures = validateLedgerRecord(archivedLedger, {
     artifactRoot: root,
     targetRevision: context.targetRevision,
@@ -148,6 +151,7 @@ async function main() {
     }));
   }
   if (failures.length > 0) throw validationError(failures, "archived ledger validation failed");
+  await writeFile(resolveRepoPath(root, ledgerPath), `${JSON.stringify(archivedLedger, null, 2)}\n`, "utf8");
 
   const finalAssessment = archivedSynthesis.at(-1)?.final_assessment || "not recorded";
   if (opts.json) writeJsonLinesEvent("archived", { archive_path: archiveRepoPath, final_assessment: finalAssessment });
@@ -155,7 +159,7 @@ async function main() {
 }
 
 main().catch((error) => {
-  process.stderr.write(`${usage(scriptName, "--ledger <ledger-json> [--archive-root <path>]")}\n`);
+  process.stderr.write(`${usage(scriptName, usageText)}\n`);
   process.stderr.write(`validation error: ${error.message}\n`);
   process.exit(error.exitCode || EXIT_CODES.internal);
 });

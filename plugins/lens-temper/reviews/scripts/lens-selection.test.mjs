@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
-import { computeArtifactSha, readJsonFile, resolveReviewInput } from "./validation-helpers.mjs";
+import { computeArtifactSha, readJsonFile, resolveReviewInput, validateReviewInputRecord } from "./validation-helpers.mjs";
+import { evaluateLensPolicy } from "./lens-selection-contract.mjs";
 import { selectLenses, validateLensSelectionRecord } from "./lens-selection.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
@@ -81,6 +82,100 @@ test("user-facing workflow is a named evidence-producing domain", () => {
   const result = runSelection("Add a dialog with an error state.", "Change a user-facing workflow.");
   assert.deepEqual(result.selected_lenses, ["test-strategy", "product-ux"]);
   assert.equal(result.matched_domains.some((entry) => entry.domain === "user-facing-workflow"), true);
+});
+
+test("a mechanical load does not select the stateful workflow domain", () => {
+  const stateful = (text, request) => runSelection(text, request).matched_domains.some((entry) => entry.domain === "stateful-workflow");
+  for (const text of [
+    "Raise the snow load and check roof-load limits.",
+    "Lower the axle load per wheel when the peak load exceeds the frame limit.",
+    "Reduce the wind load and the cooling-load target for the roof."
+  ]) {
+    assert.equal(stateful(text, "Size the roof beams."), false, text);
+  }
+  for (const text of [
+    "Users load saved drafts.",
+    "The editor loads saved drafts on start.",
+    "Users load a saved draft from the list.",
+    "Load state from the last session."
+  ]) {
+    assert.equal(stateful(text, "Let users reuse drafts."), true, text);
+  }
+});
+
+test("a design or revision token does not select the security domain", () => {
+  const security = (text) => runSelection(text, "Refresh the dashboard styling.").matched_domains.some((entry) => entry.domain === "security-boundary");
+  assert.equal(security("Use the shared design tokens for color and spacing."), false);
+  assert.equal(security("Deferred restore runs with no revision token."), false);
+  for (const text of [
+    "Send the bearer token only over https.",
+    "Store the API key in the system keychain.",
+    "Sign in with OAuth and keep the refresh token.",
+    "Hash the password before saving it."
+  ]) {
+    assert.equal(security(text), true, text);
+  }
+});
+
+// Seeded omissions (a missing backfill, a missing authorization boundary, an
+// unsafe model-to-write path) must stay reachable when the default selection
+// is focused: the domain selects a lens whose prompt carries the probe.
+test("seeded omissions reach a lens that owns their probe under focused selection", () => {
+  const lensText = (id) => readFileSync(join(root, readJsonFile(join(root, registry.lenses.find((entry) => entry.id === id).manifest_path)).prompt_path), "utf8");
+  const owns = (id, category) => {
+    const { primary = [], secondary = [] } = readJsonFile(join(root, registry.lenses.find((entry) => entry.id === id).manifest_path)).cross_cutting_ownership;
+    return [...primary, ...secondary].includes(category);
+  };
+  const backfill = runSelection("Add a required region field to every saved record and read it in the export.", "Export saved records by region.").selected_lenses;
+  for (const id of ["data-model", "implementation"]) {
+    assert.ok(backfill.includes(id), `${id} is selected for a stored-shape change`);
+    assert.match(lensText(id), /backfill/i, `${id} probes for a missing backfill`);
+  }
+  // A plan that never mentions authorization still reaches a Security / privacy owner.
+  const endpoint = runSelection("Add an endpoint that deletes a workspace by id.", "Let users delete a workspace.").selected_lenses;
+  assert.ok(endpoint.some((id) => owns(id, "Security / privacy")), endpoint.join(","));
+  const authz = runSelection("Admins change authorization rules for a workspace.", "Let admins manage access.").selected_lenses;
+  assert.ok(authz.includes("security"));
+  assert.match(lensText("security"), /authn and authz checks explicit at every boundary/);
+  const modelWrite = runSelection("The assistant turns the LLM JSON output into a write to the saved record.", "Let the assistant update records.").selected_lenses;
+  assert.ok(modelWrite.includes("natty"));
+  assert.match(lensText("natty"), /writes/);
+});
+
+test("example input packets state the lenses the focused selector picks", () => {
+  const packets = join(root, "reviews", "examples", "input-packets");
+  const policy = readJsonFile(join(root, "reviews", "manifests", "lens-selection.json"));
+  const displayName = (id) => readJsonFile(join(root, registry.lenses.find((entry) => entry.id === id).manifest_path)).display_name;
+  const block = (text, lang) => [...text.matchAll(new RegExp("```" + lang + "\\n([\\s\\S]*?)\\n```", "g"))].map((match) => match[1]);
+  const section = (text, heading) => (text.split(`## ${heading}\n`)[1] || "").split(/\n## /)[0];
+  const cases = [];
+
+  const reductive = readFileSync(join(packets, "settings-consolidation-review-inputs.md"), "utf8");
+  const reviewInput = JSON.parse(block(reductive, "json")[0]);
+  assert.deepEqual(validateReviewInputRecord(reviewInput), []);
+  assert.ok(reviewInput.intent.must_not_grow.length > 0, "the reductive packet names surface that must not grow");
+  cases.push([reductive, reviewInput, block(reductive, "md")[0]]);
+
+  const refresh = readFileSync(join(packets, "ui-refresh-review-inputs.md"), "utf8");
+  const intent = JSON.parse(block(refresh, "json")[0]);
+  const refreshInput = {
+    schema_version: 2,
+    feature_request: section(refresh, "Feature Request"),
+    relevant_context: section(refresh, "Relevant Context"),
+    constraints: section(refresh, "Constraints"),
+    previous_adjudications: "No previous adjudications supplied.",
+    intent
+  };
+  assert.deepEqual(validateReviewInputRecord(refreshInput), []);
+  assert.doesNotMatch(refreshInput.feature_request, /improve[^.]*states/i, "a visual refresh does not ask for new states");
+  assert.equal(intent.non_goals.some((goal) => /interaction states/.test(goal)), true);
+  cases.push([refresh, refreshInput, ""]);
+
+  for (const [text, input, plan] of cases) {
+    const lenses = evaluateLensPolicy(policy, registry, input, plan).deterministicLenses;
+    const stated = section(text, "Lens Selection").replace(/\s+/g, " ");
+    assert.match(stated, new RegExp(`selects ${lenses.map((id) => displayName(id).replace(/[&]/g, "\\$&")).join(" and ")}\\.`));
+  }
 });
 
 test("automatic selection inspects previous adjudications from the canonical input", () => {

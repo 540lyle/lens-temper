@@ -1,6 +1,6 @@
 # Goal-Anchored Review Plan: LensTemper
 
-Status: In progress. Phases 0 and 1 complete; Phases 2 and 3 implemented, awaiting a run on a real plan.
+Status: In progress. Phases 0 and 1 complete; Phases 2, 3, and 4 implemented, awaiting a run on a real plan.
 
 ## Intent
 
@@ -354,10 +354,8 @@ scripts in use, or fold the parts that matter into the prose in Phases 1-2.
   false. The completion summary reports lens state instead of lock state.
 - Fixed: legacy synthesis Markdown is recognized only when its first section is
   `### Consolidated Critique`.
-- Not done: the completion summary still cannot count reviewer Open Questions
-  (Phase 2 limit), so it does not print the `Review delivered` line itself.
-  `run_scope: core_profile` still needs every required lens reviewed in one
-  pass, so a partial rerun pass is a selected-lens run.
+- Not done: `run_scope: core_profile` still needs every required lens reviewed
+  in one pass, so a partial rerun pass is a selected-lens run.
 
 **Result (2026-10).** Implemented: open/settled lens states with legacy lock
 states mapped, reruns derived from applied findings or a user reopen, pass
@@ -369,17 +367,93 @@ scripts. It surfaced doc and CLI mismatches (single-lens path, selector defaults
 no CLI for recording target edits, the completion summary lacking the delivered
 line, archive layout) that are fixed in a follow-up.
 
+**Follow-up (2026-10, from the end-to-end run).**
+
+- Single-lens path with no ledger: `assemble-review-prompt.mjs` is documented
+  as that path; `run-plan-review.mjs --lens` remains the ledger-backed one.
+- `update-ledger.mjs --applied <finding-id> | --host-initiated --summary
+  [--decided-by]` records `target_edits`, validated like any ledger write.
+- One ledger per pass: `run-plan-review.mjs` prepares the run in the dated
+  archive directory, the ledger records its run directory as the archive, and
+  `archive-review-run.mjs` completes that directory in place.
+- `emit-completion-summary.mjs` writes the `Review delivered` line, taken from
+  the synthesis Markdown or counted from the finding decisions, prints all six
+  scores with goal fit and lens state, and derives its completion claim from
+  the finalized ledger instead of requiring the synthesis to claim it.
+- Error usage lines are the full usage text, including `--root`; a missing
+  path names the root it resolved against and is a usage error.
+- The stateful-workflow domain no longer matches a bare "load".
+- Deferred to Phase 4: `select-lenses.mjs` without lens flags reports the
+  focused domain selection while `run-plan-review.mjs` uses the default core
+  profile. The README documents the difference; Phase 4 changes the defaults.
+
 ### Phase 4: Defaults
 
 - Default lens selection follows the spec's domains; the full core profile is
   opt-in for irreversible work (migrations, authorization, money, tool
-  authority).
+  authority). This also aligns `run-plan-review.mjs` with `select-lenses.mjs`,
+  which today pick different lenses for the same input when no lens flag is
+  given.
 - Security gets a "no security surface changed" exit.
 - One owner for the stateful sweep; non-owner lenses skip cross-cutting
   categories.
 - Scripts stamp provenance instead of models echoing it.
 - `full_detached` and lifecycle event validation become an opt-in audit mode.
 - Add a reductive-goal example input packet and correct the UI refresh example.
+
+**Result (2026-10, defaults only; no capture yet).**
+
+- Default selection follows the spec's domains in `select-lenses.mjs`,
+  `run-plan-review.mjs`, and the standalone orchestrator packet, which now
+  pick the same lenses. A zero-match input stops for clarification, naming
+  `--lens`, `--core-profile`, and `--selection-fallback all`. The core profile
+  is opt-in (`--core-profile standard-v2`), documented for migrations,
+  authorization, money, and tool authority, and a focused selection that
+  matches a migration, security, or model-authority domain prints a hint
+  naming it. `run_scope: core_profile` comes only from that opt-in; every other
+  set, including `--all-lenses`, is a selected-lens run (an `--all-lenses`
+  ledger used to fail validation).
+- Claims: a focused run's unqualified claim is `Review delivered: N blocking
+  gaps, K minor issues, M questions` plus each lens's state; its summary is
+  labeled `Full LensTemper review for selected lenses only: <lenses>` and its
+  completion flags stay false. `LensTemper pass complete` stays core-profile
+  only.
+- Selector: the stateful-workflow domain matches `load saved`, `loads saved`,
+  `load a saved`, `load the saved`, `load state`, and `reload`, not a bare
+  `load` in a compound noun ("axle load", "peak load"). The security domain matches
+  credential-style tokens (`access token`, `bearer token`, and similar), not a
+  bare `token` ("design token", "revision token").
+- Security has a `No security surface changed` exit.
+- The Implementation lens owns the stateful workflow sweep; the other lenses
+  keep a pointer. Each packet states the lens's cross-cutting categories from
+  its manifest, and a lens skips the rest without `Not applicable` lines
+  unless it sees a gate-level issue.
+- `update-ledger.mjs --review | --synthesis` stamps the provenance the run
+  knows (pass, target, revisions, modes, template and lens revisions, the
+  Markdown hash, skipped categories the lens does not own) into the record. The
+  reviewer template no longer asks for a Provenance section, and review
+  Markdown no longer requires one.
+- `events.jsonl` validation, including the detached lifecycle events, runs
+  only with `validate-ledger.mjs --audit`; runs still record setup events.
+  `full_detached` is described as opt-in.
+- Added `reviews/examples/input-packets/settings-consolidation-review-inputs.md`
+  (reductive goal, intent card, plan with removable surface). The UI refresh
+  packet no longer asks for new states and defers lens choice to the selector.
+- Not done: the `implementation plan` phrase in the implementation-complexity
+  domain matches almost any plan and selects Implementation; it needs the same
+  treatment as `load` and `token`, with evidence from real inputs.
+
+**Result (2026-10).** Default selection now follows the spec's domains in both
+`select-lenses` and `run-plan-review`, with the core profile opt-in; the stateful
+trigger no longer fires on compound nouns like "chip load"; Security has a
+no-surface exit; the stateful sweep has one owner; scripts stamp provenance;
+detached and lifecycle-event validation is an opt-in audit mode; a reductive-goal
+example packet was added. A second end-to-end run fixed all fourteen earlier
+mismatches and found new ones (notably the delivered line is not checked against
+finding decisions), fixed in a follow-up. Seeded removals probe: with an intent
+card, a non-goal and a `must_not_grow` list, both Product & UX runs recommended
+removing a deliberately off-goal dashboard section in full and marked goal fit
+violated. The removals section works when a goal makes surface measurable.
 
 ### Phase 5: Validate the independence thesis
 

@@ -74,7 +74,8 @@
     },
     "archive_paths": {
       "type": "array",
-      "items": { "type": "string" }
+      "items": { "type": "string" },
+      "description": "The first entry is the pass's archive: the run directory holding this ledger when create-ledger.mjs wrote it with --out. archive-review-run.mjs archives there."
     },
     "artifact_visibility": {
       "enum": ["public_safe", "private_local_only"]

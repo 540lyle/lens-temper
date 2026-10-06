@@ -5,10 +5,12 @@ import { APPLY_MODES, AUTOMATIC_PASS_LIMIT } from "./validation-contracts.mjs";
 import {
   CONTRACT_VERSION,
   EXIT_CODES,
+  archiveRunPath,
   computeArtifactSha,
   ensureNode18,
   isRepoRelativePath,
   normalizeRepoInputPath,
+  notFoundMessage,
   PACKAGE_ROOT,
   parseCommonArgs,
   projectRootFrom,
@@ -19,15 +21,19 @@ import {
   usage,
   writeRunEvent
 } from "./validation-helpers.mjs";
+import { clarificationMessage, selectLenses } from "./lens-selection.mjs";
 
 ensureNode18();
 
 const scriptName = "assemble-orchestrator-prompt.mjs";
+const usageText = "--target <path> --pass-id <id> --review-input <path> [--lens a,b | --core-profile <id>] [--run-scope core_profile|selected_lenses] [--apply-mode interactive|auto] [--ledger <path>] [--events-path <path>] [--root <path>] [--out <path>]";
 
-function resolveSelectedLenses(registry, lensOption) {
+// Without --lens the packet uses the same focused domain selection as
+// select-lenses.mjs and run-plan-review.mjs, or the core profile when asked.
+function resolveSelectedLenses(registry, lensOption, selectDefault) {
   const selected = lensOption
     ? lensOption.split(",").map((item) => item.trim()).filter(Boolean)
-    : registry.lenses.map((entry) => entry.id);
+    : selectDefault();
   const known = new Set(registry.lenses.map((entry) => entry.id));
   const selectedSet = new Set(selected);
   if (selectedSet.size !== selected.length) {
@@ -125,7 +131,7 @@ ${applyMode === "auto" && passIndex < AUTOMATIC_PASS_LIMIT ? `- \`${targetPath}\
 ${requiredArtifacts.map((path) => `- \`${path}\``).join("\n")}
 
 # Event Log
-Append one JSON object per line to \`${eventsPath}\`. Every event must include \`pass_id\`, \`timestamp\`, \`role\`, \`target_revision\`, \`review_input_revision\`, optional repository-relative \`artifact_path\`, and \`status\`.
+The launcher already recorded the setup events. Append one JSON object per line to \`${eventsPath}\` as the run proceeds; \`validate-ledger.mjs --audit\` checks this log when the run's lifecycle must be shown. Every event must include \`pass_id\`, \`timestamp\`, \`role\`, \`target_revision\`, \`review_input_revision\`, optional repository-relative \`artifact_path\`, and \`status\`.
 
 For this packet, emit all orchestrator-owned events with \`role: \"orchestrator\"\`. Leave any launcher-authored setup events intact (they may use \`role: \"parent_launcher\"\`).
 
@@ -140,14 +146,14 @@ Use these event names when they occur: \`orchestrator_started\`, \`ledger_create
   lenses. Do not perform an inline/advisory substitute unless the user
   explicitly requested inline or advisory mode.
 - Stop before synthesis if any current reviewer output is missing, stale, unvalidated, uncaptured, or not closed.
-- Stop before completion if the ledger, events log, reviewer outputs, synthesis, and archive evidence disagree.
+- Stop before completion if the ledger, reviewer outputs, synthesis, and archive evidence disagree.
 - Stop before completion if selected-lens scope is confused with a passed core profile.
 
 # Apply Mode
 ${applyMode === "auto" && passIndex >= AUTOMATIC_PASS_LIMIT
     ? `- \`auto\`, pass ${passIndex}: this pass is the automatic rerun. Apply nothing further and do not start another pass; deliver the review and present the remaining blocking gaps and questions to the user. Another pass needs the user's recorded approval.`
     : applyMode === "auto"
-    ? `- \`auto\`: finish the review first. Then you may apply only accepted \`[critical]\` or \`[major]\` findings whose \`serves_goal\` cites a stated goal (an intent card goal id when the review input has a card). Log each edit in the ledger's \`target_edits\` with its \`finding_id\` and \`decided_by: policy\`. Never apply questions for the author or minor issues.
+    ? `- \`auto\`: finish the review first. Then you may apply only accepted \`[critical]\` or \`[major]\` findings whose \`serves_goal\` cites a stated goal (an intent card goal id when the review input has a card). Log each edit in the ledger's \`target_edits\` with \`reviews/scripts/update-ledger.mjs --ledger ${ledgerPath} --applied <finding id> --decided-by policy --summary "<what changed>" --write\`, which records its \`finding_id\` and \`decided_by: policy\`. Never apply questions for the author or minor issues.
 - After applying, run \`reviews/scripts/decide-reruns.mjs --ledger ${ledgerPath} --write\`, then \`reviews/scripts/run-plan-review.mjs --target ${targetPath} --review-input ${reviewInputPath} --parent-ledger ${ledgerPath} --apply-mode auto --pass-id <new pass id>\`; it reruns only the lenses that were reopened. Pass ${AUTOMATIC_PASS_LIMIT} is the one automatic rerun; stop after it and present the remaining blocking gaps and questions to the user. A later pass needs the user's recorded approval.`
     : `- \`interactive\`: apply nothing. Do not edit \`${targetPath}\`. Deliver every blocking gap, question, and minor issue in one list and stop; the user decides what to apply and whether to rerun.`}
 
@@ -156,7 +162,9 @@ ${applyMode === "auto" && passIndex >= AUTOMATIC_PASS_LIMIT
 - Write \`synthesis.json\` from \`synthesis.md\`: a \`finding_decisions\` entry for every finding with its \`decision\` (including \`needs_author\`), \`severity\`, \`change_type\` and \`serves_goal\` for plan changes, \`rejection_reason\` for rejections, \`affected_lenses\` when a fix would invalidate another lens's review, and a \`scope_delta\` of \`added\`, \`removed\`, \`net\`, and \`reductive_goal\`. \`validate-synthesis-output.mjs\` rejects an accepted \`add\` without \`serves_goal\` and a reductive goal whose net surface grows without \`Goal drift\`.
 - Mark a lens \`settled\` in \`lens_lock_decisions\` (\`lens_state\`) only when its reviewer output is validated, current for \`${targetRevision}\`, captured into artifacts, and closed; otherwise it stays \`open\`. A settled lens reopens only when one of its own findings is applied, an applied finding names it in \`affected_lenses\`, or the user reopens it.
 - Label unvalidated or imported outputs as advisory/imported; do not settle lenses from them.
-- Completion claims require agreement among \`${eventsPath}\`, \`${ledgerPath}\`, reviewer artifacts, synthesis artifacts, and archive evidence.
+- Completion claims require agreement among \`${ledgerPath}\`, reviewer artifacts, synthesis artifacts, and archive evidence, and, in audit mode, \`${eventsPath}\`.
+- Attach each review and synthesis with \`reviews/scripts/update-ledger.mjs --ledger ${ledgerPath} --review <review.json> --write\` (or \`--synthesis\`); it stamps the run's provenance into the record, so reviewers and synthesis need not echo it.
+- A selected-lens run's claim is \`Review delivered: ...\`; only a passed core profile may claim \`LensTemper pass complete\`.
 - Require every current review, synthesis, event, and completion artifact to report \`review_input_revision: "${reviewInputRevision}"\`.
 - Launch one detached-context reviewer subagent per selected lens. Do not provide parent-launcher or orchestrator conversation or history; each reviewer reads only its run packet and permitted workspace files. Reviewer execution may be concurrent or sequential, and one reviewer may not cover multiple lenses.
 - Use host-provided spawning mechanics. Do not assume Codex, Claude, Cursor, or any specific API.
@@ -166,7 +174,7 @@ ${applyMode === "auto" && passIndex >= AUTOMATIC_PASS_LIMIT
 try {
   const opts = parseCommonArgs(process.argv.slice(2));
   if (opts.help) {
-    process.stdout.write(`${usage(scriptName, "--target <path> --pass-id <id> --review-input <path> [--lens a,b] [--run-scope core_profile|selected_lenses] [--apply-mode interactive|auto] [--ledger <path>] [--events-path <path>] [--root <path>] [--out <path>]")}\n`);
+    process.stdout.write(`${usage(scriptName, usageText)}\n`);
     process.exit(EXIT_CODES.ok);
   }
   if (opts.version) {
@@ -174,7 +182,7 @@ try {
     process.exit(EXIT_CODES.ok);
   }
   if (!opts.target || !opts.passId || !opts.reviewInput) {
-    process.stderr.write(`${usage(scriptName, "--target <path> --pass-id <id> --review-input <path> [--lens a,b] [--out <path>]")}\n`);
+    process.stderr.write(`${usage(scriptName, usageText)}\n`);
     process.stderr.write(`validation error: missing --target, --pass-id, or --review-input\n`);
     process.exit(EXIT_CODES.usage);
   }
@@ -182,15 +190,30 @@ try {
   const registry = readRegistry();
   const targetPath = normalizeRepoInputPath(root, opts.target);
   if (!targetPath) {
-    process.stderr.write(`validation error: --target must resolve under the repository root\n`);
+    process.stderr.write(`validation error: --target must resolve under the project root ${root}\n`);
     process.exit(EXIT_CODES.usage);
   }
   const targetResolved = resolveRepoPath(root, targetPath);
   if (!targetResolved || !existsSync(targetResolved)) {
-    process.stderr.write(`validation error: target not found ${targetPath}\n`);
+    process.stderr.write(`validation error: ${notFoundMessage(root, targetPath, "target")}\n`);
     process.exit(EXIT_CODES.read);
   }
-  const selectedLenses = resolveSelectedLenses(registry, opts.lens);
+  const reviewInput = resolveReviewInput(root, opts);
+  const targetRevision = computeArtifactSha(root, targetPath);
+  const selectedLenses = resolveSelectedLenses(registry, opts.lens, () => {
+    const selection = selectLenses({
+      root,
+      registry,
+      reviewInput: { ...reviewInput.record, revision: reviewInput.revision },
+      reviewInputPath: reviewInput.sourcePath,
+      targetPath,
+      targetRevision,
+      coreProfileId: opts.coreProfile || null,
+      passId: opts.passId
+    });
+    if (selection.status !== "resolved") throw Object.assign(new Error(clarificationMessage(selection, registry)), { exitCode: EXIT_CODES.usage });
+    return selection.selected_lenses;
+  });
   const coreProfile = (registry.core_profiles || []).find((entry) => entry.id === (opts.coreProfile || registry.default_core_profile_id));
   if (!coreProfile || !Array.isArray(coreProfile.required_lens_ids)) {
     process.stderr.write(`validation error: registry default core profile is invalid\n`);
@@ -199,12 +222,12 @@ try {
   const selectedLensSet = new Set(selectedLenses);
   const coreLensSet = new Set(coreProfile.required_lens_ids);
   const selectedIncludesCore = [...coreLensSet].every((lens) => selectedLensSet.has(lens));
-  const runScope = opts.runScope || (selectedIncludesCore ? "core_profile" : "selected_lenses");
+  const runScope = opts.runScope || (opts.coreProfile ? "core_profile" : "selected_lenses");
   if (runScope === "core_profile" && !selectedIncludesCore) {
     process.stderr.write(`validation error: core_profile run-scope requires every ${coreProfile.id} core lens\n`);
     process.exit(EXIT_CODES.usage);
   }
-  const outPath = opts.out || `reviews/archive/${opts.passId}/${opts.passId}.orchestrator.md`;
+  const outPath = opts.out || `${archiveRunPath(targetPath, opts.passId)}/${opts.passId}.orchestrator.md`;
   if (!isRepoRelativePath(outPath)) {
     process.stderr.write(`validation error: --out must be repository-relative\n`);
     process.exit(EXIT_CODES.usage);
@@ -218,8 +241,6 @@ try {
       process.exit(EXIT_CODES.usage);
     }
   }
-  const targetRevision = computeArtifactSha(root, targetPath);
-  const reviewInput = resolveReviewInput(root, opts);
   // The launcher writes the ledger first, so the packet takes the pass index
   // and apply mode from it; an --apply-mode that contradicts the ledger fails.
   const ledgerResolved = resolveRepoPath(root, ledgerPath);
@@ -266,7 +287,7 @@ try {
     process.stdout.write(`wrote ${outPath}\n`);
   }
 } catch (error) {
-  process.stderr.write(`${usage(scriptName, "--target <path> --pass-id <id> --review-input <path> [--lens a,b] [--out <path>]")}\n`);
+  process.stderr.write(`${usage(scriptName, usageText)}\n`);
   process.stderr.write(`validation error: ${error.message}\n`);
   process.exit(error.exitCode || EXIT_CODES.internal);
 }

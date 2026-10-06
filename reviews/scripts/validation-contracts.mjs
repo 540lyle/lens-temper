@@ -258,8 +258,9 @@ export const COMPLETION_SUMMARY_REQUIRED_FIELDS = [
 ];
 
 export const REQUIRED_MARKDOWN_SECTIONS = {
+  // Review provenance is stamped into the JSON record by update-ledger.mjs;
+  // Markdown that still carries a Provenance section stays valid.
   review: [
-    "### Provenance",
     "### Verdict",
     "### What the Plan Gets Right",
     "### Gaps and Risks",

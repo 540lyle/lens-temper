@@ -38,7 +38,8 @@ workflow from repository files instead of prior chat context.
 - Close spawned reviewers after output capture.
 - Never edit the target as part of a review. Apply nothing unless the run is in
   opt-in `auto` mode, and log any later edit in the ledger's `target_edits`,
-  citing a finding id or marked host-initiated.
+  citing a finding id or marked host-initiated, with
+  `update-ledger.mjs --ledger <run>/ledger.json (--applied <finding-id> | --host-initiated) --summary "<what changed>" --write`.
 - Label run mode honestly. Inline and advisory reviews cannot claim completed
   LensTemper passes, lock states, or lockable all-5 scores.
 

@@ -9,6 +9,7 @@ import {
   encodePromptData,
   ensureNode18,
   isRepoRelativePath,
+  notFoundMessage,
   PACKAGE_ROOT,
   parseCommonArgs,
   projectRootFrom,
@@ -25,6 +26,17 @@ import {
 ensureNode18();
 
 const scriptName = "assemble-review-prompt.mjs";
+const usageText = "--target <path> --lens <id|manifest|path> --pass-id <id> (--review-input <path> | --feature-request <text>) [--relevant-context <text>] [--constraints <text>] [--previous-adjudications <text>] [--root <path>] [--out <path>] [--json]";
+
+// The lens manifest owns cross-cutting ownership; the packet states it so the
+// reviewer covers its own categories and skips the rest.
+function describeOwnership(manifest) {
+  const { primary = [], secondary = [] } = manifest.cross_cutting_ownership || {};
+  const parts = [];
+  if (primary.length > 0) parts.push(`${primary.join(", ")} (primary)`);
+  if (secondary.length > 0) parts.push(`${secondary.join(", ")} (secondary)`);
+  return parts.join("; ") || "no cross-cutting category";
+}
 
 function toRepo(root, input) {
   if (isRepoRelativePath(input)) return input;
@@ -34,7 +46,7 @@ function toRepo(root, input) {
 try {
   const opts = parseCommonArgs(process.argv.slice(2));
   if (opts.help) {
-    process.stdout.write(`${usage(scriptName, "--target <path> --lens <id|manifest|path> --pass-id <id> (--review-input <path> | --feature-request <text>) [--relevant-context <text>] [--constraints <text>] [--previous-adjudications <text>] [--root <path>] [--out <path>] [--json]")}\n`);
+    process.stdout.write(`${usage(scriptName, usageText)}\n`);
     process.exit(EXIT_CODES.ok);
   }
   if (opts.version) {
@@ -42,7 +54,7 @@ try {
     process.exit(EXIT_CODES.ok);
   }
   if (!opts.target || !opts.lens || !opts.passId) {
-    process.stderr.write(`${usage(scriptName, "--target <path> --lens <id|manifest|path> --pass-id <id> (--review-input <path> | --feature-request <text>) [--out <path>]")}\n`);
+    process.stderr.write(`${usage(scriptName, usageText)}\n`);
     process.stderr.write(`validation error: missing --target, --lens, or --pass-id\n`);
     process.exit(EXIT_CODES.usage);
   }
@@ -52,7 +64,7 @@ try {
   const targetPath = toRepo(root, opts.target);
   const targetResolved = resolveRepoPath(root, targetPath);
   if (!targetResolved || !existsSync(targetResolved)) {
-    process.stderr.write(`validation error: target not found ${targetPath}\n`);
+    process.stderr.write(`validation error: ${notFoundMessage(root, targetPath, "target")}\n`);
     process.exit(EXIT_CODES.read);
   }
 
@@ -92,6 +104,7 @@ try {
     relevant_context: encodePromptData(reviewInput.record.relevant_context),
     constraints: encodePromptData(reviewInput.record.constraints),
     review_lens: lensText,
+    cross_cutting_owned: describeOwnership(lensManifest),
     previous_adjudications: encodePromptData(reviewInput.record.previous_adjudications)
   });
 
@@ -134,7 +147,7 @@ try {
     }
   }
 } catch (error) {
-  process.stderr.write(`${usage(scriptName, "--target <path> --lens <id|manifest|path> --pass-id <id> (--review-input <path> | --feature-request <text>) [--out <path>]")}\n`);
+  process.stderr.write(`${usage(scriptName, usageText)}\n`);
   process.stderr.write(`validation error: ${error.message}\n`);
   process.exit(error.exitCode || EXIT_CODES.internal);
 }

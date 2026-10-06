@@ -18,6 +18,17 @@ and broken authentication or authorization. OWASP Top 10 is the baseline.
 This is not a style review. Review the plan as a specification that will run
 against production systems and read untrusted data.
 
+## No Security Surface Changed
+
+Decide first whether the plan changes a security surface: a trust boundary,
+authentication or authorization rule, secret or credential, untrusted input
+path, network target, privileged operation, or data-disclosure boundary. If it
+changes none, give the verdict `Strong — No security surface changed`, write
+`None` under Gaps and Risks and Recommended Changes, cite the unchanged surface
+as the 5/5 challenge evidence, and stop: do not run the probes or invent
+hardening. If you cannot tell whether a surface changes, this exit does not
+apply; ask in Open Questions.
+
 ## Review Method
 
 Use a two-pass review:
@@ -26,11 +37,6 @@ Use a two-pass review:
    into a decision, query, write, token use, request, execution path, or LLM
    context.
 2. Apply only the probes relevant to those boundaries and dependencies.
-
-A confirmed-exploit finding must identify an exploitable weakness with more
-than 80% confidence. A security-design finding may identify a missing control
-or undefined boundary when the omission itself makes the plan unsafe to
-implement; state the uncertainty and the specification change required.
 
 A strong finding includes:
 

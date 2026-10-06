@@ -65,7 +65,8 @@
               },
               "paths_reviewed": {
                 "type": "array",
-                "items": { "type": "string" }
+                "items": { "type": "string" },
+                "description": "Repository-relative files this source read from the workspace. direct_workspace_read needs at least one existing path, including target_path when target_included is true on a completed review; every other basis, including provided_packet, keeps it empty."
               },
               "target_included": { "type": "boolean" }
             },

@@ -11,7 +11,10 @@ protocol in `reviews/README.md` from the skill package or repository root.
 
 ## Inputs
 
-- Ledger state, including `target_edits` and `pass_index`.
+- Ledger state, including `target_edits` (recorded with
+  `update-ledger.mjs --applied <finding-id> --summary "<what changed>" --write`)
+  and `pass_index`. Use the run directory's `<run>/ledger.json`, the one ledger
+  of the pass.
 - Synthesis decisions, including each finding's source lens and
   `affected_lenses`.
 - Findings applied without a ledger (`--applied`), and lenses the user

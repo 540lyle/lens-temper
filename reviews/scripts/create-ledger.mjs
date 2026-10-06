@@ -24,6 +24,7 @@ import { validateLensSelectionRecord } from "./lens-selection.mjs";
 ensureNode18();
 
 const scriptName = "create-ledger.mjs";
+const usageText = "--target <path> --pass-id <id> [--review-input <path>] [--lens-selection <path>] [--lens a,b] [--core-profile <id>] [--run-mode inline|advisory|full] [--run-scope core_profile|selected_lenses] [--execution-mode manual_or_imported|fresh_spawned_lens_reviewers|fresh_spawned_orchestrator] [--apply-mode interactive|auto] [--parent-ledger <path> [--human-approval <summary>]] [--events-path <path>] [--root <path>] [--out <path>] [--json]";
 
 function lensSetEquals(left, right) {
   return left.size === right.size && [...left].every((item) => right.has(item));
@@ -32,7 +33,7 @@ function lensSetEquals(left, right) {
 try {
   const opts = parseCommonArgs(process.argv.slice(2));
   if (opts.help) {
-    process.stdout.write(`${usage(scriptName, "--target <path> --pass-id <id> [--review-input <path>] [--lens-selection <path>] [--lens a,b] [--run-mode inline|advisory|full] [--execution-mode manual_or_imported|fresh_spawned_lens_reviewers|fresh_spawned_orchestrator] [--apply-mode interactive|auto] [--parent-ledger <path> [--human-approval <summary>]] [--root <path>] [--out <path>] [--json]")}\n`);
+    process.stdout.write(`${usage(scriptName, usageText)}\n`);
     process.exit(EXIT_CODES.ok);
   }
   if (opts.version) {
@@ -40,14 +41,14 @@ try {
     process.exit(EXIT_CODES.ok);
   }
   if (!opts.target || !opts.passId) {
-    process.stderr.write(`${usage(scriptName, "--target <path> --pass-id <id> [--review-input <path>] [--lens a,b] [--out <path>]")}\n`);
+    process.stderr.write(`${usage(scriptName, usageText)}\n`);
     process.stderr.write(`validation error: missing --target or --pass-id\n`);
     process.exit(EXIT_CODES.usage);
   }
   const root = projectRootFrom(opts);
   const targetPath = normalizeRepoInputPath(root, opts.target);
   if (!targetPath) {
-    process.stderr.write(`validation error: --target must resolve under the project root\n`);
+    process.stderr.write(`validation error: --target must resolve under the project root ${root}\n`);
     process.exit(EXIT_CODES.usage);
   }
   const registry = readRegistry();
@@ -67,30 +68,9 @@ try {
     }
   }
   const targetRevision = computeArtifactSha(root, targetPath);
-  const coreProfileId = opts.coreProfile || registry.default_core_profile_id;
-  const coreProfile = (registry.core_profiles || []).find((entry) => entry.id === coreProfileId);
-  if (!coreProfile || !Array.isArray(coreProfile.required_lens_ids) || coreProfile.required_lens_ids.length === 0) {
-    process.stderr.write(`validation error: registry default core profile is invalid\n`);
-    process.exit(EXIT_CODES.usage);
-  }
   const runMode = opts.runMode || "inline";
   if (!RUN_MODES.includes(runMode)) {
     process.stderr.write(`validation error: --run-mode must be one of ${RUN_MODES.join(", ")}\n`);
-    process.exit(EXIT_CODES.usage);
-  }
-  const coreLensSet = new Set(coreProfile.required_lens_ids);
-  const selectedIncludesCore = [...coreLensSet].every((lens) => selectedSet.has(lens));
-  const runScope = opts.runScope || (runMode === "full" && selectedIncludesCore ? "core_profile" : "selected_lenses");
-  if (!RUN_SCOPES.includes(runScope)) {
-    process.stderr.write(`validation error: --run-scope must be one of ${RUN_SCOPES.join(", ")}\n`);
-    process.exit(EXIT_CODES.usage);
-  }
-  if (runScope === "core_profile" && !selectedIncludesCore) {
-    process.stderr.write(`validation error: core_profile run-scope requires every ${coreProfileId} core lens\n`);
-    process.exit(EXIT_CODES.usage);
-  }
-  if (runScope === "core_profile" && runMode !== "full") {
-    process.stderr.write(`validation error: core_profile run-scope requires full run mode\n`);
     process.exit(EXIT_CODES.usage);
   }
   const defaultExecutionMode = runMode === "full" ? "fresh_spawned_lens_reviewers" : "manual_or_imported";
@@ -134,7 +114,7 @@ try {
   if (opts.lensSelection) {
     lensSelectionPath = normalizeRepoInputPath(root, opts.lensSelection);
     if (!lensSelectionPath) {
-      process.stderr.write(`validation error: --lens-selection must resolve under the project root\n`);
+      process.stderr.write(`validation error: --lens-selection must resolve under the project root ${root}\n`);
       process.exit(EXIT_CODES.usage);
     }
     lensSelection = readJsonFile(resolveRepoPath(root, lensSelectionPath));
@@ -153,7 +133,34 @@ try {
       process.exit(EXIT_CODES.usage);
     }
   }
-  const eventsPath = opts.eventsPath || (opts.out ? opts.out.replace(/[^/]+$/, "events.jsonl") : archiveRunPath(targetPath, opts.passId).replace(/\/?$/, "/events.jsonl"));
+  // The core profile is opt-in: --core-profile or a core-profile lens
+  // selection. Any other set, even one covering every core lens, is a
+  // selected-lens run.
+  const coreProfileId = opts.coreProfile || lensSelection?.core_profile_id || registry.default_core_profile_id;
+  const coreProfile = (registry.core_profiles || []).find((entry) => entry.id === coreProfileId);
+  if (!coreProfile || !Array.isArray(coreProfile.required_lens_ids) || coreProfile.required_lens_ids.length === 0) {
+    process.stderr.write(`validation error: unknown or invalid core profile ${coreProfileId}\n`);
+    process.exit(EXIT_CODES.usage);
+  }
+  const selectedIncludesCore = coreProfile.required_lens_ids.every((lens) => selectedSet.has(lens));
+  const optedIntoCore = Boolean(opts.coreProfile || lensSelection?.core_profile_id);
+  const runScope = opts.runScope || (runMode === "full" && optedIntoCore ? "core_profile" : "selected_lenses");
+  if (!RUN_SCOPES.includes(runScope)) {
+    process.stderr.write(`validation error: --run-scope must be one of ${RUN_SCOPES.join(", ")}\n`);
+    process.exit(EXIT_CODES.usage);
+  }
+  if (runScope === "core_profile" && !selectedIncludesCore) {
+    process.stderr.write(`validation error: core_profile run-scope requires every ${coreProfileId} core lens\n`);
+    process.exit(EXIT_CODES.usage);
+  }
+  if (runScope === "core_profile" && runMode !== "full") {
+    process.stderr.write(`validation error: core_profile run-scope requires full run mode\n`);
+    process.exit(EXIT_CODES.usage);
+  }
+  // The run directory holding the ledger is also the pass's archive, so a
+  // pass has one ledger before and after archive-review-run.
+  const runDir = opts.out && dirname(opts.out) !== "." ? dirname(opts.out) : archiveRunPath(targetPath, opts.passId);
+  const eventsPath = opts.eventsPath || (opts.out ? opts.out.replace(/[^/]+$/, "events.jsonl") : `${runDir}/events.jsonl`);
   if (!isRepoRelativePath(eventsPath)) {
     process.stderr.write(`validation error: --events-path must be repository-relative\n`);
     process.exit(EXIT_CODES.usage);
@@ -188,7 +195,7 @@ try {
     current_review_record_ids: [],
     superseded_review_record_ids: [],
     synthesis_record_ids: [],
-    archive_paths: [archiveRunPath(targetPath, opts.passId)],
+    archive_paths: [runDir],
     artifact_visibility: "public_safe",
     completion_validation: {
       validator_name: "validate-completion-summary",
@@ -215,7 +222,7 @@ try {
     process.stdout.write(output);
   }
 } catch (error) {
-  process.stderr.write(`${usage(scriptName, "--target <path> --pass-id <id> [--review-input <path>] [--lens a,b] [--out <path>]")}\n`);
+  process.stderr.write(`${usage(scriptName, usageText)}\n`);
   process.stderr.write(`validation error: ${error.message}\n`);
   process.exit(error.exitCode || EXIT_CODES.internal);
 }

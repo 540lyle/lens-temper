@@ -86,14 +86,16 @@ In a full-review host such as Codex or Claude Code, the simplest prompt is:
 Use LensTemper to review docs/plans/my-plan.md.
 ```
 
-By default, LensTemper should run a full review with one detached-context
-reviewer subagent per selected lens, using the host's equivalent mechanism. A
+By default, LensTemper should run a full review of the lenses the plan's
+domains call for, with one detached-context reviewer subagent per selected lens,
+using the host's equivalent mechanism. A
 detached-context reviewer receives none of the host, parent, or orchestrator
 conversation or history and reads only its run packet and permitted workspace
 files. If the host cannot provide that isolation, the review should stop instead
 of silently falling back to inline/advisory mode.
 
-To force the standard core profile:
+To opt into the full standard core profile, for irreversible work such as
+migrations, authorization, money, or tool authority:
 
 ```text
 Run a full LensTemper standard-v2 core review of docs/plans/my-plan.md.
@@ -119,8 +121,9 @@ and cannot produce lockable completion claims.
 
 | Need | Use |
 |------|-----|
-| Highest-confidence spec review | Full standard-v2 core-profile review |
-| Narrow risk area | Selected-lens full review |
+| Most plans | Full review of the lenses the plan's domains select (the default) |
+| Irreversible work: migrations, authorization, money, tool authority | Full standard-v2 core-profile review (opt-in) |
+| Narrow risk area | Full review of lenses you name |
 | Fast early feedback | Inline advisory review |
 | Recheck after you edit the spec | Rerun decider, then rerun affected lenses |
 
@@ -190,14 +193,15 @@ If you are unsure, pick `Start Plan Review`.
 LensTemper has three run families:
 
 - `full_hosted`: the current agent orchestrates fresh lens-reviewer subagents.
-- `full_detached`: a fresh orchestrator owns the run, reviewers, synthesis,
-  reruns, archive, and completion claims.
+- `full_detached` (opt-in): a fresh orchestrator owns the run, reviewers,
+  synthesis, reruns, archive, and completion claims; its event log is checked
+  with `validate-ledger.mjs --audit`.
 - `inline`: a current-context advisory review. Use this only when explicitly
   requested.
 
 A full run typically follows this path:
 
-1. Choose lenses based on the plan's risk.
+1. Choose lenses from the plan's domains (or the full core profile, opt-in).
 2. Hash the target plan/spec so each review records the revision it read.
 3. Create a ledger and prompt packets for the selected lenses.
 4. Spawn one detached-context reviewer subagent per selected lens.
@@ -245,18 +249,22 @@ is detected, Natty becomes required for that run; otherwise she is omitted.
 
 ## When To Use The Core Profile
 
-Use the full core-profile pass when the plan is broad or high-risk. Examples:
+The default review runs the lenses the plan's domains select. Opt into the full
+core profile (`--core-profile standard-v2`) when a mistake would be hard to
+undo:
 
-- a new user-facing workflow
-- persistence or saved-state behavior
-- cross-module contracts
-- migrations or irreversible data changes
-- release or rollout plans
-- work that already had regressions or disputed review feedback
+- migrations or other irreversible data changes
+- authorization, authentication, or secrets
+- money: billing, payments, or pricing
+- tool or model authority: what an agent or model may write or dispatch
 
-Only a full run whose named core profile passes may make an unqualified
-`LensTemper pass complete` claim. The required set may include triggered
-specialists without changing the core profile's identity.
+When a focused selection touches migration, security, or model-authority
+domains, the scripts print a hint naming the opt-in. Only a full run whose
+named core profile passes may make an unqualified `LensTemper pass complete`
+claim. A focused run delivers its review as `Review delivered: N blocking gaps,
+K minor issues, M questions`, labeled `Full LensTemper review for selected
+lenses only`. The required set may include triggered specialists without
+changing the core profile's identity.
 
 ## When To Compose Individual Lenses
 
@@ -283,11 +291,11 @@ Use inline/advisory mode for quick feedback, but label it honestly.
 
 ## Examples
 
-### Full Plan Review
+### Core-Profile Review (Opt-In)
 
 ```text
 Use LensTemper to run a full standard-v2 core-profile review of
-docs/plans/saved-setups-v2.md. Spawn detached-context reviewer subagents, one
+docs/plans/saved-drafts-v2.md. Spawn detached-context reviewer subagents, one
 per lens, and do not fall back to inline review.
 ```
 
@@ -324,7 +332,8 @@ docs/agent-flow.md              Full-run flow diagram
 
 ## Tooling
 
-Validate the reusable review contract and fixtures:
+Validate the reusable review contract and the package's own fixtures (a
+project's run is validated with the individual validators and `--ledger`):
 
 ```powershell
 node reviews/scripts/validate-review-fixtures.mjs
@@ -336,7 +345,8 @@ Useful helpers:
 
 ```powershell
 node reviews/scripts/run-plan-review.mjs --target docs/plans/my-plan.md --pass-id my-pass --review-input docs/plans/my-plan.review-input.json
-node reviews/scripts/assemble-review-prompt.mjs --target docs/plans/my-plan.md --lens implementation --pass-id my-pass --review-input docs/plans/my-plan.review-input.json
+node reviews/scripts/assemble-review-prompt.mjs --target docs/plans/my-plan.md --lens product-ux --pass-id my-pass --review-input docs/plans/my-plan.review-input.json --out my-pass.product-ux.prompt.md
+node reviews/scripts/update-ledger.mjs --ledger <run>/ledger.json --applied <finding-id> --summary "<what changed>" --write
 node reviews/scripts/run-review-evals.mjs
 ```
 
@@ -354,9 +364,14 @@ precision; those report fields stay `not_measured`.
 
 `run-plan-review.mjs` validates and snapshots the review contract, resolves or
 validates lens scope, records `lens-selection.json`, then prepares ledgers and
-prompt packets. Omitting `--lens` selects the default core profile plus any
-deterministically triggered specialists; use `--all-lenses` only for an
-explicit complete-registry run. Reviewer execution is
+prompt packets in `reviews/archive/<yyyy-mm-dd>-<target-slug>-<pass-id>/`, the
+pass's run directory and archive, whose `ledger.json` is the pass's one ledger.
+Omitting `--lens` selects the lenses the plan's domains call for, the same
+selection `select-lenses.mjs` reports; `--core-profile standard-v2` opts into
+the full core profile, and `--all-lenses` is an explicit complete-registry run. `assemble-review-prompt.mjs` alone is the
+single-lens path with no ledger: one reviewer packet and nothing else.
+`update-ledger.mjs --applied` records an edit made after delivery in the
+ledger's `target_edits`. Reviewer execution is
 still provided by the host, such as Codex subagents, Claude subagents, Cursor
 Background Agents, or another verified fresh-agent mechanism. Cursor is
 conditional full only when its run proves fresh reviewer isolation and artifact

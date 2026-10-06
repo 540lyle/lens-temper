@@ -25,18 +25,11 @@ Evaluate the plan from a testing and verification perspective. Focus on whether 
 - Are loading, empty, invalid, and failure states covered for UI features?
 - Is there a clear post-deploy verification path?
 
-## Stateful Workflow Ownership
+## Stateful Workflows
 
-For plans involving restore, load, save, update, delete, reset, deferred apply,
-planner/apply separation, persisted records, or active UI/application state, own
-these regression checks:
-
-- Absence semantics: missing key, `undefined`, `null`, empty string, empty arrays/objects, and omitted planner fields.
-- Stale active state: load/restore/reset/delete must clear, preserve, replace, invalidate, or resync the right prior state.
-- Deferred apply races: save, update, delete, reset, retry, and second restore before deferred work runs.
-- Planner/apply symmetry: ignored planner fields and impossible apply branches.
-- Snapshot integrity: saved records cannot mix pre-restore and post-restore context unless explicitly modeled.
-- Visible state: success, failure, cancellation, retry, and transitional UI states match application state.
+The Implementation lens owns the stateful workflow sweep. Raise a stateful
+issue here only when the plan has no way to verify a stateful behavior the
+goal depends on.
 
 ## Red Flags
 

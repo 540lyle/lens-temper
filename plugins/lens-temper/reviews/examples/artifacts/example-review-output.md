@@ -1,19 +1,12 @@
 # Example Review Output
 
-This file shows the expected shape of a completed review. Use it as a reference for output consistency across models and reviewers.
+This file shows the expected shape of a completed review. Use it as a reference for output consistency across models and reviewers. Provenance is not part of the review: `update-ledger.mjs` stamps it into the review record when the review is attached.
 
 > **Note:** This is a fabricated example for format demonstration only. The feature, plan, and findings are fictional.
 
 ---
 
-### Provenance
-
-- Pass ID: pass-1
-- Lens: Data Model
-- Target Path: docs/plans/example-permissions-plan.md
-- Target Revision: example-revision
-- Template Revision: example-template-revision
-- Lens Revision: example-lens-revision
+## Data Model Example
 
 ### Goal Gate
 
@@ -50,20 +43,11 @@ This file shows the expected shape of a completed review. Use it as a reference 
 ### Cross-Cutting Sweep
 
 - Security / privacy: [major] Permission-denial behavior must not reveal whether a protected resource exists.
-- Accessibility: [minor] The permission-denied state should use the existing alert/status pattern so it is announced.
-- Performance: Not applicable from this lens.
 - Reliability / rollback: [major] A rollout gate with fallback is required for frontend/backend rollout ordering.
-- Observability / debuggability: [minor] Add a lightweight denied-permission diagnostic log or existing analytics event if one already exists.
-- Compatibility / platform constraints: Not applicable from this lens.
 
 ### Stateful Workflow Sweep
 
-- Absence semantics: Not applicable; no stateful workflow behavior in scope.
-- Active state clearing/resync: Not applicable; no stateful workflow behavior in scope.
-- Deferred apply/save race: Not applicable; no stateful workflow behavior in scope.
-- Planner/apply symmetry: Not applicable; no stateful workflow behavior in scope.
-- Snapshot/patch/reference semantics: Not applicable; no stateful workflow behavior in scope.
-- Visible state consistency: Not applicable; no stateful workflow behavior in scope.
+Owned by the Implementation lens.
 
 ### Scorecard
 
@@ -80,16 +64,7 @@ This file shows the expected shape of a completed review. Use it as a reference 
 
 ## Strong Advisory Example
 
-This second fabricated example shows that a per-lens review of a sound plan can legitimately end at `Strong` with no findings. A single per-lens output is still advisory; lockable completion requires the full ledger, artifacts, reviewer cleanup status, and validation evidence.
-
-### Provenance
-
-- Pass ID: pass-2
-- Lens: Product & UX
-- Target Path: docs/plans/example-empty-state-plan.md
-- Target Revision: example-revision-2
-- Template Revision: example-template-revision
-- Lens Revision: example-product-ux-lens-revision
+This second fabricated example, a Product & UX review, shows that a per-lens review of a sound plan can legitimately end at `Strong` with no findings. A single per-lens output is still advisory; lockable completion requires the full ledger, artifacts, reviewer cleanup status, and validation evidence.
 
 ### Goal Gate
 
@@ -120,21 +95,13 @@ This second fabricated example shows that a per-lens review of a sound plan can 
 
 ### Cross-Cutting Sweep
 
-- Security / privacy: Not applicable from this lens.
 - Accessibility: No material issue found; the plan uses the existing announced status pattern and defines focus/disabled states.
-- Performance: Not applicable from this lens.
-- Reliability / rollback: Not applicable from this lens.
-- Observability / debuggability: Not applicable from this lens.
+- Performance: No material issue found; the states reuse existing components.
 - Compatibility / platform constraints: No material issue found; the interaction states cover touch, pointer, and keyboard input.
 
 ### Stateful Workflow Sweep
 
-- Absence semantics: Not applicable; no stateful workflow behavior in scope.
-- Active state clearing/resync: Not applicable; no stateful workflow behavior in scope.
-- Deferred apply/save race: Not applicable; no stateful workflow behavior in scope.
-- Planner/apply symmetry: Not applicable; no stateful workflow behavior in scope.
-- Snapshot/patch/reference semantics: Not applicable; no stateful workflow behavior in scope.
-- Visible state consistency: Not applicable; no stateful workflow behavior in scope.
+Owned by the Implementation lens.
 
 ### Scorecard
 

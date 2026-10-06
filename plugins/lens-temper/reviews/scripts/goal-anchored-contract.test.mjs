@@ -211,3 +211,27 @@ test("policy may apply an accepted blocking finding that names its goal", () => 
   assert.deepEqual(check(decision({ finding_id: "goal-gap", change_type: "clarify", serves_goal: null })), ["target_edits[0].decided_by"]);
   assert.deepEqual(check(decision({ finding_id: "goal-gap", decision: "needs_author" })), ["target_edits[0].decided_by"]);
 }));
+
+test("one lens owns the stateful sweep and each lens covers only its own cross-cutting categories", () => {
+  const registry = readJsonFile(join(repoRoot, "reviews", "registry.json"));
+  const prompts = new Map(registry.lenses.map(({ id }) => [id, execFileSync(process.execPath, [
+    "reviews/scripts/assemble-review-prompt.mjs",
+    "--target", "reviews/examples/artifacts/target.valid.md",
+    "--lens", id,
+    "--pass-id", "ownership-test",
+    "--review-input", "reviews/examples/review-input.valid.json"
+  ], { cwd: repoRoot, encoding: "utf8" })]));
+  for (const [id, prompt] of prompts) {
+    const owner = id === "implementation";
+    assert.equal(prompt.includes("What does absence mean"), owner, `${id}: only the owner carries the sweep questions`);
+    assert.match(prompt, /The Implementation lens owns the stateful workflow sweep/, `${id}: the pointer is in every prompt`);
+    assert.doesNotMatch(prompt, /Not applicable from this lens/, `${id}: no per-category not-applicable lines`);
+    const { primary, secondary } = readJsonFile(join(repoRoot, registry.lenses.find((entry) => entry.id === id).manifest_path)).cross_cutting_ownership;
+    const owned = prompt.match(/This lens owns (.*); review those\./)?.[1] || "";
+    for (const category of [...primary, ...secondary]) assert.equal(owned.includes(category), true, `${id} owns ${category}`);
+    // Provenance is stamped by scripts: the output format no longer asks for it.
+    const outputFormat = prompt.slice(prompt.indexOf("## Output Format"));
+    assert.doesNotMatch(outputFormat, /### Provenance|- Pass ID:/, `${id}: the reviewer does not echo provenance`);
+  }
+  assert.match(prompts.get("security"), /`Strong — No security surface changed`/);
+});

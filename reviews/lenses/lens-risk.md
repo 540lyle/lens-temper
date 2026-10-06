@@ -29,17 +29,11 @@ Security is owned by the Security lens. Report a security issue here only when
 it directly changes rollout, containment, observability, rollback, or recovery;
 do not duplicate exploit analysis or treat Security as a Risk subcategory.
 
-## Stateful Workflow Ownership
+## Stateful Workflows
 
-For plans involving restore, load, save, update, delete, reset, deferred apply,
-planner/apply separation, persisted records, or active application state, own
-these checks:
-
-- Can durable records, active state, and visible state diverge silently?
-- Can a user action during deferred restore corrupt saved data or make rollback ambiguous?
-- Is there a rollback, kill switch, or safe recovery path if persisted or active state handling is wrong?
-- Are stale-state, mixed-snapshot, partial-failure, and duplicate-action failures observable and diagnosable?
-- Is the blast radius bounded if legacy records or omitted fields are interpreted incorrectly?
+The Implementation lens owns the stateful workflow sweep. Raise a stateful
+issue here only when it changes rollback, recovery, observability, or blast
+radius enough to meet the goal gate.
 
 ## Red Flags
 

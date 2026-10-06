@@ -11,15 +11,16 @@ import {
   resolveReviewInput,
   usage
 } from "./validation-helpers.mjs";
-import { selectLenses } from "./lens-selection.mjs";
+import { clarificationMessage, coreProfileHint, selectLenses } from "./lens-selection.mjs";
 
 ensureNode18();
 const scriptName = "select-lenses.mjs";
+const usageText = "--target <path> (--review-input <path> | --feature-request <text>) [--lens a,b | --all-lenses | --core-profile <id>] [--lens-proposal <path>] [--selection-fallback all] [--root <path>] [--json]";
 
 try {
   const opts = parseCommonArgs(process.argv.slice(2));
   if (opts.help) {
-    process.stdout.write(`${usage(scriptName, "--target <path> (--review-input <path> | --feature-request <text>) [--lens a,b | --all-lenses | --core-profile <id>] [--lens-proposal <path>] [--selection-fallback all] [--root <path>] [--json]")}\n`);
+    process.stdout.write(`${usage(scriptName, usageText)}\n`);
     process.exit(EXIT_CODES.ok);
   }
   if (opts.version) {
@@ -29,12 +30,12 @@ try {
   if (!opts.target) throw Object.assign(new Error("missing --target"), { exitCode: EXIT_CODES.usage });
   const root = projectRootFrom(opts);
   const targetPath = normalizeRepoInputPath(root, opts.target);
-  if (!targetPath) throw Object.assign(new Error("--target must resolve under the repository root"), { exitCode: EXIT_CODES.usage });
+  if (!targetPath) throw Object.assign(new Error(`--target must resolve under the project root ${root}`), { exitCode: EXIT_CODES.usage });
   const registry = readRegistry();
   const reviewInput = resolveReviewInput(root, opts);
   const explicitLenses = opts.lens === null ? null : opts.lens.split(",").map((item) => item.trim()).filter(Boolean);
   const proposalPath = opts.lensProposal ? normalizeRepoInputPath(root, opts.lensProposal) : null;
-  if (opts.lensProposal && !proposalPath) throw Object.assign(new Error("--lens-proposal must resolve under the repository root"), { exitCode: EXIT_CODES.usage });
+  if (opts.lensProposal && !proposalPath) throw Object.assign(new Error(`--lens-proposal must resolve under the project root ${root}`), { exitCode: EXIT_CODES.usage });
   let result;
   try {
     result = selectLenses({
@@ -56,11 +57,14 @@ try {
     throw error;
   }
   if (opts.json) process.stdout.write(`${JSON.stringify({ event: "lens_selection", ...result })}\n`);
-  else if (result.status === "resolved") result.selected_lenses.forEach((lens) => process.stdout.write(`${lens}\n`));
-  else process.stderr.write(`clarification required: ${result.clarification_question}\n`);
+  else if (result.status === "resolved") {
+    result.selected_lenses.forEach((lens) => process.stdout.write(`${lens}\n`));
+    const hint = coreProfileHint(result, registry);
+    if (hint) process.stderr.write(`${hint}\n`);
+  } else process.stderr.write(`${clarificationMessage(result, registry)}\n`);
   if (result.status !== "resolved") process.exit(EXIT_CODES.usage);
 } catch (error) {
-  process.stderr.write(`${usage(scriptName, "--target <path> (--review-input <path> | --feature-request <text>) [--lens a,b | --all-lenses | --core-profile <id>] [--lens-proposal <path>] [--selection-fallback all] [--json]")}\n`);
+  process.stderr.write(`${usage(scriptName, usageText)}\n`);
   process.stderr.write(`validation error: ${error.message}\n`);
   process.exit(error.exitCode || EXIT_CODES.internal);
 }

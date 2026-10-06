@@ -35,7 +35,7 @@
   },
   "artifact_path": "reviews/examples/synthesis-output.valid.json",
   "markdown_artifact_path": "reviews/examples/artifacts/synthesis-output.valid.md",
-  "markdown_artifact_sha": "git:6d734341681b9a4bbd3e2c7d705479a125ba2d8e",
+  "markdown_artifact_sha": "git:22abdd6e78e12c41a2db0caba98d650f14fcd864",
   "run_mode": "full",
   "claim_flags": {
     "completion": false,

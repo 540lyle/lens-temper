@@ -7,7 +7,7 @@
   "review_input_path": "reviews/examples/review-input.valid.json",
   "review_input_revision": "sha256:dc29a2b9712d8555b2b607998bd97d25cc3a61dbc0e447dd8dee1865a6c3833d",
   "policy_path": "reviews/manifests/lens-selection.json",
-  "policy_revision": "git:da53edea6532bdc628ae9e328a58d8ab0408b2d2",
+  "policy_revision": "git:f90327e42cd1082eb4d837dd74c8ba5b6e4e667e",
   "mode": "explicit",
   "matched_domains": [],
   "deterministic_lenses": ["implementation"],

@@ -17,8 +17,9 @@
       "id": "stateful-workflow",
       "lenses": ["architecture", "implementation", "test-strategy"],
       "phrases": [
-        "state transition", "state ownership", "stateful", "saved state", "save", "load",
-        "restore", "delete", "reset", "defer", "deferred", "apply"
+        "state transition", "state ownership", "stateful", "saved state", "save", "load saved",
+        "loads saved", "load a saved", "load the saved", "load state", "reload", "restore",
+        "delete", "reset", "defer", "deferred", "apply"
       ]
     },
     {
@@ -67,7 +68,10 @@
       "lenses": ["security"],
       "phrases": [
         "security", "privacy", "authorization", "authentication", "authn", "authz",
-        "secret", "credential", "token", "trust boundary", "privilege", "injection",
+        "secret", "credential", "password", "api key", "oauth", "jwt", "access token",
+        "bearer token", "auth token", "api token", "refresh token", "session token",
+        "id token", "csrf token", "token scope",
+        "trust boundary", "privilege", "injection",
         "ssrf", "rce", "path traversal", "untrusted input", "external payload",
         "outbound request", "redirect", "allowlist"
       ]

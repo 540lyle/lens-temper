@@ -122,6 +122,10 @@ export function parseCommonArgs(argv) {
     root: null,
     reopen: "",
     applied: "",
+    hostInitiated: false,
+    audit: false,
+    decidedBy: null,
+    summary: null,
     parentLedger: null,
     humanApproval: null,
     applyMode: null,
@@ -146,6 +150,8 @@ export function parseCommonArgs(argv) {
     else if (arg === "--write") opts.write = true;
     else if (arg === "--finalize") opts.finalize = true;
     else if (arg === "--all-lenses") opts.allLenses = true;
+    else if (arg === "--host-initiated") opts.hostInitiated = true;
+    else if (arg === "--audit") opts.audit = true;
     else if (arg.startsWith("--")) {
       const key = arg.slice(2).replace(/-([a-z])/g, (_, c) => c.toUpperCase());
       if (!(key in opts)) {
@@ -335,11 +341,11 @@ export function resolveReviewInput(root, opts = {}) {
   if (opts.reviewInput) {
     sourcePath = normalizeRepoInputPath(root, opts.reviewInput);
     if (!sourcePath) {
-      throw Object.assign(new Error("--review-input must resolve under the repository root"), { exitCode: EXIT_CODES.usage });
+      throw Object.assign(new Error(`--review-input must resolve under the project root ${root}`), { exitCode: EXIT_CODES.usage });
     }
     const resolved = resolveRepoPath(root, sourcePath);
     if (!resolved || !existsSync(resolved)) {
-      throw Object.assign(new Error(`review input not found ${sourcePath}`), { exitCode: EXIT_CODES.read });
+      throw Object.assign(new Error(notFoundMessage(root, sourcePath, "review input")), { exitCode: EXIT_CODES.read });
     }
     raw = readJsonFile(resolved);
   } else {
@@ -524,10 +530,16 @@ export function validatePathField(root, artifactPath, record, field, failures, o
   return resolved;
 }
 
+// A missing path is usually a wrong working directory or --root, so the
+// message names the root the path resolved against.
+export function notFoundMessage(root, repoPath, what = "artifact") {
+  return `${what} not found: ${repoPath} (resolved against ${root}; pass --root <project> when it lives in another project)`;
+}
+
 export function computeArtifactSha(root, repoPath) {
   const resolved = resolveRepoPath(root, repoPath);
   if (!resolved || !existsSync(resolved)) {
-    throw new Error(`artifact not found: ${repoPath}`);
+    throw Object.assign(new Error(notFoundMessage(root, repoPath)), { exitCode: EXIT_CODES.usage });
   }
   try {
     const out = execFileSync("git", ["hash-object", "--", repoPath], {
@@ -550,13 +562,13 @@ export async function loadValidatedRunContext(root, ledgerInput, options = {}) {
   const ledgerPath = normalizeRepoInputPath(root, ledgerInput);
   const ledgerResolved = ledgerPath ? resolveRepoPath(root, ledgerPath) : null;
   if (!ledgerResolved || !existsSync(ledgerResolved)) {
-    throw Object.assign(new Error(`ledger not found ${ledgerInput}`), { exitCode: EXIT_CODES.read });
+    throw Object.assign(new Error(notFoundMessage(root, ledgerInput, "ledger")), { exitCode: EXIT_CODES.read });
   }
   const ledger = readJsonFile(ledgerResolved);
   let targetRevision = ledger.target_revision;
   if (options.requireCurrentTarget) {
     if (!fileExistsAt(root, ledger.target_path)) {
-      throw Object.assign(new Error(`target not found ${ledger.target_path}`), { exitCode: EXIT_CODES.read });
+      throw Object.assign(new Error(notFoundMessage(root, ledger.target_path, "target")), { exitCode: EXIT_CODES.read });
     }
     targetRevision = computeArtifactSha(root, ledger.target_path);
   }
@@ -978,7 +990,7 @@ export function deriveRerunDecisions({ lenses, lensEntries = [], findings = new 
       lens,
       lens_state: lensState,
       rerun_needed: lensState === "open",
-      reason: entry?.reason || "review delivered; no applied finding or user reopen"
+      reason: entry?.reason || "no applied finding or user reopen"
     };
   });
 }
@@ -1044,7 +1056,7 @@ export function validatePassLineage(record, intent, artifactPath = "review-ledge
   if (record.human_approval !== undefined || index > AUTOMATIC_PASS_LIMIT) {
     const approval = record.human_approval;
     if (approval?.decided_by !== "human" || !isNonEmptyString(approval?.summary)) {
-      failures.push(makeFailure(artifactPath, record, "human_approval", `decided_by: human with a summary${index > AUTOMATIC_PASS_LIMIT ? ` for pass ${index}; only pass ${AUTOMATIC_PASS_LIMIT} reruns automatically` : ""}`, JSON.stringify(approval)));
+      failures.push(makeFailure(artifactPath, record, "human_approval", `decided_by: human with a summary${index > AUTOMATIC_PASS_LIMIT ? ` for pass ${index}; only pass ${AUTOMATIC_PASS_LIMIT} reruns automatically, so record the user's approval with --human-approval "<what the user approved>"` : ""}`, approval === undefined ? "missing" : JSON.stringify(approval)));
     }
   }
   if (index === 1) {
@@ -1300,6 +1312,51 @@ export function validateReviewRecord(record, options = {}) {
   return failures;
 }
 
+// Provenance the run already knows is stamped by the script that attaches a
+// record, not echoed by a model: the ledger's pass, target, revisions, and
+// modes, the package template and lens revisions, and the Markdown hash. Only
+// missing fields are filled; a supplied value that disagrees still fails
+// validation. A category the lens does not own and the review skipped is not
+// applicable; an owned category is the reviewer's to answer and is never filled.
+export function stampRunProvenance(root, ledger, record, kind) {
+  const stamped = [];
+  const fill = (field, value) => {
+    if (record[field] === undefined && value !== undefined && value !== null) {
+      record[field] = value;
+      stamped.push(field);
+    }
+  };
+  for (const field of ["pass_id", "target_path", "target_revision", "run_mode", "review_input_revision"]) fill(field, ledger[field]);
+  if (kind === "review") {
+    fill("execution_mode", ledger.execution_mode);
+    const registry = readRegistry();
+    fill("template_revision", computeArtifactSha(PACKAGE_ROOT, registry.entrypoints.reviewer_template));
+    const lensEntry = registry.lenses.find((entry) => entry.id === record.lens);
+    const manifest = lensEntry ? readJsonFile(join(PACKAGE_ROOT, lensEntry.manifest_path)) : null;
+    if (manifest) fill("lens_revision", computeArtifactSha(PACKAGE_ROOT, manifest.prompt_path));
+    // Manifest labels such as "Compatibility / platform constraints" start with
+    // their key's words (compatibility_platform).
+    const { primary = [], secondary = [] } = manifest?.cross_cutting_ownership || {};
+    const owned = new Set([...primary, ...secondary].map((label) => {
+      const words = label.toLowerCase().replace(/[^a-z]+/g, "_");
+      return CROSS_CUTTING_KEYS.find((key) => words.startsWith(key));
+    }));
+    if (manifest && record.cross_cutting_status === undefined) record.cross_cutting_status = {};
+    if (manifest && record.cross_cutting_status && typeof record.cross_cutting_status === "object" && !Array.isArray(record.cross_cutting_status)) {
+      for (const key of CROSS_CUTTING_KEYS) {
+        if (!owned.has(key) && record.cross_cutting_status[key] === undefined) {
+          record.cross_cutting_status[key] = "not_applicable";
+          stamped.push(`cross_cutting_status.${key}`);
+        }
+      }
+    }
+  }
+  if (record.markdown_artifact_path && record.markdown_artifact_sha === undefined && fileExistsAt(root, record.markdown_artifact_path)) {
+    fill("markdown_artifact_sha", computeArtifactSha(root, record.markdown_artifact_path));
+  }
+  return stamped;
+}
+
 export function deriveCoreProfileCompletionState(root, record) {
   if (record.run_scope !== "core_profile") return null;
   const required = Array.isArray(record.required_lens_ids) ? record.required_lens_ids : [];
@@ -1456,7 +1513,7 @@ export function validateSynthesisRecord(record, options = {}) {
   if (options.ledger) {
     const synthesisArtifacts = new Map((options.ledger.synthesis_record_artifacts || []).map((entry) => [entry.record_id, entry.artifact_path]));
     if (!(options.ledger.synthesis_record_ids || []).includes(record.record_id)) {
-      failures.push(makeFailure(artifactPath, record, "record_id", "current ledger synthesis record", record.record_id));
+      failures.push(makeFailure(artifactPath, record, "record_id", "a synthesis record attached to the ledger (attach it first with update-ledger.mjs --ledger <ledger> --synthesis <synthesis-json> --write)", record.record_id));
     } else if (synthesisArtifacts.get(record.record_id) !== record.artifact_path) {
       failures.push(makeFailure(artifactPath, record, "artifact_path", synthesisArtifacts.get(record.record_id), record.artifact_path));
     }
@@ -1624,11 +1681,13 @@ export function validateLedgerRecord(record, options = {}) {
     }
   }
   validateCompletionValidation(record, artifactPath, failures);
+  // The events log is an opt-in audit: runs record setup events cheaply, and
+  // --audit checks the log and, for a detached run, its reviewer lifecycle.
   let events = [];
-  if (record.execution_mode === "fresh_spawned_orchestrator") {
+  if (options.audit && record.events_path !== undefined) {
     events = validateEventsLog(root, record, artifactPath, failures);
   }
-  if (record.status === "completed" && record.execution_mode === "fresh_spawned_orchestrator") {
+  if (options.audit && record.status === "completed" && record.execution_mode === "fresh_spawned_orchestrator") {
     requireDetachedEvent(events, artifactPath, record, "orchestrator_started", { role: "orchestrator", status: "started" }, failures);
     requireDetachedEvent(events, artifactPath, record, "ledger_created", { role: "orchestrator" }, failures);
     requireDetachedEvent(events, artifactPath, record, "prompt_packet_created", { role: "orchestrator" }, failures);

@@ -35,17 +35,25 @@ Copy, labels, layout, and ordinary defaults are not implementability gaps.
 A decision the plan hands to its owner is a question, not a gap; do not pick
 the answer.
 
-## Stateful Workflow Ownership
+## Stateful Workflow Sweep
 
-For plans involving restore, load, save, update, delete, reset, deferred apply,
-planner/apply separation, persisted records, or active application state, own
-these checks:
+This lens owns the stateful workflow sweep; other lenses point here. When the
+plan includes restore, load, save, update, delete, reset, deferred apply,
+planner/apply separation, persisted records, or active UI/application state,
+answer each question in the output's Stateful Workflow Sweep section:
 
-- Is the sequencing explicit enough to prevent save-before-restore, update-before-resync, delete-during-restore, or second-restore races?
-- If restore or apply work is deferred, does the plan define cancellation, idempotency, revision tokens, and what interim actions are allowed?
-- Does the implementation path handle every planner output field, action, and state transition?
-- Are partial failures and retry paths implementable without leaving mixed active and persisted state?
-- Are compatibility defaults and backfills described before code paths depend on the new shape?
+- What does absence mean for each relevant value: `undefined`, `null`, empty string, empty array, empty object, missing key, or omitted planner field? Are defaults and backfills for legacy records in place before code reads the new shape?
+- What existing active state must be preserved, replaced, cleared, invalidated, or resynced before and after the action, and can a delete or reset be undone by stale state?
+- Can restore or apply work be deferred, and is the sequencing explicit enough to prevent save-before-restore, update-before-resync, delete-during-restore, or a second restore before the deferred work runs? If deferred, are cancellation, idempotency, and revision tokens defined?
+- Does every planner output field, action, and state transition have a matching App or application-layer apply path, and does every apply branch have a planner case that can produce it?
+- Is the saved data a full snapshot, patch, reference, or intent, and can saving during transitional state, a partial failure, or a retry leave mixed or invalid records?
+- Does visible UI state match persisted/application state after success, failure, partial failure, cancellation, and retry?
+
+An unanswered question is material when it meets the goal gate: durable data
+can be lost or corrupted, or active state the goal depends on can go stale.
+Deferred restore or apply is behavior to review, not a pending decision. A
+scope deferral is acceptable only when the plan names the deferred behavior,
+owner, timing, and interim user/data semantics.
 
 ## Red Flags
 
