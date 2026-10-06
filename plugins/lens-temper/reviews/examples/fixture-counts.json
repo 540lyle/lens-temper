@@ -1,7 +1,7 @@
 {
   "review-input": {
-    "valid": 1,
-    "invalid": 1
+    "valid": 2,
+    "invalid": 2
   },
   "review-output": {
     "valid": 3,
@@ -13,7 +13,7 @@
   },
   "ledger": {
     "valid": 2,
-    "invalid": 12
+    "invalid": 13
   },
   "completion-summary": {
     "valid": 2,

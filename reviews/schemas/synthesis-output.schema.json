@@ -54,12 +54,49 @@
           "finding_id": { "type": "string" },
           "source_lens": { "type": "string" },
           "source_review_record_id": { "type": "string" },
-          "decision": { "enum": ["accepted", "rejected", "downgraded", "deferred"] },
+          "decision": { "enum": ["accepted", "rejected", "downgraded", "deferred", "needs_author"] },
           "severity": { "enum": ["critical", "major", "minor"] },
           "affects_rerun_scope": { "type": "boolean" },
-          "reason": { "type": "string", "minLength": 1 }
+          "reason": { "type": "string", "minLength": 1 },
+          "change_type": { "enum": ["clarify", "add", "remove"] },
+          "serves_goal": {
+            "description": "Goal id from the intent card, or goal text when no card exists; null when the change serves no stated goal.",
+            "type": ["string", "null"],
+            "minLength": 1
+          },
+          "rejection_reason": {
+            "enum": [
+              "conflicts_with_goal",
+              "adds_unrequested_scope",
+              "implementer_discretion",
+              "unsupported",
+              "duplicate",
+              "out_of_domain",
+              "contradicted"
+            ]
+          }
         },
-        "additionalProperties": true
+        "additionalProperties": true,
+        "allOf": [
+          {
+            "if": {
+              "required": ["decision", "change_type"],
+              "properties": { "decision": { "const": "accepted" }, "change_type": { "const": "add" } }
+            },
+            "then": {
+              "required": ["serves_goal"],
+              "properties": { "serves_goal": { "type": "string" } }
+            }
+          },
+          {
+            "if": { "required": ["decision"], "properties": { "decision": { "const": "needs_author" } } },
+            "then": { "not": { "required": ["change_type"] } }
+          },
+          {
+            "if": { "required": ["rejection_reason"] },
+            "then": { "properties": { "decision": { "const": "rejected" } } }
+          }
+        ]
       }
     },
     "lens_lock_decisions": {
@@ -115,7 +152,7 @@
           "finding_id": { "type": "string" },
           "source_target_path": { "type": "string" },
           "source_target_revision": { "type": "string" },
-          "decision": { "enum": ["accepted", "rejected", "downgraded", "deferred"] },
+          "decision": { "enum": ["accepted", "rejected", "downgraded", "deferred", "needs_author"] },
           "severity": { "enum": ["critical", "major", "minor"] }
         },
         "additionalProperties": true
@@ -126,8 +163,21 @@
         "Ready to implement",
         "Ready with minor clarifications",
         "Needs revision",
-        "Not implementation-ready"
+        "Not implementation-ready",
+        "Goal drift"
       ]
+    },
+    "scope_delta": {
+      "description": "Surface the accepted changes add and remove. A reductive goal whose net surface grows forces the Goal drift assessment.",
+      "type": "object",
+      "required": ["added", "removed", "net", "reductive_goal"],
+      "properties": {
+        "added": { "type": "array", "items": { "type": "string" } },
+        "removed": { "type": "array", "items": { "type": "string" } },
+        "net": { "enum": ["grows", "shrinks", "unchanged"] },
+        "reductive_goal": { "type": "boolean" }
+      },
+      "additionalProperties": false
     },
     "artifact_path": { "type": "string" },
     "markdown_artifact_path": { "type": "string" },
@@ -139,6 +189,19 @@
       "if": { "properties": { "run_mode": { "const": "full" } } },
       "then": {
         "required": ["review_input_revision"]
+      }
+    },
+    {
+      "if": {
+        "required": ["scope_delta"],
+        "properties": {
+          "scope_delta": {
+            "properties": { "net": { "const": "grows" }, "reductive_goal": { "const": true } }
+          }
+        }
+      },
+      "then": {
+        "properties": { "final_assessment": { "const": "Goal drift" } }
       }
     }
   ]

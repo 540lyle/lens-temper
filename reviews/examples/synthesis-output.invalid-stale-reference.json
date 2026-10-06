@@ -26,9 +26,15 @@
     }
   ],
   "final_assessment": "Needs revision",
+  "scope_delta": {
+    "added": [],
+    "removed": [],
+    "net": "unchanged",
+    "reductive_goal": false
+  },
   "artifact_path": "reviews/examples/synthesis-output.invalid-stale-reference.json",
   "markdown_artifact_path": "reviews/examples/artifacts/synthesis-output.valid.md",
-  "markdown_artifact_sha": "git:cf010010de0681abaf7117f4713e388a111994f9",
+  "markdown_artifact_sha": "git:6d734341681b9a4bbd3e2c7d705479a125ba2d8e",
   "run_mode": "full",
   "claim_flags": {
     "completion": false,

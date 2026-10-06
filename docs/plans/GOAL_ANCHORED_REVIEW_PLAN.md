@@ -1,6 +1,6 @@
 # Goal-Anchored Review Plan: LensTemper
 
-Status: In progress. Phases 0 and 1 complete; Phase 2 next.
+Status: In progress. Phases 0 and 1 complete; Phase 2 implemented, awaiting a run on a real plan.
 
 ## Intent
 
@@ -178,7 +178,8 @@ and the lens most likely to add scope.
 - **Agent-implementability** lives in the Implementation lens, behind the goal
   gate: ambiguous sources of truth, missing cross-module contracts, conflicting
   readings. Not copy and defaults.
-- **Redefine done.** "Review delivered: N blocking gaps, M questions." The
+- **Redefine done.** "Review delivered: N blocking gaps, K minor issues, M
+  questions" (minor issues added by the follow-up below). The
   review never edits the target spec. Remove wording that invites looping: the
   "Rerun After Fixes" example, "implementation-ready without more human
   interpretation", the lock promise, the "clearly new material evidence" escape
@@ -248,6 +249,45 @@ empty on a lean plan; it still needs a target with removable surface.
   growth that bypasses synthesis is visible.
 - Deleting "or reviewer feedback" from rule 7 is consistent cleanup; Phase 0 did
   not show it driving growth.
+
+**Result (2026-10, contract only; no capture yet).**
+
+- The intent card is an optional `intent` field on review input schema 2, not a
+  new schema version: the field is additive, inputs without it keep their
+  revision, and older readers already reject unknown fields. It is rendered
+  into reviewer and synthesis prompts as the goal reference. `amended_by:
+  human` exists and its rule is documented; hash-locking the card across
+  passes waits for pass lineage (Phase 3).
+- Synthesis is a filter. Finding decisions gain `needs_author`, `change_type`,
+  `serves_goal` and `rejection_reason`; the validator rejects an accepted
+  `add` without a goal, an untyped accepted blocking finding, a
+  `needs_author` decision that is also a plan change, and a reductive
+  `scope_delta` that grows without the `Goal drift` verdict.
+- The synthesis output is Goal Reference, Blocking Gaps, Questions for the
+  Author, Minor Issues, Notes, Recommended Plan Changes and Scope Delta, ahead
+  of the audit sections. Synthesis Markdown in the old shape still validates.
+- `decided_by` lives on the ledger's `target_edits` log. Policy may apply only
+  an accepted blocking finding that names its goal; questions and minor
+  issues reach the target only through a human.
+- Not done: the completion summary lists minor issues, deferred risks and
+  `needs_author` decisions but cannot list reviewer Open Questions, which
+  exist only in synthesis Markdown. The
+  exit check for this phase is a capture on a plan with a reductive goal.
+
+**Result (2026-10, 2 old vs 2 new syntheses on the same reviewer outputs, blind
+rater, directional).** Scope-adding directives fell from 3 per synthesis to 0-1,
+and the one remaining was declared in the Scope delta. Pending owner decisions
+answered by synthesis fell from 1-3 to 0. No Open Questions were dropped under
+either prompt, but the old prompt converted some into directives and the new one
+converted none. Question-and-change duplicates fell from 6 to 1. Owner
+readability rose from about 2.5 to about 3.5 out of 5. Follow-up in the same
+phase: questions are ordered by how much their answer changes, internal option
+letters must be restated in plain words, and each question says what happens if
+unanswered (the plan's own recommendation, a conservative default, or "work
+waits on this answer") instead of "Default: none". The Goal fit / Recommended
+removals section returned "None" on a review-grown UI plan in two runs; that is
+defensible for that plan but does not yet show the section can find removals.
+Intent-card locking across passes waits for Phase 3 lineage.
 
 ### Phase 3: Mechanics
 

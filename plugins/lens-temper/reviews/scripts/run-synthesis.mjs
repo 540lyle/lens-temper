@@ -3,6 +3,7 @@ import { join } from "node:path";
 import {
   CONTRACT_VERSION,
   EXIT_CODES,
+  encodeIntentCard,
   encodePromptData,
   encodePromptJson,
   ensureNode18,
@@ -52,6 +53,7 @@ async function main() {
   const prompt = renderTemplate(template, {
     review_input_revision: context.reviewInput.revision,
     feature_request: encodePromptData(context.reviewInput.record.feature_request),
+    intent_card: encodeIntentCard(context.reviewInput.record.intent),
     proposed_plan: encodePromptData(targetText),
     relevant_context: encodePromptData(context.reviewInput.record.relevant_context),
     constraints: encodePromptData(context.reviewInput.record.constraints),

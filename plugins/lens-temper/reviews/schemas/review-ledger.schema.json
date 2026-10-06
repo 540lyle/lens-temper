@@ -137,6 +137,31 @@
         },
         "additionalProperties": true
       }
+    },
+    "target_edits": {
+      "description": "Every edit a host or user makes to the target after this pass's delivery. Each cites a finding id or is logged as host-initiated.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["decided_by", "summary"],
+        "properties": {
+          "finding_id": { "type": "string", "minLength": 1 },
+          "host_initiated": { "const": true },
+          "decided_by": { "enum": ["human", "policy"] },
+          "summary": { "type": "string", "minLength": 1 }
+        },
+        "oneOf": [
+          { "required": ["finding_id"] },
+          { "required": ["host_initiated"] }
+        ],
+        "allOf": [
+          {
+            "if": { "required": ["decided_by"], "properties": { "decided_by": { "const": "policy" } } },
+            "then": { "required": ["finding_id"] }
+          }
+        ],
+        "additionalProperties": true
+      }
     }
   },
   "additionalProperties": true,

@@ -47,7 +47,8 @@ export const FINAL_ASSESSMENTS = [
   "Ready to implement",
   "Ready with minor clarifications",
   "Needs revision",
-  "Not implementation-ready"
+  "Not implementation-ready",
+  "Goal drift"
 ];
 
 export const EXECUTION_MODES = [
@@ -133,7 +134,40 @@ export const FINDING_DECISIONS = [
   "accepted",
   "rejected",
   "downgraded",
-  "deferred"
+  "deferred",
+  "needs_author"
+];
+
+export const CHANGE_TYPES = [
+  "clarify",
+  "add",
+  "remove"
+];
+
+export const REJECTION_REASONS = [
+  "conflicts_with_goal",
+  "adds_unrequested_scope",
+  "implementer_discretion",
+  "unsupported",
+  "duplicate",
+  "out_of_domain",
+  "contradicted"
+];
+
+export const SCOPE_DELTA_NET_VALUES = [
+  "grows",
+  "shrinks",
+  "unchanged"
+];
+
+export const TARGET_EDIT_DECIDERS = [
+  "human",
+  "policy"
+];
+
+export const BLOCKING_SEVERITIES = [
+  "critical",
+  "major"
 ];
 
 export const FINDING_SEVERITIES = [
@@ -199,6 +233,32 @@ export const REQUIRED_MARKDOWN_SECTIONS = {
     "### Scorecard"
   ],
   synthesis: [
+    "### Goal Reference",
+    "### Blocking Gaps",
+    "### Questions for the Author",
+    "### Minor Issues",
+    "### Notes",
+    "### Recommended Plan Changes",
+    "### Scope Delta",
+    "### Synthesis Decisions",
+    "### Reviewer Conflicts",
+    "### Scorecard Reconciliation",
+    "### Cross-Cutting Coverage",
+    "### Lens Lock And Rerun Decisions",
+    "### Final Assessment"
+  ],
+  final: [
+    "Final assessment",
+    "Target",
+    "Artifact storage",
+    "Verification evidence"
+  ]
+};
+
+// Synthesis Markdown written before the goal-anchored output contract stays
+// valid. It is recognized by its first section.
+export const LEGACY_MARKDOWN_SECTIONS = {
+  synthesis: [
     "### Consolidated Critique",
     "### Synthesis Decisions",
     "### Reviewer Conflicts",
@@ -208,12 +268,6 @@ export const REQUIRED_MARKDOWN_SECTIONS = {
     "### Recommended Plan Changes",
     "### Unresolved Questions",
     "### Final Assessment"
-  ],
-  final: [
-    "Final assessment",
-    "Target",
-    "Artifact storage",
-    "Verification evidence"
   ]
 };
 
@@ -323,6 +377,18 @@ export const REVIEW_INPUT_REQUIRED_FIELDS = [
   "previous_adjudications"
 ];
 
+export const REVIEW_INPUT_OPTIONAL_FIELDS = ["intent"];
+
+export const INTENT_CARD_FIELDS = [
+  "goals",
+  "non_goals",
+  "must_not_grow",
+  "decided_tradeoffs",
+  "amended_by"
+];
+
+export const INTENT_AMENDED_BY = ["human"];
+
 export const SCHEMA_CONTRACTS = {
   "lens-selection.schema.json": {
     required: LENS_SELECTION_REQUIRED_FIELDS,
@@ -392,6 +458,8 @@ export const SCHEMA_CONTRACTS = {
     arrayItemEnums: {
       "finding_decisions.decision": FINDING_DECISIONS,
       "finding_decisions.severity": FINDING_SEVERITIES,
+      "finding_decisions.change_type": CHANGE_TYPES,
+      "finding_decisions.rejection_reason": REJECTION_REASONS,
       "lens_lock_decisions.lock_state": LOCK_STATES
     }
   },
@@ -414,7 +482,11 @@ export const SCHEMA_CONTRACTS = {
     },
     arrayItemRequired: {
       review_record_artifacts: ["record_id", "artifact_path"],
-      synthesis_record_artifacts: ["record_id", "artifact_path"]
+      synthesis_record_artifacts: ["record_id", "artifact_path"],
+      target_edits: ["decided_by", "summary"]
+    },
+    arrayItemEnums: {
+      "target_edits.decided_by": TARGET_EDIT_DECIDERS
     }
   },
   "completion-summary.schema.json": {

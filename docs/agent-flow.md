@@ -35,7 +35,7 @@ flowchart TD
   Outputs --> Close["Close reviewer agents"]
   Outputs --> Validate["Validate outputs and ledger evidence"]
 
-  Validate --> Synthesis["Synthesize findings and score/rerun decisions"]
+  Validate --> Synthesis["Filter findings against the goal: blocking gaps, questions, minor issues"]
   Synthesis --> Rerun{"User edited the spec and asked for a rerun?"}
 
   Rerun -- yes --> Affected["Select affected lenses"]
@@ -55,7 +55,8 @@ flowchart TD
 ## Flow Notes
 
 - `*.prompt.md` contains the full reviewer packet for one lens: target text,
-  template, lens, constraints, and deterministic revisions.
+  template, lens, intent card when supplied, constraints, and deterministic
+  revisions.
 - `lens-selection.json` records explicit scope or the policy-derived minimum,
   any validated evidence-backed LLM additions, and the final selected set.
 - A normal full run starts from the registry's `standard-v2` core profile and
@@ -75,7 +76,9 @@ flowchart TD
 - Lens reviewers are independent, read-only, and limited to exactly one lens.
 - The active orchestrator, hosted or detached, owns synthesis, ledger state,
   rerun selection, lens locking, archival, and completion claims.
-- The review never edits the target spec. Reruns follow user edits and should
+- The review never edits the target spec. Every later edit to the target is
+  logged in the ledger's `target_edits`, citing a finding id or marked
+  host-initiated. Reruns follow user edits and should
   target only lenses affected by material plan changes unless the user asks for
   a full clean rerun or the prior run is stale/corrupted.
 - Detached completion claims require agreement among `events.jsonl`, ledger,

@@ -1,0 +1,29 @@
+{
+  "schema_version": 2,
+  "feature_request": "Simplify the fictional export settings screen to one format picker so users finish an export without reading help text.",
+  "intent": {
+    "goals": [
+      {
+        "id": "G1",
+        "text": "A user finishes an export from one format picker without opening help.",
+        "success_signal": "The export flow has one decision before the download starts."
+      }
+    ],
+    "non_goals": [
+      "No new export formats."
+    ],
+    "must_not_grow": [
+      "Number of controls on the export screen."
+    ],
+    "decided_tradeoffs": [
+      {
+        "decision": "Drop per-format advanced options.",
+        "rejected_alternative": "Keep advanced options behind a disclosure.",
+        "why": "Advanced options were the main source of abandoned exports."
+      }
+    ]
+  },
+  "relevant_context": "No additional context supplied beyond the target plan.",
+  "constraints": "No additional constraints supplied.",
+  "previous_adjudications": "No previous adjudications supplied."
+}

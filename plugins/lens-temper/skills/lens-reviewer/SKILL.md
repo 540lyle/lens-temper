@@ -21,7 +21,8 @@ verification runner.
 - Pass id.
 - Target path, deterministic target revision, and review input revision.
 - Template and lens revisions.
-- Feature request, proposed plan, relevant context, constraints.
+- Feature request, optional intent card, proposed plan, relevant context,
+  constraints.
 - Optional previous adjudications.
 
 ## Output

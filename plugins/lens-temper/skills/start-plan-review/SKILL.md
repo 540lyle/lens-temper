@@ -13,7 +13,8 @@ and selected role manifests before running a review.
 
 - Target plan or spec path.
 - Repository-relative review input JSON containing the feature request,
-  relevant context, constraints, and optional previous adjudications.
+  relevant context, constraints, optional previous adjudications, and an
+  optional intent card (goals, non-goals, `must_not_grow`, decided trade-offs).
 - Selected lenses, or enough context to select lenses.
 - Pass id, deterministic target revision, and normalized review input revision.
 
@@ -104,9 +105,14 @@ and selected role manifests before running a review.
     completion status, or `core_gate_passed` directly.
 
 Report the result as `Review delivered: N blocking gaps, K minor issues, M questions`, listing
-every question ranked by consequence. The review never edits the target spec;
-applying fixes is the user's call, and rerunning a lens after the user edits the
-spec is a supported user-driven action.
+every question ranked by consequence and every minor issue. The review never
+edits the target spec; applying fixes is the user's call, and rerunning a lens
+after the user edits the spec is a supported user-driven action.
+
+Log every edit to the target in the ledger's `target_edits`, citing the finding
+id it applies or marking it `host_initiated`, with `decided_by: human` or
+`policy`. Policy may apply only accepted blocking findings that name the goal
+they serve; never apply questions or minor issues without the user.
 
 The orchestrator may update ledger state. Lens reviewers may not.
 Detached orchestration may not claim completion unless `events.jsonl`, ledger,

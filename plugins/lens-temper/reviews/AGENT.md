@@ -36,6 +36,8 @@ workflow from repository files instead of prior chat context.
 - Fail before spawning full-review agents when the feature request is missing;
   never replace a missing review contract with silent empty strings.
 - Close spawned reviewers after output capture.
+- Never edit the target as part of a review. Log any later edit in the ledger's
+  `target_edits`, citing a finding id or marked host-initiated.
 - Label run mode honestly. Inline and advisory reviews cannot claim completed
   LensTemper passes, lock states, or lockable all-5 scores.
 

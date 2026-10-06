@@ -12,7 +12,7 @@ package or repository root.
 ## Inputs
 
 - Canonical review input and its normalized revision.
-- Feature request, proposed plan, and relevant context.
+- Feature request, optional intent card, proposed plan, and relevant context.
 - Complete review outputs.
 - Constraints.
 - Ledger state when available.
@@ -22,11 +22,14 @@ the ledger even when the target revision is unchanged.
 
 ## Outputs
 
-- Consolidated critique.
-- Per-finding decisions.
+- Goal reference, from the intent card or inferred.
+- Blocking gaps, questions for the author, minor issues, and notes.
+- Recommended plan changes and the scope delta.
+- Per-finding decisions with change type, served goal, and rejection reason.
 - Lens lock and rerun decisions.
-- Recommended plan changes.
-- Final assessment.
+- Final assessment and `Review delivered: N blocking gaps, K minor issues, M questions`.
 
-Only the synthesis owner may accept, reject, downgrade, or defer findings that
-affect readiness or rerun scope.
+Synthesis is a filter that defends the plan's goal. Only the synthesis owner may
+accept, reject, downgrade, defer, or route findings to the author. Every
+question and minor issue stays visible; filtering decides only what becomes a
+plan change.

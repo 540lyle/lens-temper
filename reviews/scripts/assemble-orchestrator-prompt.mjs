@@ -137,7 +137,8 @@ Use these event names when they occur: \`orchestrator_started\`, \`ledger_create
 - Stop before completion if selected-lens scope is confused with a passed core profile.
 
 # Claim Rules
-- Report the outcome as \`Review delivered: N blocking gaps, K minor issues, M questions\`, listing every question. Do not edit \`${targetPath}\`; the review never edits the target spec.
+- Report the outcome as \`Review delivered: N blocking gaps, K minor issues, M questions\`, listing every question and every minor issue. Do not edit \`${targetPath}\`; the review never edits the target spec.
+- Write \`synthesis.json\` from \`synthesis.md\`: a \`finding_decisions\` entry for every finding with its \`decision\` (including \`needs_author\`), \`severity\`, \`change_type\` and \`serves_goal\` for plan changes, \`rejection_reason\` for rejections, and a \`scope_delta\` of \`added\`, \`removed\`, \`net\`, and \`reductive_goal\`. \`validate-synthesis-output.mjs\` rejects an accepted \`add\` without \`serves_goal\` and a reductive goal whose net surface grows without \`Goal drift\`.
 - Treat reviewer outputs as lockable only when they are validated, current for \`${targetRevision}\`, captured into artifacts, and closed.
 - Label unvalidated or imported outputs as advisory/imported; do not use them for lock states.
 - Completion claims require agreement among \`${eventsPath}\`, \`${ledgerPath}\`, reviewer artifacts, synthesis artifacts, and archive evidence.

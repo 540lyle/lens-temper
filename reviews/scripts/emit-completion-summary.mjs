@@ -85,11 +85,22 @@ function asMarkdown(ledger, synthesis, synthesisPath, lensScores) {
     lines.push(`| ${lock.lens} | ${lock.lock_state} | ${lock.rerun_needed ? "yes" : "no"} | ${lock.reason || ""} |`);
   }
   lines.push("");
-  lines.push("Accepted findings:");
-  for (const decision of synthesis.finding_decisions || []) {
-    if (decision.decision === "accepted") lines.push(`- ${decision.finding_id}: ${decision.reason}`);
+  // Every decision the owner must see is listed; only rejected findings stay
+  // in the synthesis alone, each with its reason.
+  const decisions = synthesis.finding_decisions || [];
+  const groups = [
+    ["Accepted findings:", (entry) => entry.decision === "accepted" && entry.severity !== "minor"],
+    ["Minor issues:", (entry) => (entry.decision === "accepted" && entry.severity === "minor") || entry.decision === "downgraded"],
+    ["Deferred risks:", (entry) => entry.decision === "deferred"],
+    ["Questions for the author (reviewer Open Questions are also in the synthesis Questions for the Author section):", (entry) => entry.decision === "needs_author"]
+  ];
+  for (const [heading, matches] of groups) {
+    const entries = decisions.filter(matches);
+    lines.push(heading);
+    if (entries.length === 0) lines.push("- None");
+    for (const entry of entries) lines.push(`- ${entry.finding_id}: ${entry.reason}`);
+    lines.push("");
   }
-  lines.push("");
   lines.push("Verification evidence: reviewer outputs captured, current records validated, synthesis emitted.");
   lines.push(`Synthesis artifact: ${synthesisPath}`);
   return `${lines.join("\n")}\n`;

@@ -67,7 +67,8 @@ Review \`${targetPath}\` through the ${lensDisplayName} lens and return a valid 
 - Read the prompt packet at \`${inputPacketPath}\`.
 - Verify the target, review input, template, and lens revisions before reviewing.
 - Review exactly one lens: \`${lensId}\` (${lensDisplayName}).
-- Apply the template's Goal Gate first. Raise \`[critical]\` or \`[major]\` only
+- Apply the template's Goal Gate first, using the packet's intent card as the
+  goal reference when one is supplied. Raise \`[critical]\` or \`[major]\` only
   when the gate is met, and ask pending owner decisions without answering them.
   Zero findings is the expected result for a sound plan.
 - Return exactly the sections required by \`${templatePath}\`.

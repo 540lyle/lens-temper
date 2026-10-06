@@ -1,6 +1,6 @@
 # Plan Review System
 
-> Version 1.8
+> Version 1.9
 
 This folder contains reusable review prompts for evaluating implementation plans,
 plus task-specific review input packets that assemble the context for one plan review run.
@@ -16,12 +16,12 @@ Standardize plan review so that:
 ## Quick Start
 
 1. Generate a candidate implementation plan.
-2. Assemble the required inputs in a repository-relative `review-input.json`.
+2. Assemble the required inputs in a repository-relative `review-input.json`, with an optional intent card stating the plan's goals.
 3. Run a full LensTemper review by default: spawn one detached-context reviewer
    subagent per selected lens.
 4. Collect the structured output from each spawned reviewer.
-5. Run `synthesize-review-feedback.md` across all review outputs to produce a consolidated assessment.
-   Deliver it as `Review delivered: N blocking gaps, K minor issues, M questions`. The review never edits the target spec.
+5. Run `synthesize-review-feedback.md` across all review outputs to filter the findings against the plan's goal.
+   Deliver it as `Review delivered: N blocking gaps, K minor issues, M questions`, counting the synthesis Blocking Gaps, Minor Issues, and Questions for the Author. The review never edits the target spec.
 6. Lock lenses only from validated `full` run artifacts. Inline and advisory outputs may guide planning, but their scores are not lockable.
 
 Store completed review outputs outside this folder unless they are still being actively assembled.
@@ -128,7 +128,8 @@ Ledger fields:
 | `material_blockers` | yes after completion | `yes`, `no`, or a short count/summary. |
 | `lock_state` | yes | One of `active`, `failing`, `passing_locked`, `rerun_required`, `converged_locked`. Keep this separate from `status`; `status` describes reviewer lifecycle outcome, while `lock_state` describes whether the lens still needs review. |
 | `rerun_reason` | required for reruns | Why this lens is being rerun, tied to a material issue or domain-relevant plan/spec change. |
-| `finding_decisions` | recommended after synthesis | Per-finding synthesis decisions: `accepted`, `rejected`, `downgraded`, or `deferred`, with a short reason when the decision affects rerun scope. |
+| `finding_decisions` | recommended after synthesis | Per-finding synthesis decisions: `accepted`, `rejected`, `downgraded`, `deferred`, or `needs_author`, with a short reason. |
+| `target_edits` | when the target is edited after delivery | One entry per edit: `finding_id` or `host_initiated: true`, `decided_by` (`human` or `policy`), and a `summary`. See Applying Findings. |
 
 | `previous_adjudications` | optional for reruns | Short list of previously rejected, downgraded, or non-material findings that fresh rerun reviewers may ignore unless the updated target reintroduces material evidence. |
 | `artifact_path` | optional | Path where the review output or synthesis is stored, if any. |
@@ -147,7 +148,7 @@ Synthesis owner:
 - The parent orchestrator owns the ledger, final synthesis, materiality decisions, lens locking, rerun selection, and final completion decision.
 - In `full_detached`, the fresh orchestrator owns those duties; the parent launcher reports only what the detached artifacts prove.
 - Lens reviewers stay independent. They review only their assigned lens and do not coordinate convergence with other reviewers.
-- The synthesis owner may reject or downgrade reviewer feedback that is unsupported, preference-only, duplicated, already addressed, or outside the lens domain. Record per-finding decisions in the synthesis or ledger when they affect rerun scope.
+- The synthesis owner is a filter that defends the plan's goal, not a merger. It records a decision for every finding: an accepted `add` must name the goal it serves (`serves_goal`), rejections carry a `rejection_reason` (`conflicts_with_goal`, `adds_unrequested_scope`, `implementer_discretion`, `unsupported`, `duplicate`, `out_of_domain`, or `contradicted`), and decisions that belong to the plan's owner are `needs_author` and become questions. Filtering decides what becomes a plan change, never what the owner sees.
 
 Review-output provenance:
 
@@ -178,8 +179,22 @@ Rerun protocol:
 - Treat rerun outputs as current only if the reviewer read the updated workspace files directly and reported the current `target_revision`.
 - If one lens finds a defect and the plan/spec changes, close completed reviewers from the prior pass before starting the next pass. Preserve locked lens outputs as current unless the change affects that lens's domain.
 - If the same lens returns repeated non-material or preference-only findings after material fixes, record them as non-blocking and stop rerunning that lens.
-- A review is delivered when every selected lens has a captured, validated output and all spawned agents are closed. Report it as `Review delivered: N blocking gaps, K minor issues, M questions`, listing every question. Delivery does not require resolving blocking gaps, answering questions, or reaching a lock state. The review never edits the target spec; applying fixes is the user's call, and rerunning a lens after the user edits the spec is a supported user-driven action.
+- A review is delivered when every selected lens has a captured, validated output and all spawned agents are closed. Report it as `Review delivered: N blocking gaps, K minor issues, M questions`, counting the synthesis Blocking Gaps, Minor Issues, and Questions for the Author, and listing every question and minor issue. Delivery does not require resolving blocking gaps, answering questions, or reaching a lock state. The review never edits the target spec; applying fixes is the user's call, and rerunning a lens after the user edits the spec is a supported user-driven action.
   An unqualified `LensTemper pass complete` claim also requires `run_mode: full`, `run_scope: core_profile`, `core_gate_passed: true`, successful `completion_validation`, and no missing current reviewer evidence.
+
+## Applying Findings
+
+The review never edits the target. When the user or host edits it after
+delivery, record each edit in the reviewed pass's ledger as a `target_edits`
+entry so growth that bypasses synthesis stays visible:
+
+- Cite the synthesis `finding_id` the edit applies, or set
+  `host_initiated: true` for an edit no finding asked for.
+- Set `decided_by: human` when a person chose the edit. `decided_by: policy`
+  (auto mode) may apply only an accepted `[critical]` or `[major]` finding that
+  names the goal it serves; the validator rejects anything else.
+- Questions for the author and minor issues are never applied by policy. A
+  question becomes an edit only after the owner answers it.
 
 ## Available Lenses
 
@@ -281,6 +296,7 @@ Every review receives these inputs. The template uses `{{double_curly}}` variabl
 | Variable | Description | Guidance |
 |----------|-------------|----------|
 | `{{feature_request}}` | What is being built and why | 1 to 3 paragraphs. Include user-facing goal and success criteria. |
+| `{{intent_card}}` | Optional intent card from the review input | Rendered as JSON when supplied; otherwise a note that reviewers infer the goal. |
 | `{{pass_id}}` | Identifier for this review pass | Required for spawned-agent runs. Use the same value in every reviewer prompt for one pass. |
 | `{{target_path}}` | Plan/spec file path under review | Required for spawned-agent runs. Use a repository-relative path; the host provides the workspace root separately. |
 | `{{target_revision}}` | Deterministic content hash for the target plan/spec | Required for spawned-agent runs and reruns. Prefer `git hash-object -- <target_path>`. |
@@ -313,7 +329,11 @@ The synthesis template (`synthesize-review-feedback.md`) uses one additional var
   Zero findings is the expected result for a sound plan.
 - Questions stay questions. A decision the plan explicitly hands to its owner
   is asked, not answered, and does not lower Completeness or the verdict. Every
-  question reaches the user, ranked by consequence; none is dropped.
+  question reaches the user, ranked by consequence; none is dropped. An item is
+  never both a question and a recommended change.
+- A decided trade-off in the intent card is settled. Reviewers do not re-raise
+  its rejected alternative unless keeping the decision makes a goal fail or
+  meets another condition of the goal gate.
 - Preference-only polish, wording improvements, or optional refactors must not prevent a `Strong` verdict or `5/5` score when no material issue remains.
 - Reruns are for material blockers, score-lowering gaps, or domain-relevant plan/spec changes. Do not spawn reruns only to chase nits.
 - Reviewers must complete the cross-cutting sweep. Do not silently skip security/privacy, accessibility, performance, reliability/rollback, observability/debuggability, or compatibility/platform concerns.
@@ -328,7 +348,7 @@ Final evidence before completion:
 - Confirmation that each current reviewer read the current workspace files directly.
 - Confirmation that every spawned reviewer has terminal status and is closed.
 - Run mode, run scope, completion-validation result, and whether scores are lockable or advisory.
-- A concise synthesis listing blocking gaps, questions for the plan's owner, accepted non-blocking issues, rejected or downgraded findings that affected rerun scope, and any explicitly deferred risks.
+- A concise synthesis listing blocking gaps, every question for the plan's owner, minor issues, the scope delta, rejected or downgraded findings with their reasons, and any explicitly deferred risks.
 
 User-facing completion summary:
 
@@ -342,6 +362,7 @@ Required fields:
 - Per-lens score table with lens, verdict, all six score values, material-blocker status, and lock/rerun status.
 - Accepted material findings and the plan changes or follow-up actions they require.
 - Every question for the plan's owner, ranked by consequence.
+- Every minor issue, even when nothing blocks.
 - Rejected, downgraded, deferred, or non-blocking findings that affect rerun scope.
 - Verification evidence: reviewer outputs captured, reviewers terminal and closed, current reviewers read current workspace files directly, and any validator or stale-output checks that were run.
 
@@ -371,6 +392,29 @@ For full runs, use a repository-relative JSON review input artifact:
   "previous_adjudications": "Settled rerun findings, or an explicit statement that none were supplied."
 }
 ```
+
+An optional `intent` card makes the goal explicit instead of inferred:
+
+```json
+{
+  "intent": {
+    "goals": [{ "id": "G1", "text": "What must be true when the plan ships.", "success_signal": "How the owner will observe it." }],
+    "non_goals": ["What the plan will not do."],
+    "must_not_grow": ["Surface the plan must not add to."],
+    "decided_tradeoffs": [{ "decision": "What was chosen.", "rejected_alternative": "What was not.", "why": "Why." }]
+  }
+}
+```
+
+When present, reviewers and synthesis use it as the goal reference: findings
+cite goal ids, an accepted `add` must name the goal it serves, and a
+reductive goal whose net surface grows makes the synthesis verdict `Goal drift`.
+When absent, reviewers infer the goal and mark it `inferred`. The card is part
+of the review input, so it is hashed into `review_input_revision`, separately
+from the target spec. Only the plan's owner changes it: a card that differs
+from the previous pass's card must carry `amended_by: "human"`. Comparing cards
+across passes needs pass lineage, which is not built yet, so that rule is
+documented rather than enforced.
 
 `feature_request` must be non-empty. The other fields are always materialized;
 when omitted from scalar compatibility input, the runner writes explicit

@@ -6,6 +6,8 @@ import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
 import {
   ARTIFACT_VISIBILITY,
+  BLOCKING_SEVERITIES,
+  CHANGE_TYPES,
   CLAIM_FLAG_KEYS,
   COMPLETION_SUMMARY_REQUIRED_FIELDS,
   COMPLETION_SUMMARY_FULL_REQUIRED_FIELDS,
@@ -19,16 +21,21 @@ import {
   FINAL_ASSESSMENTS,
   FINDING_DECISIONS,
   FINDING_SEVERITIES,
+  INTENT_AMENDED_BY,
+  INTENT_CARD_FIELDS,
   LEDGER_REQUIRED_FIELDS,
   LEDGER_FULL_REQUIRED_FIELDS,
   LEDGER_CORE_PROFILE_REQUIRED_FIELDS,
   LEDGER_SCHEMA_VERSION,
   LEDGER_STATUSES,
+  LEGACY_MARKDOWN_SECTIONS,
   LOCK_STATES,
   PROVENANCE_BASIS_VALUES,
+  REJECTION_REASONS,
   REQUIRED_MARKDOWN_SECTIONS,
   REVIEW_COMPLETED_REQUIRED_FIELDS,
   REVIEW_FULL_REQUIRED_FIELDS,
+  REVIEW_INPUT_OPTIONAL_FIELDS,
   REVIEW_INPUT_REQUIRED_FIELDS,
   REVIEW_REQUIRED_FIELDS,
   REVIEW_STATUSES,
@@ -36,10 +43,12 @@ import {
   RUN_MODES,
   RUN_SCOPES,
   SCHEMA_VERSION,
+  SCOPE_DELTA_NET_VALUES,
   SCORE_CHALLENGE_KEYS,
   SCORECARD_KEYS,
   SYNTHESIS_REQUIRED_FIELDS,
   SYNTHESIS_FULL_REQUIRED_FIELDS,
+  TARGET_EDIT_DECIDERS,
   TRACE_EVENT_NAMES
 } from "./validation-contracts.mjs";
 import { evaluateLensPolicy, validateLensSelectionShape } from "./lens-selection-contract.mjs";
@@ -126,6 +135,7 @@ export function parseCommonArgs(argv) {
 export const EMPTY_RELEVANT_CONTEXT = "No additional context supplied beyond the target plan.";
 export const EMPTY_CONSTRAINTS = "No additional constraints supplied.";
 export const EMPTY_PREVIOUS_ADJUDICATIONS = "No previous adjudications supplied.";
+export const EMPTY_INTENT_CARD = "No intent card supplied. Infer the goal and non-goals as the Goal Gate describes.";
 export const MAX_REVIEW_INPUT_FIELD_BYTES = 200_000;
 export const MAX_REVIEW_INPUT_TOTAL_BYTES = 500_000;
 
@@ -152,6 +162,10 @@ export function encodePromptJson(value) {
   return neutralizePromptJson(JSON.stringify(value));
 }
 
+export function encodeIntentCard(intent) {
+  return intent === undefined ? encodePromptData(EMPTY_INTENT_CARD) : encodePromptJson(intent);
+}
+
 function normalizeOptionalReviewInputText(value, fallback) {
   if (value === undefined || value === null) return fallback;
   if (typeof value === "string" && value.trim().length === 0) return fallback;
@@ -162,6 +176,8 @@ export function normalizeReviewInputRecord(record = {}) {
   return {
     schema_version: record.schema_version ?? SCHEMA_VERSION,
     feature_request: record.feature_request ?? "",
+    // Omitted when absent so inputs without an intent card keep their revision.
+    ...(record.intent === undefined ? {} : { intent: record.intent }),
     relevant_context: normalizeOptionalReviewInputText(record.relevant_context, EMPTY_RELEVANT_CONTEXT),
     constraints: normalizeOptionalReviewInputText(record.constraints, EMPTY_CONSTRAINTS),
     previous_adjudications: normalizeOptionalReviewInputText(record.previous_adjudications, EMPTY_PREVIOUS_ADJUDICATIONS)
@@ -177,12 +193,76 @@ export function computeReviewInputRevision(record) {
   return `sha256:${hash}`;
 }
 
+function isNonEmptyString(value) {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function validateStringFields(value, required, optional, artifactPath, record, prefix, failures) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    failures.push(makeFailure(artifactPath, record, prefix, "object", value));
+    return;
+  }
+  for (const key of Object.keys(value)) {
+    if (!required.includes(key) && !optional.includes(key)) {
+      failures.push(makeFailure(artifactPath, record, `${prefix}.${key}`, "supported field", "unexpected"));
+    }
+  }
+  for (const key of required) {
+    if (!isNonEmptyString(value[key])) failures.push(makeFailure(artifactPath, record, `${prefix}.${key}`, "non-empty string", value[key]));
+  }
+  for (const key of optional) {
+    if (value[key] !== undefined && !isNonEmptyString(value[key])) failures.push(makeFailure(artifactPath, record, `${prefix}.${key}`, "non-empty string", value[key]));
+  }
+}
+
+function validateIntentCard(record, artifactPath, failures) {
+  const intent = record.intent;
+  if (intent === undefined) return;
+  if (!intent || typeof intent !== "object" || Array.isArray(intent)) {
+    failures.push(makeFailure(artifactPath, record, "intent", "object", intent));
+    return;
+  }
+  for (const key of Object.keys(intent)) {
+    if (!INTENT_CARD_FIELDS.includes(key)) failures.push(makeFailure(artifactPath, record, `intent.${key}`, "supported intent card field", "unexpected"));
+  }
+  if (!Array.isArray(intent.goals) || intent.goals.length === 0) {
+    failures.push(makeFailure(artifactPath, record, "intent.goals", "non-empty array", intent.goals));
+  } else {
+    const ids = new Set();
+    for (const [index, goal] of intent.goals.entries()) {
+      validateStringFields(goal, ["id", "text"], ["success_signal"], artifactPath, record, `intent.goals[${index}]`, failures);
+      if (!isNonEmptyString(goal?.id)) continue;
+      if (ids.has(goal.id)) failures.push(makeFailure(artifactPath, record, `intent.goals[${index}].id`, "unique goal id", goal.id));
+      ids.add(goal.id);
+    }
+  }
+  for (const field of ["non_goals", "must_not_grow"]) {
+    if (intent[field] === undefined) continue;
+    if (!Array.isArray(intent[field]) || !intent[field].every(isNonEmptyString)) {
+      failures.push(makeFailure(artifactPath, record, `intent.${field}`, "array of non-empty strings", JSON.stringify(intent[field])));
+    }
+  }
+  if (intent.decided_tradeoffs !== undefined) {
+    if (!Array.isArray(intent.decided_tradeoffs)) {
+      failures.push(makeFailure(artifactPath, record, "intent.decided_tradeoffs", "array", intent.decided_tradeoffs));
+    } else {
+      for (const [index, tradeoff] of intent.decided_tradeoffs.entries()) {
+        validateStringFields(tradeoff, ["decision", "rejected_alternative", "why"], [], artifactPath, record, `intent.decided_tradeoffs[${index}]`, failures);
+      }
+    }
+  }
+  if (intent.amended_by !== undefined) {
+    validateEnum(intent.amended_by, INTENT_AMENDED_BY, artifactPath, record, "intent.amended_by", failures);
+  }
+}
+
 export function validateReviewInputRecord(record, options = {}) {
   const artifactPath = options.artifactPath || options.inputPath || "review-input";
   const failures = [];
   requireFields(record, REVIEW_INPUT_REQUIRED_FIELDS, artifactPath, failures);
   validateSchemaVersion(record, artifactPath, failures);
-  const allowed = new Set(REVIEW_INPUT_REQUIRED_FIELDS);
+  validateIntentCard(record, artifactPath, failures);
+  const allowed = new Set([...REVIEW_INPUT_REQUIRED_FIELDS, ...REVIEW_INPUT_OPTIONAL_FIELDS]);
   for (const key of Object.keys(record || {})) {
     if (!allowed.has(key)) {
       failures.push(makeFailure(artifactPath, record, key, "supported review-input field", "unexpected"));
@@ -205,6 +285,7 @@ export function validateReviewInputRecord(record, options = {}) {
       failures.push(makeFailure(artifactPath, record, field, `at most ${MAX_REVIEW_INPUT_FIELD_BYTES} UTF-8 bytes`, bytes));
     }
   }
+  if (record.intent !== undefined) totalBytes += Buffer.byteLength(JSON.stringify(record.intent), "utf8");
   if (totalBytes > MAX_REVIEW_INPUT_TOTAL_BYTES) {
     failures.push(makeFailure(artifactPath, record, "review_input_total_bytes", `at most ${MAX_REVIEW_INPUT_TOTAL_BYTES}`, totalBytes));
   }
@@ -240,7 +321,7 @@ export function resolveReviewInput(root, opts = {}) {
     };
   }
 
-  const allowedFields = new Set(REVIEW_INPUT_REQUIRED_FIELDS);
+  const allowedFields = new Set([...REVIEW_INPUT_REQUIRED_FIELDS, ...REVIEW_INPUT_OPTIONAL_FIELDS]);
   const unknownFields = Object.keys(raw || {}).filter((field) => !allowedFields.has(field));
   if (unknownFields.length > 0) {
     throw Object.assign(new Error(`unsupported review input fields: ${unknownFields.join(", ")}`), { exitCode: EXIT_CODES.usage });
@@ -496,11 +577,15 @@ export function validateMarkdownBinding(root, artifactPath, record, sectionKind,
   }
 
   const text = readTextFile(resolved);
-  for (const section of REQUIRED_MARKDOWN_SECTIONS[sectionKind] || []) {
+  const legacySections = LEGACY_MARKDOWN_SECTIONS[sectionKind];
+  const legacy = Boolean(legacySections && text.includes(legacySections[0]));
+  const sections = legacy ? legacySections : REQUIRED_MARKDOWN_SECTIONS[sectionKind] || [];
+  for (const section of sections) {
     if (!text.includes(section)) {
       failures.push(makeFailure(artifactPath, record, "markdown_section", section, "missing"));
     }
   }
+  return legacy ? "legacy" : "current";
 }
 
 export function validateScorecard(record, artifactPath, failures) {
@@ -678,6 +763,96 @@ export function validateFindingDecisions(record, artifactPath, failures) {
       failures.push(makeFailure(artifactPath, record, `${prefix}.affects_rerun_scope`, "boolean", decision.affects_rerun_scope));
     }
     if (!decision.reason) failures.push(makeFailure(artifactPath, record, `${prefix}.reason`, "short reason", decision.reason));
+    if (decision.change_type !== undefined) {
+      validateEnum(decision.change_type, CHANGE_TYPES, artifactPath, record, `${prefix}.change_type`, failures);
+    }
+    if (decision.serves_goal !== undefined && decision.serves_goal !== null && !isNonEmptyString(decision.serves_goal)) {
+      failures.push(makeFailure(artifactPath, record, `${prefix}.serves_goal`, "goal id or text, or null", decision.serves_goal));
+    }
+    if (decision.decision === "accepted" && decision.change_type === "add" && !isNonEmptyString(decision.serves_goal)) {
+      failures.push(makeFailure(artifactPath, record, `${prefix}.serves_goal`, "the goal an accepted add serves", decision.serves_goal ?? "missing"));
+    }
+    if (decision.decision === "needs_author" && decision.change_type !== undefined) {
+      failures.push(makeFailure(artifactPath, record, `${prefix}.change_type`, "absent; a question for the author is not a plan change", decision.change_type));
+    }
+    if (decision.rejection_reason !== undefined) {
+      validateEnum(decision.rejection_reason, REJECTION_REASONS, artifactPath, record, `${prefix}.rejection_reason`, failures);
+      if (decision.decision !== "rejected") {
+        failures.push(makeFailure(artifactPath, record, `${prefix}.rejection_reason`, "only on rejected decisions", decision.decision));
+      }
+    }
+  }
+}
+
+function validateScopeDelta(record, artifactPath, failures) {
+  const delta = record.scope_delta;
+  if (delta === undefined) return;
+  if (!delta || typeof delta !== "object" || Array.isArray(delta)) {
+    failures.push(makeFailure(artifactPath, record, "scope_delta", "object", delta));
+    return;
+  }
+  for (const field of ["added", "removed"]) {
+    if (!Array.isArray(delta[field]) || !delta[field].every((item) => typeof item === "string")) {
+      failures.push(makeFailure(artifactPath, record, `scope_delta.${field}`, "array of strings", JSON.stringify(delta[field])));
+    }
+  }
+  validateEnum(delta.net, SCOPE_DELTA_NET_VALUES, artifactPath, record, "scope_delta.net", failures);
+  if (typeof delta.reductive_goal !== "boolean") {
+    failures.push(makeFailure(artifactPath, record, "scope_delta.reductive_goal", "boolean", delta.reductive_goal));
+  }
+  if (delta.reductive_goal === true && delta.net === "grows" && record.final_assessment !== "Goal drift") {
+    failures.push(makeFailure(artifactPath, record, "final_assessment", "Goal drift when a reductive goal's net surface grows", record.final_assessment));
+  }
+}
+
+// A synthesis written to the goal-anchored contract (current Markdown, or a
+// scope_delta) records its scope delta and the change type of every accepted
+// blocking finding, so an untyped addition cannot skip the serves_goal check.
+// Legacy synthesis records carry neither and stay valid.
+function validateGoalAnchoredSynthesis(record, markdownContract, artifactPath, failures) {
+  if (markdownContract === "current" && record.scope_delta === undefined) {
+    failures.push(makeFailure(artifactPath, record, "scope_delta", "present when the synthesis Markdown has a Scope Delta section", "missing"));
+  }
+  if (markdownContract !== "current" && record.scope_delta === undefined) return;
+  for (const [index, decision] of (Array.isArray(record.finding_decisions) ? record.finding_decisions : []).entries()) {
+    if (decision?.decision === "accepted" && BLOCKING_SEVERITIES.includes(decision.severity) && decision.change_type === undefined) {
+      failures.push(makeFailure(artifactPath, record, `finding_decisions[${index}].change_type`, "clarify, add, or remove for an accepted blocking finding", "missing"));
+    }
+  }
+}
+
+// Policy (auto mode) may apply only an accepted blocking finding that names the
+// goal it serves. Questions and minor issues reach the target only by a human.
+function validateTargetEdits(record, findingDecisions, artifactPath, failures) {
+  if (record.target_edits === undefined) return;
+  if (!Array.isArray(record.target_edits)) {
+    failures.push(makeFailure(artifactPath, record, "target_edits", "array", record.target_edits));
+    return;
+  }
+  for (const [index, edit] of record.target_edits.entries()) {
+    const prefix = `target_edits[${index}]`;
+    if (!edit || typeof edit !== "object" || Array.isArray(edit)) {
+      failures.push(makeFailure(artifactPath, record, prefix, "object", edit));
+      continue;
+    }
+    validateEnum(edit.decided_by, TARGET_EDIT_DECIDERS, artifactPath, record, `${prefix}.decided_by`, failures);
+    if (!isNonEmptyString(edit.summary)) failures.push(makeFailure(artifactPath, record, `${prefix}.summary`, "non-empty string", edit.summary));
+    const citesFinding = isNonEmptyString(edit.finding_id);
+    if (citesFinding === (edit.host_initiated === true)) {
+      failures.push(makeFailure(artifactPath, record, prefix, "exactly one of finding_id or host_initiated: true", JSON.stringify(edit)));
+    }
+    if (citesFinding && findingDecisions.size > 0 && !findingDecisions.has(edit.finding_id)) {
+      failures.push(makeFailure(artifactPath, record, `${prefix}.finding_id`, "a finding id from this ledger's synthesis decisions", edit.finding_id));
+    }
+    if (edit.decided_by === "policy") {
+      const decision = citesFinding ? findingDecisions.get(edit.finding_id) : undefined;
+      const applicable = decision?.decision === "accepted"
+        && BLOCKING_SEVERITIES.includes(decision.severity)
+        && isNonEmptyString(decision.serves_goal);
+      if (!applicable) {
+        failures.push(makeFailure(artifactPath, record, `${prefix}.decided_by`, "human unless the edit applies an accepted blocking finding that names the goal it serves", "policy"));
+      }
+    }
   }
 }
 
@@ -1047,9 +1222,11 @@ export function validateSynthesisRecord(record, options = {}) {
     failures.push(makeFailure(artifactPath, record, "review_input_revision", expectedReviewInputRevision, record.review_input_revision));
   }
   validateFindingDecisions(record, artifactPath, failures);
+  validateScopeDelta(record, artifactPath, failures);
   validateLensLocks(record, artifactPath, failures);
   validatePriorMaterialFindings(record, artifactPath, failures);
-  validateMarkdownBinding(root, artifactPath, record, "synthesis", failures);
+  const markdownContract = validateMarkdownBinding(root, artifactPath, record, "synthesis", failures);
+  validateGoalAnchoredSynthesis(record, markdownContract, artifactPath, failures);
 
   if (options.ledger) {
     const synthesisArtifacts = new Map((options.ledger.synthesis_record_artifacts || []).map((entry) => [entry.record_id, entry.artifact_path]));
@@ -1303,6 +1480,7 @@ export function validateLedgerRecord(record, options = {}) {
     }
   }
 
+  const findingDecisions = new Map();
   for (const id of record.synthesis_record_ids || []) {
     const synthesisPath = synthesisArtifacts.get(id);
     if (!synthesisPath) {
@@ -1325,7 +1503,11 @@ export function validateLedgerRecord(record, options = {}) {
       ledger: record,
       artifactPath: synthesisPath
     }));
+    for (const decision of Array.isArray(synthesis.finding_decisions) ? synthesis.finding_decisions : []) {
+      findingDecisions.set(decision.finding_id, decision);
+    }
   }
+  validateTargetEdits(record, findingDecisions, artifactPath, failures);
 
   return failures;
 }

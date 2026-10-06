@@ -1,16 +1,36 @@
-### Consolidated Critique
+### Goal Reference
 
-#### Critical Issues
+- Goals: a deterministic example workflow with explicit validation, observable completion, and rollback behavior (`inferred`; no intent card supplied)
+- Non-goals: none stated
+- Must not grow: none stated
+- Decided trade-offs: none stated
+
+### Blocking Gaps
 
 - None.
 
-#### Important Improvements
+### Questions for the Author
+
+- None.
+
+### Minor Issues
+
+- None.
+
+### Notes
 
 - Keep fixture and schema validation in lockstep.
 
-#### Minor Notes
+### Recommended Plan Changes
 
 - None.
+
+### Scope Delta
+
+- Added surface: none
+- Removed surface: none
+- Net: `unchanged`
+- Reductive goal: no
 
 ### Synthesis Decisions
 
@@ -42,14 +62,8 @@ No meaningful score conflicts.
 - **Reason**: No material blockers remain.
 - **Rerun needed**: no
 
-### Recommended Plan Changes
-
-- None.
-
-### Unresolved Questions
-
-- None.
-
 ### Final Assessment
 
 Ready to implement
+
+Review delivered: 0 blocking gaps, 0 minor issues, 0 questions

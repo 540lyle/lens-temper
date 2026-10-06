@@ -128,11 +128,26 @@ and cannot produce lockable completion claims.
 A normal LensTemper run ends with `Review delivered: N blocking gaps, K minor issues, M
 questions`:
 
-- blocking gaps, judged against the plan's stated goal
-- minor issues the owner or developer should still see, never hidden behind a score
-- questions for the plan's owner, ranked by consequence, none dropped
-- recommended changes, each an add, clarify, or remove
+- blocking gaps: the plan's goal fails without a fix
+- questions for the plan's owner in plain language, with the choices and what
+  each leads to, ranked by consequence, none dropped
+- minor issues the owner or developer should still see, never hidden behind a
+  score and never applied automatically
+- notes, archived with the review
+- recommended changes, each an add, clarify, or remove that names the goal it
+  serves, plus a scope delta of what the changes add and remove
 - artifact and validation evidence for any completion claim
+
+Synthesis filters findings against the plan's goal instead of merging them: a
+finding that adds scope the goal did not ask for is rejected with that reason,
+and a decision that belongs to you comes back as a question. If the goal is to
+remove or simplify and the accepted changes would grow the plan, the verdict is
+`Goal drift`.
+
+To state the goal instead of letting reviewers infer it, add an optional intent
+card (goals with ids, non-goals, surfaces that must not grow, and trade-offs
+already decided) to the review input. See
+[reviews/README.md](reviews/README.md#recommended-prompt-assembly).
 
 LensTemper never edits your spec; you decide what to apply. The goal is not
 more review theater or a longer spec. The goal is a plan that still does what
@@ -182,7 +197,8 @@ A full run typically follows this path:
 3. Create a ledger and prompt packets for the selected lenses.
 4. Spawn one detached-context reviewer subagent per selected lens.
 5. Capture structured reviewer outputs.
-6. Synthesize findings and deliver blocking gaps and questions.
+6. Filter findings against the goal and deliver blocking gaps, questions, and
+   minor issues.
 7. Archive final artifacts and report what the evidence supports.
 
 The detailed agent-facing contract lives in [reviews/README.md](reviews/README.md).

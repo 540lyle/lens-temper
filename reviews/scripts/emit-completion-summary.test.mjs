@@ -61,6 +61,9 @@ test("--out ending in .md keeps the human-readable Markdown summary", () => {
     const summary = readFileSync(resolve(repoRoot, outPath), "utf8");
     assert.match(summary, /^Full LensTemper review for selected lenses only/m);
     assert.match(summary, /^Final assessment: Ready to implement/m);
+    assert.match(summary, /^Minor issues:\n- detached-lifecycle-valid: /m);
+    assert.match(summary, /^Deferred risks:\n- None$/m);
+    assert.match(summary, /^Questions for the author \(reviewer Open Questions are also in the synthesis/m);
   } finally {
     cleanup();
   }
