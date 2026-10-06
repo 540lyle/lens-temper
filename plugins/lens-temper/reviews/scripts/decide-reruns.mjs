@@ -55,6 +55,12 @@ try {
   const known = new Set(readRegistry().lenses.map((entry) => entry.id));
   const unknown = [...lenses, ...list(opts.reopen)].filter((lens) => !known.has(lens));
   if (unknown.length > 0) throw Object.assign(new Error(`unknown lens ${unknown.join(", ")}`), { exitCode: EXIT_CODES.usage });
+  // A run without a ledger reviewed only its --lens lenses; there is nothing
+  // to reopen for any other lens.
+  const unreviewed = list(opts.reopen).filter((lens) => !lenses.includes(lens));
+  if (!ledger && unreviewed.length > 0) {
+    throw Object.assign(new Error(`--reopen ${unreviewed.join(", ")} names a lens this run never reviewed (reviewed: ${lenses.join(", ")}); reopen only a reviewed lens, or review ${unreviewed.join(", ")} as a new run`), { exitCode: EXIT_CODES.usage });
+  }
   const syntheses = (ledger?.synthesis_record_artifacts || []).map((entry) => readArtifact(root, entry.artifact_path)).filter(Boolean);
   if (opts.synthesis) syntheses.push(readJsonFile(resolveInputPath(root, opts.synthesis)));
   const findings = new Map(syntheses.flatMap((record) => record.finding_decisions || []).map((entry) => [entry.finding_id, entry]));
@@ -77,6 +83,14 @@ try {
     ? (ledger.target_edits || []).map((edit) => edit.finding_id).filter(Boolean)
     : list(opts.applied);
   const decisions = deriveRerunDecisions({ lenses, lensEntries, findings, applied, reopen: list(opts.reopen) });
+  // With a ledger, a reopened lens outside this pass is reported as such: it
+  // was settled in an earlier pass of the lineage or never reviewed.
+  for (const entry of decisions) {
+    if (!lenses.includes(entry.lens)) {
+      entry.reviewed_in_pass = false;
+      entry.reason = `${entry.reason}; not reviewed in pass ${ledger.pass_id}, so the next pass reviews it fresh`;
+    }
+  }
   const passIndex = (ledger?.pass_index ?? 1) + 1;
   const output = {
     ...(ledger ? {

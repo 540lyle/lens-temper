@@ -32,10 +32,14 @@ Default review run path: `reviews/archive/<yyyy-mm-dd>-<target-slug>-<pass-id>/`
 `run-plan-review.mjs` prepares the run there (`--out <dir>` chooses another
 directory), and the ledger records it as the pass's archive. The directory holds
 `review-input.json`, `lens-selection.json`, `ledger.json`, `events.jsonl`, and a
-`<lens>.prompt.md` and `<lens>.spawn.md` per lens. `archive-review-run.mjs`
-completes it in place: review records land in `reviews/<record-id>.json` and
-`.md`, synthesis records in `synthesis/<record-id>.json` and `.md`, and
-`--final <path>` in `final.md`. Use an owning plan/doc folder instead when that
+`<lens>.prompt.md` and `<lens>.spawn.md` per lens. Save each captured reviewer
+output where the archive keeps it, before attaching it: `<run>/reviews/<record-id>.json`
+with its Markdown at `<run>/reviews/<record-id>.md`, and the synthesis at
+`<run>/synthesis/<record-id>.json` and `.md`. `archive-review-run.mjs`
+completes the directory in place: records already there stay put, a record
+captured under another name inside the run directory is moved there (not
+copied, so no stale duplicate is left), and `--final <path>` lands in
+`final.md`. A record outside the run directory is copied and left as it was. Use an owning plan/doc folder instead when that
 folder already keeps review history next to the plan.
 
 One pass has one ledger: `<run>/ledger.json`, the path `run-plan-review.mjs`
@@ -200,6 +204,16 @@ review and synthesis records, and sets `core_gate_passed` only when the complete
 trust chain validates. Caller-authored readiness values are overwritten and the
 write is rejected if the derived ledger does not validate.
 
+Attaching registers each record's content hash as `artifact_sha` beside its
+`record_id` and `artifact_path`. The ledger validator rejects a registered
+file edited after attachment, and `validate-review-output.mjs` /
+`validate-synthesis-output.mjs --ledger` reject a different file that reuses a
+registered `record_id` with different content. To change a record, edit the
+registered file and attach it again. Validating a record that is not attached
+prints the attach command first and omits the fields attaching would stamp.
+Validators print one `valid ...` line on success (`--quiet` silences it,
+`--json` prints a `valid` event).
+
 Synthesis owner:
 
 - The parent orchestrator owns the ledger, final synthesis, materiality decisions, lens states, rerun selection, and final completion decision.
@@ -219,7 +233,11 @@ Review-output provenance:
   the stamped record is saved before the ledger validates it; a supplied value
   that disagrees with the run is never overwritten and still fails validation.
   Review Markdown no longer needs a `### Provenance` section; older Markdown
-  that has one stays valid.
+  that has one stays valid. A review written to the goal-anchored contract (it
+  records `goal_fit` or `blocking`, or was stamped with the current reviewer
+  template revision) must include the `### Goal Gate` and
+  `### Goal Fit / Recommended Removals` sections; reviews written before that
+  contract keep the older section list.
 - Review records store input evidence in `provenance.input_sources[]`.
 - Each input source has `role`, `basis`, `paths_reviewed`, and `target_included`.
 - Valid basis values are `direct_workspace_read`, `provided_packet`, `imported_archive`, and `fixture`.
@@ -239,7 +257,7 @@ Rerun protocol:
 
 - Each lens is `open` or `settled`. A lens settles when its validated review is delivered; settling does not depend on scores or on blocking gaps being fixed.
 - A settled lens reopens only when one of its own findings is applied, an applied finding from another lens names it in `affected_lenses`, or the user reopens it. Editing the target does not by itself reopen anything: target revisions stay as the audit trail of what each review read, not as a staleness trigger.
-- `decide-reruns.mjs --ledger <run>/ledger.json` derives the decisions from the ledger's `target_edits` and the synthesis `finding_decisions`; `--reopen <lens,...>` records an explicit user reopen. Without a ledger (see Single-Lens Run Without A Ledger), pass `--lens <id>` with `--applied <finding,...>` or `--reopen`. `--write` stores the decisions as the ledger's `rerun_decisions`.
+- `decide-reruns.mjs --ledger <run>/ledger.json` derives the decisions from the ledger's `target_edits` and the synthesis `finding_decisions`; `--reopen <lens,...>` records an explicit user reopen. A reopened lens outside the ledger's pass is marked `reviewed_in_pass: false`, and its reason says the next pass reviews it fresh. Without a ledger (see Single-Lens Run Without A Ledger), pass `--lens <id>` with `--applied <finding,...>` or `--reopen`; `--reopen` there may name only a lens the run reviewed. `--write` stores the decisions as the ledger's `rerun_decisions`.
 - Reruns start a new pass with `run-plan-review.mjs --parent-ledger <run>/ledger.json`, which reruns only the reopened lenses unless the user names lenses. Pass 2 is the one automatic rerun. Pass 3 and later require `--human-approval "<what the user approved>"`, recorded in the ledger as `human_approval`. The intent card stays fixed across a lineage unless the owner amends it with `amended_by: human`.
 - Spawn new fresh agents for reruns. Do not reuse prior reviewer agents.
 - A full clean rerun is exceptional. Use it only for broad plan rewrites, suspected reviewer contamination, corrupted inputs, or explicit user request.
@@ -260,7 +278,22 @@ node reviews/scripts/update-ledger.mjs --ledger <run>/ledger.json --host-initiat
 ```
 
 `--decided-by policy` replaces the default `human` where the rules below allow
-it; the write is rejected when they do not.
+it; the write is rejected when they do not. Without `--write` the call is a dry
+run: it prints the ledger it would write and says on stderr which entry it would
+record. To remove a mistaken entry, name it by its index in `target_edits` or by
+the finding id it applied:
+
+```bash
+node reviews/scripts/update-ledger.mjs --ledger <run>/ledger.json --remove-edit <index|finding-id> --write
+```
+
+Removing an entry clears stored `rerun_decisions`; run
+`decide-reruns.mjs --ledger <run>/ledger.json --write` again.
+
+After a target edit, the ledger still records the revision the pass reviewed.
+Validate it with `validate-ledger.mjs <run>/ledger.json --target-revision <the
+ledger's target_revision>`; validating at the edited text's revision fails
+with a message saying the target was edited after delivery.
 
 - Cite the synthesis `finding_id` the edit applies, or set
   `host_initiated: true` for an edit no finding asked for.
@@ -471,9 +504,22 @@ User-facing completion summary:
 When reporting a completed review run to the user, the orchestrator must include a compact final summary. Do not require the user to open the archive to learn the outcome.
 `emit-completion-summary.mjs --ledger <run>/ledger.json --synthesis <synthesis.json> --out <run>/final.md`
 writes it, starting with the `Review delivered: N blocking gaps, K minor issues, M questions`
-line taken from the synthesis Markdown (or counted from the finding decisions
-when that line is missing). Its completion claim comes from the finalized
-ledger, so the synthesis `claim_flags` may stay false.
+line. The emitter counts blocking gaps from the synthesis finding decisions
+(accepted findings that are not minor). Minor issues and questions are counted
+from the decisions too (accepted minor or downgraded; `needs_author`), raised to
+the synthesis Markdown's own line when that counts more, because reviewer Open
+Questions live only in the Markdown. The synthesis validator (and so attaching
+and `--finalize`) rejects a synthesis whose `Review delivered` line disagrees
+with its decisions: a different blocking count, or fewer minor issues or
+questions than the decisions hold. `validate-completion-summary.mjs --ledger`
+applies the same check to the summary's line and its `delivered` counts. Its
+completion claim comes from the finalized ledger, so the synthesis
+`claim_flags` may stay false. The summary also states each artifact path's git
+status (`committed`, `committed, with uncommitted changes`, `not committed
+(untracked …)`, `ignored/local-only`, or stored outside git) as of emission, and
+derives its verification evidence from the current review records: outputs
+captured per selected lens, spawned reviewers completed, captured, and closed,
+and reviewers that read the target directly at the reviewed revision.
 
 Required fields:
 

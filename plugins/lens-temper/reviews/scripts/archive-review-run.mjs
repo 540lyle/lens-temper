@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { basename, dirname, resolve } from "node:path";
 import {
   CONTRACT_VERSION,
@@ -78,12 +78,20 @@ async function main() {
   if (opts.inputPacket) mapCopy(opts.inputPacket, `${archiveRepoPath}/input.packet.md`);
   if (opts.final) mapCopy(opts.final, `${archiveRepoPath}/final.md`);
 
+  // Captured records the run directory held under other names are moved, not
+  // copied, so no stale duplicate is left beside the archived record.
+  const moved = [];
+  const noteMove = (source, target) => {
+    if (source && source !== target && source.startsWith(`${archiveRepoPath}/`)) moved.push(source);
+  };
   const archivedReviews = await Promise.all((sourceLedger.review_record_artifacts || []).map(async (entry) => {
     const record = readJsonFile(resolveRepoPath(root, entry.artifact_path));
     const artifactPath = `${archiveRepoPath}/reviews/${entry.record_id}.json`;
     const markdownPath = `${archiveRepoPath}/reviews/${entry.record_id}.md`;
     pathMap.set(entry.artifact_path, artifactPath);
     mapCopy(record.markdown_artifact_path, markdownPath);
+    noteMove(entry.artifact_path, artifactPath);
+    noteMove(record.markdown_artifact_path, markdownPath);
     return { ...record, artifact_path: artifactPath, markdown_artifact_path: markdownPath };
   }));
 
@@ -93,6 +101,8 @@ async function main() {
     const markdownPath = `${archiveRepoPath}/synthesis/${entry.record_id}.md`;
     pathMap.set(entry.artifact_path, artifactPath);
     mapCopy(record.markdown_artifact_path, markdownPath);
+    noteMove(entry.artifact_path, artifactPath);
+    noteMove(record.markdown_artifact_path, markdownPath);
     const { fixture_ledger_path: _fixtureLedgerPath, ...portableRecord } = record;
     return { ...portableRecord, artifact_path: artifactPath, markdown_artifact_path: markdownPath };
   }));
@@ -132,8 +142,8 @@ async function main() {
     lens_selection_path: lensSelectionPath,
     lens_selection_revision: lensSelectionRevision,
     ...(eventsPath ? { events_path: eventsPath } : {}),
-    review_record_artifacts: archivedReviews.map((record) => ({ record_id: record.record_id, artifact_path: record.artifact_path })),
-    synthesis_record_artifacts: archivedSynthesis.map((record) => ({ record_id: record.record_id, artifact_path: record.artifact_path })),
+    review_record_artifacts: archivedReviews.map((record) => ({ record_id: record.record_id, artifact_path: record.artifact_path, artifact_sha: computeArtifactSha(root, record.artifact_path) })),
+    synthesis_record_artifacts: archivedSynthesis.map((record) => ({ record_id: record.record_id, artifact_path: record.artifact_path, artifact_sha: computeArtifactSha(root, record.artifact_path) })),
     archive_paths: Array.from(new Set([...(sourceLedger.archive_paths || []), archiveRepoPath]))
   };
   const failures = validateLedgerRecord(archivedLedger, {
@@ -152,10 +162,13 @@ async function main() {
   }
   if (failures.length > 0) throw validationError(failures, "archived ledger validation failed");
   await writeFile(resolveRepoPath(root, ledgerPath), `${JSON.stringify(archivedLedger, null, 2)}\n`, "utf8");
+  const archivedPaths = new Set([...archivedReviews, ...archivedSynthesis].flatMap((record) => [record.artifact_path, record.markdown_artifact_path]));
+  const removed = [...new Set(moved)].filter((path) => !archivedPaths.has(path) && path !== ledgerPath);
+  await Promise.all(removed.map((path) => rm(resolveRepoPath(root, path), { force: true })));
 
   const finalAssessment = archivedSynthesis.at(-1)?.final_assessment || "not recorded";
-  if (opts.json) writeJsonLinesEvent("archived", { archive_path: archiveRepoPath, final_assessment: finalAssessment });
-  else if (!opts.quiet) process.stdout.write(`archived ${archiveRepoPath} final_assessment=${finalAssessment}\n`);
+  if (opts.json) writeJsonLinesEvent("archived", { archive_path: archiveRepoPath, final_assessment: finalAssessment, moved: removed });
+  else if (!opts.quiet) process.stdout.write(`archived ${archiveRepoPath} final_assessment=${finalAssessment}${removed.length > 0 ? ` moved=${removed.length} captured record file(s) into reviews/ and synthesis/` : ""}\n`);
 }
 
 main().catch((error) => {

@@ -43,7 +43,11 @@ test("--out ending in .json writes a valid completion-summary JSON record", () =
     assert.equal(summary.claim_flags.review_complete, false);
     assert.deepEqual(summary.rerun_or_lock_status.map((entry) => entry.lens_state), ["settled"]);
     assert.doesNotMatch(summary.verification_evidence, /validators passed/i);
-    assert.match(summary.verification_evidence, /review records validated/i);
+    assert.match(summary.verification_evidence, /current review records, and synthesis \S+ validated/i);
+    assert.match(summary.verification_evidence, /reviewers terminal and closed: 1\/1 spawned reviewers/);
+    assert.match(summary.verification_evidence, /read current workspace files directly: 1\/1/);
+    assert.match(summary.artifact_status, /committed|ignored\/local-only|not committed|outside git/);
+    assert.equal(summary.synthesis_record_id, "synthesis-detached-1");
     execFileSync(node, [
       "reviews/scripts/validate-completion-summary.mjs",
       outPath,

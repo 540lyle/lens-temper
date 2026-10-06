@@ -1,10 +1,16 @@
 #!/usr/bin/env node
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import {
   CONTRACT_VERSION,
   EXIT_CODES,
+  deliveredFromDecisions,
   ensureNode18,
+  formatDelivered,
+  isBlockingGapDecision,
+  isMinorIssueDecision,
+  isQuestionDecision,
   isRepoRelativePath,
   loadValidatedRunContext,
   normalizeRepoInputPath,
@@ -12,7 +18,8 @@ import {
   parseCommonArgs,
   projectRootFrom,
   readJsonFile,
-  readTextFile,
+  readSynthesisDeliveredLine,
+  registeredArtifactFailures,
   resolveRepoPath,
   usage,
   validateCompletionSummaryRecord,
@@ -49,27 +56,64 @@ function collectLensScores(reviews) {
   return rows.sort((a, b) => a.lens.localeCompare(b.lens));
 }
 
-const DELIVERED_LINE = /^Review delivered: (\d+) blocking gaps?, (\d+) minor issues?, (\d+) questions?\s*$/m;
-const isBlockingGap = (entry) => entry.decision === "accepted" && entry.severity !== "minor";
-const isMinorIssue = (entry) => (entry.decision === "accepted" && entry.severity === "minor") || entry.decision === "downgraded";
-
-// The synthesis ends with its own delivered line, counting its Blocking Gaps,
-// Minor Issues, and Questions for the Author. Reviewer Open Questions exist
-// only in that Markdown, so its line wins; without one, the counts come from
-// the finding decisions.
+// Blocking gaps are counted from the finding decisions. Reviewer Open
+// Questions, and minor issues without a decision, exist only in the synthesis
+// Markdown, so its line may raise those two counts; the synthesis validator has
+// already checked that line against the decisions.
 function deliveredCounts(root, synthesis) {
-  const markdownPath = synthesis.markdown_artifact_path ? resolveRepoPath(root, synthesis.markdown_artifact_path) : null;
-  const match = markdownPath && existsSync(markdownPath) ? readTextFile(markdownPath).match(DELIVERED_LINE) : null;
-  if (match) return { blocking_gaps: Number(match[1]), minor_issues: Number(match[2]), questions: Number(match[3]) };
-  const decisions = synthesis.finding_decisions || [];
+  const counted = deliveredFromDecisions(synthesis.finding_decisions);
+  const line = readSynthesisDeliveredLine(root, synthesis);
   return {
-    blocking_gaps: decisions.filter(isBlockingGap).length,
-    minor_issues: decisions.filter(isMinorIssue).length,
-    questions: decisions.filter((entry) => entry.decision === "needs_author").length
+    blocking_gaps: counted.blocking_gaps,
+    minor_issues: Math.max(counted.minor_issues, line?.minor_issues ?? 0),
+    questions: Math.max(counted.questions, line?.questions ?? 0)
   };
 }
 
-function asMarkdown(ledger, synthesis, synthesisPath, lensScores, delivered) {
+function git(root, args) {
+  try {
+    return { ok: true, out: execFileSync("git", args, { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }) };
+  } catch (error) {
+    return { ok: false, status: error.status };
+  }
+}
+
+// Whether the run's artifacts are committed, ignored/local-only, or stored
+// outside git, as the completion summary must say.
+function artifactStatus(root, paths) {
+  if (paths.length === 0) return "not archived";
+  if (!git(root, ["rev-parse", "--is-inside-work-tree"]).ok) return "stored outside git (the project root is not a git work tree)";
+  return paths.map((path) => {
+    if (git(root, ["check-ignore", "-q", "--", path]).ok) return `${path}: ignored/local-only`;
+    const tracked = (git(root, ["ls-files", "--", path]).out || "").trim();
+    const changes = (git(root, ["status", "--porcelain", "--untracked-files=all", "--", path]).out || "").trim();
+    if (!tracked) return `${path}: not committed (untracked; commit it or keep it local-only)`;
+    if (changes) return `${path}: committed, with uncommitted changes`;
+    return `${path}: committed`;
+  }).join("; ");
+}
+
+// Reviewer closure and direct-read evidence come from the validated current
+// review records, not from a fixed sentence.
+function verificationEvidence(ledger, reviews, synthesis) {
+  const records = reviews.map((entry) => entry.record);
+  const total = records.length;
+  const spawned = records.filter((record) => ["fresh_spawned_lens_reviewers", "fresh_spawned_orchestrator"].includes(record.execution_mode));
+  const closed = spawned.filter((record) => record.status === "completed" && record.closed === true && record.output_captured === true);
+  const direct = records.filter((record) => (record.provenance?.input_sources || []).some((source) => source.basis === "direct_workspace_read"
+    && source.target_included === true && (source.paths_reviewed || []).includes(record.target_path)));
+  const closure = spawned.length > 0
+    ? `reviewers terminal and closed: ${closed.length}/${spawned.length} spawned reviewers completed, captured, and closed`
+    : `reviewers terminal and closed: not applicable (execution_mode ${ledger.execution_mode}; no spawned reviewers)`;
+  return [
+    `reviewer outputs captured: ${total}/${(ledger.selected_lenses || []).length} selected lenses`,
+    closure,
+    `current reviewers read current workspace files directly: ${direct.length}/${total} read ${ledger.target_path} at ${ledger.target_revision}`,
+    `validators run: ledger, ${total} current review records, and synthesis ${synthesis.record_id} validated; Review delivered line checked against its finding decisions`
+  ].join("; ");
+}
+
+function asMarkdown(ledger, synthesis, synthesisPath, lensScores, delivered, status, evidence) {
   const lines = [];
   if (ledger.run_mode === "inline") {
     lines.push("Inline LensTemper-style review");
@@ -92,11 +136,12 @@ function asMarkdown(ledger, synthesis, synthesisPath, lensScores, delivered) {
     lines.push(`Core profile: ${ledger.core_profile_id}`);
     lines.push("");
   }
-  lines.push(`Review delivered: ${delivered.blocking_gaps} blocking gaps, ${delivered.minor_issues} minor issues, ${delivered.questions} questions`);
+  lines.push(formatDelivered(delivered));
   lines.push(`Final assessment: ${synthesis.final_assessment || "not recorded"}`);
   lines.push(`Target: ${ledger.target_path} at ${ledger.target_revision}`);
   if (ledger.review_input_revision) lines.push(`Review input revision: ${ledger.review_input_revision}`);
   lines.push(`Artifact storage: ${(ledger.archive_paths || []).join(", ") || "not archived"}`);
+  lines.push(`Artifact status: ${status}`);
   lines.push("");
   const states = new Map((synthesis.lens_lock_decisions || []).map((entry) => [entry.lens, entry]));
   lines.push("| Lens | Verdict | Goal Fit | Correctness | Completeness | Risk Awareness | Testability | Maintainability | Ship Readiness | Material Blockers | State |");
@@ -120,10 +165,10 @@ function asMarkdown(ledger, synthesis, synthesisPath, lensScores, delivered) {
   // in the synthesis alone, each with its reason.
   const decisions = synthesis.finding_decisions || [];
   const groups = [
-    ["Accepted findings:", isBlockingGap],
-    ["Minor issues:", isMinorIssue],
+    ["Accepted findings:", isBlockingGapDecision],
+    ["Minor issues:", isMinorIssueDecision],
     ["Deferred risks:", (entry) => entry.decision === "deferred"],
-    ["Questions for the author (reviewer Open Questions are also in the synthesis Questions for the Author section):", (entry) => entry.decision === "needs_author"]
+    ["Questions for the author (reviewer Open Questions are also in the synthesis Questions for the Author section):", isQuestionDecision]
   ];
   for (const [heading, matches] of groups) {
     const entries = decisions.filter(matches);
@@ -132,7 +177,7 @@ function asMarkdown(ledger, synthesis, synthesisPath, lensScores, delivered) {
     for (const entry of entries) lines.push(`- ${entry.finding_id}: ${entry.reason}`);
     lines.push("");
   }
-  lines.push("Verification evidence: reviewer outputs captured, current records validated, synthesis emitted.");
+  lines.push(`Verification evidence: ${evidence}.`);
   lines.push(`Synthesis artifact: ${synthesisPath}`);
   return `${lines.join("\n")}\n`;
 }
@@ -168,10 +213,14 @@ try {
   });
   if (synthesisFailures.length > 0) throw validationError(synthesisFailures, "synthesis trust chain failed");
   if (!(ledger.synthesis_record_ids || []).includes(synthesis.record_id)) {
-    throw Object.assign(new Error(`synthesis ${synthesis.record_id} is not current in the ledger`), { exitCode: EXIT_CODES.validation });
+    throw Object.assign(new Error(`synthesis ${synthesis.record_id} is not current in the ledger; attach it first with update-ledger.mjs --ledger ${opts.ledger} --synthesis ${opts.synthesis} --write`), { exitCode: EXIT_CODES.validation });
   }
+  const registeredFailures = registeredArtifactFailures(root, ledger, "synthesis", synthesis, opts.synthesis);
+  if (registeredFailures.length > 0) throw validationError(registeredFailures, "synthesis trust chain failed");
   const lensScores = collectLensScores(context.reviews);
   const delivered = deliveredCounts(root, synthesis);
+  const status = artifactStatus(root, ledger.archive_paths || []);
+  const evidence = verificationEvidence(ledger, context.reviews, synthesis);
   // The summary claims completion only for what the ledger proves: a full run
   // whose core-profile gate passed. The synthesis need not claim it.
   const coreGatePassed = ledger.run_mode === "full" && ledger.run_scope === "core_profile" && ledger.core_gate_passed === true;
@@ -186,6 +235,7 @@ try {
       core_gate_passed: ledger.core_gate_passed
     } : {}),
     final_assessment: synthesis.final_assessment,
+    synthesis_record_id: synthesis.record_id,
     target_path: ledger.target_path,
     target_revision: ledger.target_revision,
     ...(ledger.review_input_revision ? { review_input_revision: ledger.review_input_revision } : {}),
@@ -198,12 +248,13 @@ try {
     },
     delivered,
     artifact_storage: ledger.archive_paths || [],
+    artifact_status: status,
     lens_scores: lensScores,
     accepted_findings: (synthesis.finding_decisions || []).filter((entry) => entry.decision === "accepted"),
     rerun_or_lock_status: (synthesis.lens_lock_decisions || []).map((entry) => ({ ...entry, lens_state: lensStateOf(entry) })),
-    verification_evidence: "reviewer outputs captured, review records validated, synthesis emitted"
+    verification_evidence: evidence
   };
-  const text = asMarkdown(ledger, synthesis, opts.synthesis, lensScores, delivered);
+  const text = asMarkdown(ledger, synthesis, opts.synthesis, lensScores, delivered, status, evidence);
   summary.summary_text = text;
   const summaryFailures = validateCompletionSummaryRecord(summary, {
     artifactRoot: root,

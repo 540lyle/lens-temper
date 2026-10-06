@@ -19,7 +19,10 @@ const archiveRoot = join(repoRoot, "reviews", "archive");
 const targetRevision = "git:73eaed921475be235f6684abdd2ce19a4e367c7f";
 const intentInput = "reviews/examples/review-input.valid-intent-card.json";
 const example = (name) => readJsonFile(join(repoRoot, "reviews", "examples", name));
-const fields = (failures) => failures.map((failure) => failure.field);
+// The fixture synthesis Markdown's Review delivered line counts the fixture's
+// own decisions. Checks that swap in other decisions ignore that cross-check,
+// which delivery-integrity.test.mjs covers.
+const fields = (failures) => failures.map((failure) => failure.field).filter((field) => !field.startsWith("markdown.review_delivered"));
 
 function repoPath(path) {
   return relative(repoRoot, path).replace(/\\/g, "/");
@@ -37,7 +40,8 @@ function withTempDir(run) {
 
 function synthesisFailures(changes) {
   const record = { ...example("synthesis-output.valid.json"), ...changes };
-  return validateSynthesisRecord(record, { artifactRoot: repoRoot, targetRevision });
+  return validateSynthesisRecord(record, { artifactRoot: repoRoot, targetRevision })
+    .filter((failure) => !failure.field.startsWith("markdown.review_delivered"));
 }
 
 function decision(changes) {

@@ -1,3 +1,9 @@
+### Goal Gate
+
+- Goal: Deterministic, dependency-light validation of review artifacts.
+- Non-goals: None stated.
+- Open decisions: None.
+
 ### Provenance
 
 - Pass ID: example-pass
@@ -15,6 +21,10 @@
 
 - Defines deterministic review provenance.
 - Keeps validation dependency-light.
+
+### Goal Fit / Recommended Removals
+
+- None.
 
 ### Gaps and Risks
 

@@ -114,7 +114,8 @@
           "lens": { "type": "string" },
           "lens_state": { "enum": ["open", "settled"] },
           "rerun_needed": { "type": "boolean" },
-          "reason": { "type": "string" }
+          "reason": { "type": "string" },
+          "reviewed_in_pass": { "type": "boolean", "description": "false when the user reopened a lens this pass did not review." }
         },
         "additionalProperties": true
       }
@@ -161,7 +162,8 @@
         "required": ["record_id", "artifact_path"],
         "properties": {
           "record_id": { "type": "string" },
-          "artifact_path": { "type": "string" }
+          "artifact_path": { "type": "string" },
+          "artifact_sha": { "type": "string", "description": "Content hash of the record file, registered by update-ledger.mjs when it attaches the record and by archive-review-run.mjs. A file edited after attachment, or another file reusing the record_id, fails validation." }
         },
         "additionalProperties": true
       }
@@ -173,7 +175,8 @@
         "required": ["record_id", "artifact_path"],
         "properties": {
           "record_id": { "type": "string" },
-          "artifact_path": { "type": "string" }
+          "artifact_path": { "type": "string" },
+          "artifact_sha": { "type": "string", "description": "Content hash of the record file, registered by update-ledger.mjs when it attaches the record and by archive-review-run.mjs. A file edited after attachment, or another file reusing the record_id, fails validation." }
         },
         "additionalProperties": true
       }

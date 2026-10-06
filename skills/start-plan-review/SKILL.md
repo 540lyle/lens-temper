@@ -94,16 +94,21 @@ and selected role manifests before running a review.
    advisory until their fresh-agent path is verified.
    Reviewer execution may be concurrent or sequential. Each selected lens
    still requires its own detached-context reviewer subagent.
-8. Attach each captured review with
-   `reviews/scripts/update-ledger.mjs --ledger <run>/ledger.json --review <review.json> --write`,
+8. Save each captured review as `<run>/reviews/<record-id>.json` with its
+   Markdown at `<run>/reviews/<record-id>.md` (the paths the archive keeps),
+   attach it with
+   `reviews/scripts/update-ledger.mjs --ledger <run>/ledger.json --review <run>/reviews/<record-id>.json --write`,
    then validate it with
-   `reviews/scripts/validate-review-output.mjs <review.json> --ledger <run>/ledger.json`.
+   `reviews/scripts/validate-review-output.mjs <run>/reviews/<record-id>.json --ledger <run>/ledger.json`,
+   which prints `valid review ...` on success.
    The validators accept only records the ledger already lists, so attach
-   first. For full runs, bind validation to the run with `--ledger`; do not
+   first. Attaching registers the record's content hash: re-attach a record
+   after changing it, and validate the registered file, not a copy. For full runs, bind validation to the run with `--ledger`; do not
    validate against free-standing revision strings.
    (`validate-review-fixtures.mjs` checks only the package's own fixtures.)
 9. Assemble synthesis with
-   `reviews/scripts/run-synthesis.mjs --ledger <run>/ledger.json`, attach the
+   `reviews/scripts/run-synthesis.mjs --ledger <run>/ledger.json`, save it as
+   `<run>/synthesis/<record-id>.json` and `.md`, attach the
    synthesis record with `update-ledger.mjs --synthesis <synthesis.json> --write`,
    and validate it with `validate-synthesis-output.mjs <synthesis.json> --ledger <run>/ledger.json`.
 10. Finalize derived readiness state with
@@ -133,7 +138,9 @@ applied. A third pass needs the user's approval, recorded with
 Log every edit to the target in the pass's ledger with
 `update-ledger.mjs --ledger <run>/ledger.json --applied <finding-id> --summary "<what changed>" --write`
 (`--host-initiated` for an edit no finding asked for; `--decided-by policy`
-only where auto mode allows it).
+only where auto mode allows it). Without `--write` the call is a dry run.
+Remove a mistaken entry with
+`update-ledger.mjs --ledger <run>/ledger.json --remove-edit <index|finding-id> --write`.
 
 For a plan in another project, run the package scripts with `--root <project>`
 (default: the current directory); targets, run artifacts, and archives resolve

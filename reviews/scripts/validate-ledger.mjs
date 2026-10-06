@@ -5,6 +5,7 @@ import {
   ensureNode18,
   parseCommonArgs,
   printFailures,
+  printValid,
   readJsonFile,
   projectRootFrom,
   resolveInputPath,
@@ -47,9 +48,7 @@ try {
     printFailures(failures, opts);
     process.exit(failures.some((f) => f.field === "target_revision" || f.field === "review_input_revision" || f.field === "markdown_artifact_sha") ? EXIT_CODES.stale : EXIT_CODES.validation);
   }
-  if (opts.json) {
-    process.stdout.write(`${JSON.stringify({ event: "valid", artifact_path: inputPath, pass_id: record.pass_id })}\n`);
-  }
+  printValid(opts, `valid ledger ${inputPath} pass=${record.pass_id} target_revision=${record.target_revision}${opts.audit ? " (audit)" : ""}`, { artifact_path: inputPath, pass_id: record.pass_id });
   process.exit(EXIT_CODES.ok);
 } catch (error) {
   process.stderr.write(`${usage(scriptName, usageText)}\n`);

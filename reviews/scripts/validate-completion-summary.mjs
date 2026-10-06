@@ -6,6 +6,7 @@ import {
   loadValidatedRunContext,
   parseCommonArgs,
   printFailures,
+  printValid,
   readJsonFile,
   projectRootFrom,
   resolveInputPath,
@@ -53,9 +54,7 @@ try {
     printFailures(failures, opts);
     process.exit(failures.some((f) => f.field === "target_revision" || f.field === "review_input_revision") ? EXIT_CODES.stale : EXIT_CODES.validation);
   }
-  if (opts.json) {
-    process.stdout.write(`${JSON.stringify({ event: "valid", artifact_path: inputPath, run_mode: record.run_mode })}\n`);
-  }
+  printValid(opts, `valid completion summary ${inputPath} run_mode=${record.run_mode}${context ? ` ledger=${opts.ledger}` : ""}`, { artifact_path: inputPath, run_mode: record.run_mode });
   process.exit(EXIT_CODES.ok);
 } catch (error) {
   process.stderr.write(`${usage(scriptName, usageText)}\n`);

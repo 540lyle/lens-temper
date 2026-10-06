@@ -6,9 +6,12 @@ import {
   loadValidatedRunContext,
   parseCommonArgs,
   printFailures,
+  printValid,
   readJsonFile,
+  registeredArtifactFailures,
   projectRootFrom,
   resolveInputPath,
+  STAMPED_REVIEW_FIELDS,
   usage,
   validateReviewRecord
 } from "./validation-helpers.mjs";
@@ -47,17 +50,24 @@ try {
     reviewInputRevision: context?.ledger.review_input_revision || opts.reviewInputRevision,
     inputPath
   });
-  if (context && !context.ledger.current_review_record_ids.includes(record.record_id)) {
-    failures.push({ artifact_path: inputPath, record_id: record.record_id, field: "record_id", expected: "a review attached to the ledger (attach it first with update-ledger.mjs --ledger <ledger> --review <review-json> --write)", actual: record.record_id });
+  if (context && !(context.ledger.current_review_record_ids || []).includes(record.record_id)) {
+    // An unattached record is usually also unstamped; attaching fills most of
+    // the other failures, so this hint leads.
+    // Fields that attaching stamps are not reported as missing before it.
+    const stampable = STAMPED_REVIEW_FIELDS.filter((field) => record[field] === undefined);
+    const pending = failures.filter((failure) => !stampable.includes(failure.field));
+    failures.length = 0;
+    failures.push({ lead: true, artifact_path: inputPath, record_id: record.record_id, field: "record_id", expected: `a review attached to the ledger (attach it first with update-ledger.mjs --ledger ${opts.ledger} --review ${inputPath} --write, which also stamps ${stampable.length > 0 ? stampable.join(", ") : "the run provenance"}, then validate again)`, actual: `${record.record_id} not attached` }, ...pending);
+  } else if (context) {
+    failures.push(...registeredArtifactFailures(root, context.ledger, "review", record, inputPath));
   }
 
   if (failures.length > 0) {
     printFailures(failures, opts);
-    process.exit(failures.some((f) => f.field === "target_revision" || f.field === "review_input_revision" || f.field === "markdown_artifact_sha") ? EXIT_CODES.stale : EXIT_CODES.validation);
+    // An unattached record is not stale, only unattached (and so unstamped).
+    process.exit(failures.some((f) => f.lead) ? EXIT_CODES.validation : failures.some((f) => f.field === "target_revision" || f.field === "review_input_revision" || f.field === "markdown_artifact_sha") ? EXIT_CODES.stale : EXIT_CODES.validation);
   }
-  if (opts.json) {
-    process.stdout.write(`${JSON.stringify({ event: "valid", artifact_path: inputPath, record_id: record.record_id })}\n`);
-  }
+  printValid(opts, `valid review ${inputPath} record=${record.record_id}${context ? ` ledger=${opts.ledger}` : ""}`, { artifact_path: inputPath, record_id: record.record_id });
   process.exit(EXIT_CODES.ok);
 } catch (error) {
   process.stderr.write(`${usage(scriptName, usageText)}\n`);

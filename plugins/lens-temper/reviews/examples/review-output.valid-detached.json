@@ -16,7 +16,7 @@
   "output_captured": true,
   "artifact_path": "reviews/examples/review-output.valid-detached.json",
   "markdown_artifact_path": "reviews/examples/artifacts/review-output.valid-full.md",
-  "markdown_artifact_sha": "git:b35d57a7bef682c1fea29994a61ad99c66ed777e",
+  "markdown_artifact_sha": "git:36c6af9ab4802ca232f78175c51e4a5335c4392f",
   "verdict": "Strong",
   "material_blockers": {
     "present": false,

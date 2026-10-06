@@ -46,9 +46,12 @@
       "additionalProperties": true
     },
     "summary_text": { "type": "string" },
+    "synthesis_record_id": { "type": "string", "description": "The synthesis record this summary reports; one of the ledger's synthesis_record_ids." },
+    "artifact_status": { "type": "string", "description": "Git status of each artifact path when the summary was emitted: committed, committed with uncommitted changes, not committed, ignored/local-only, or stored outside git." },
+    "verification_evidence": { "type": "string", "description": "Derived from the current review records: outputs captured, spawned reviewers completed and closed, direct workspace reads of the target, and validators run." },
     "delivered": {
       "type": "object",
-      "description": "Counts behind the Review delivered line: the synthesis Blocking Gaps, Minor Issues, and Questions for the Author.",
+      "description": "Counts behind the Review delivered line: blocking gaps counted from the synthesis finding decisions; minor issues and questions from the decisions, raised to the synthesis Markdown line when it counts more. With --ledger the validator checks them against the decisions.",
       "properties": {
         "blocking_gaps": { "type": "integer", "minimum": 0 },
         "minor_issues": { "type": "integer", "minimum": 0 },

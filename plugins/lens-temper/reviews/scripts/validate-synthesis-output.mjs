@@ -6,7 +6,9 @@ import {
   loadValidatedRunContext,
   parseCommonArgs,
   printFailures,
+  printValid,
   readJsonFile,
+  registeredArtifactFailures,
   projectRootFrom,
   resolveInputPath,
   usage,
@@ -45,14 +47,23 @@ try {
     ledger,
     inputPath
   });
+  // An unattached record is usually also unstamped; attaching fills most of
+  // the other failures, so this hint leads.
+  const attach = failures.find((failure) => failure.field === "record_id" && !(ledger.synthesis_record_ids || []).includes(record.record_id));
+  if (attach) {
+    attach.lead = true;
+    attach.expected = `a synthesis record attached to the ledger (attach it first with update-ledger.mjs --ledger ${opts.ledger} --synthesis ${inputPath} --write, which also stamps the run provenance, then validate again)`;
+    attach.actual = `${record.record_id} not attached`;
+  } else {
+    failures.push(...registeredArtifactFailures(root, ledger, "synthesis", record, inputPath));
+  }
 
   if (failures.length > 0) {
     printFailures(failures, opts);
-    process.exit(failures.some((f) => f.field === "target_revision" || f.field === "review_input_revision" || f.field === "markdown_artifact_sha") ? EXIT_CODES.stale : EXIT_CODES.validation);
+    // An unattached record is not stale, only unattached (and so unstamped).
+    process.exit(failures.some((f) => f.lead) ? EXIT_CODES.validation : failures.some((f) => f.field === "target_revision" || f.field === "review_input_revision" || f.field === "markdown_artifact_sha") ? EXIT_CODES.stale : EXIT_CODES.validation);
   }
-  if (opts.json) {
-    process.stdout.write(`${JSON.stringify({ event: "valid", artifact_path: inputPath, record_id: record.record_id })}\n`);
-  }
+  printValid(opts, `valid synthesis ${inputPath} record=${record.record_id} ledger=${opts.ledger}`, { artifact_path: inputPath, record_id: record.record_id });
   process.exit(EXIT_CODES.ok);
 } catch (error) {
   process.stderr.write(`${usage(scriptName, usageText)}\n`);

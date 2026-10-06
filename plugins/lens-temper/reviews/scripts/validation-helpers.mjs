@@ -17,6 +17,7 @@ import {
   COMPLETION_SUMMARY_SCHEMA_VERSION,
   CONTRACT_VERSION,
   CROSS_CUTTING_KEYS,
+  DELIVERED_LINE_PATTERN,
   CROSS_CUTTING_STATUS_VALUES,
   EXECUTION_MODES,
   EXIT_CODES,
@@ -41,6 +42,7 @@ import {
   REQUIRED_MARKDOWN_SECTIONS,
   REVIEW_COMPLETED_REQUIRED_FIELDS,
   REVIEW_FULL_REQUIRED_FIELDS,
+  REVIEW_GOAL_MARKDOWN_SECTIONS,
   REVIEW_INPUT_OPTIONAL_FIELDS,
   REVIEW_INPUT_REQUIRED_FIELDS,
   REVIEW_REQUIRED_FIELDS,
@@ -137,7 +139,8 @@ export function parseCommonArgs(argv) {
     lensProposal: null,
     lensSelection: null,
     selectionFallback: null,
-    coreProfile: null
+    coreProfile: null,
+    removeEdit: null
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -482,9 +485,15 @@ export function validationError(failures, message = "artifact validation failed"
   return error;
 }
 
+// Failures print sorted, except that those marked lead (such as "attach it
+// first") print first, since fixing them clears most of the rest.
+// A missing field prints once, as missing, not again for each check of its value.
 export function printFailures(failures, opts = {}) {
-  const sorted = [...failures].sort((a, b) => formatFailure(a).localeCompare(formatFailure(b)));
-  for (const failure of sorted) {
+  const missing = new Set(failures.filter((failure) => failure.expected === "present" && failure.actual === "missing").map((failure) => `${failure.artifact_path}|${failure.field}`));
+  const shown = failures.filter((failure) => !missing.has(`${failure.artifact_path}|${failure.field}`) || (failure.expected === "present" && failure.actual === "missing"));
+  const lead = shown.filter((failure) => failure.lead);
+  const rest = shown.filter((failure) => !failure.lead).sort((a, b) => formatFailure(a).localeCompare(formatFailure(b)));
+  for (const { lead: _lead, ...failure } of [...lead, ...rest]) {
     if (opts.json) {
       process.stdout.write(`${JSON.stringify({ event: "validation_error", ...failure })}\n`);
     } else {
@@ -601,6 +610,40 @@ export async function loadValidatedRunContext(root, ledgerInput, options = {}) {
   };
 }
 
+const RECORD_ARTIFACT_FIELDS = { review: "review_record_artifacts", synthesis: "synthesis_record_artifacts" };
+
+// update-ledger.mjs registers each attached record by id, path, and content
+// hash (artifact_sha). A registered file edited after attachment fails here.
+// Ledgers written before artifact_sha existed skip the hash check.
+export function registeredArtifactHashFailures(root, ledger, artifactPath) {
+  const failures = [];
+  for (const [kind, field] of Object.entries(RECORD_ARTIFACT_FIELDS)) {
+    for (const [index, entry] of (Array.isArray(ledger[field]) ? ledger[field] : []).entries()) {
+      if (entry?.artifact_sha === undefined) continue;
+      if (!isRepoRelativePath(entry.artifact_path) || !fileExistsAt(root, entry.artifact_path)) continue;
+      const actual = computeArtifactSha(root, entry.artifact_path);
+      if (actual !== entry.artifact_sha) {
+        failures.push(makeFailure(artifactPath, ledger, `${field}[${index}].artifact_sha`, entry.artifact_sha, actual,
+          `${entry.artifact_path} (${kind} ${entry.record_id}) changed after it was attached; re-attach it with update-ledger.mjs --ledger <ledger> --${kind} ${entry.artifact_path} --write`));
+      }
+    }
+  }
+  return failures;
+}
+
+// A file validated against a ledger must be the record the ledger registered,
+// not another file that reuses its record_id with different content.
+export function registeredArtifactFailures(root, ledger, kind, record, inputPath) {
+  const entry = (ledger?.[RECORD_ARTIFACT_FIELDS[kind]] || []).find((item) => item.record_id === record?.record_id);
+  if (!entry || !isRepoRelativePath(entry.artifact_path) || !fileExistsAt(root, entry.artifact_path)) return [];
+  const registered = resolveRepoPath(root, entry.artifact_path);
+  const input = resolveInputPath(root, inputPath);
+  if (resolve(registered) === resolve(input)) return [];
+  if (readFileSync(registered).equals(readFileSync(input))) return [];
+  return [makeFailure(inputPath, record, "record_id", `the ${kind} the ledger registered for ${record.record_id} (${entry.artifact_path})`, `${inputPath} with different content`,
+    `validate the registered file, or attach this one with update-ledger.mjs --ledger <ledger> --${kind} ${inputPath} --write`)];
+}
+
 export function validateMarkdownBinding(root, artifactPath, record, sectionKind, failures, options = {}) {
   if (!record.markdown_artifact_path && !record.markdown_artifact_sha) {
     if (options.required) {
@@ -634,7 +677,10 @@ export function validateMarkdownBinding(root, artifactPath, record, sectionKind,
   // heading appearing anywhere in the text.
   const firstSection = text.match(/^###[ \t]+.*$/m)?.[0].trim();
   const legacy = Boolean(legacySections && firstSection === legacySections[0]);
-  const sections = legacy ? legacySections : REQUIRED_MARKDOWN_SECTIONS[sectionKind] || [];
+  const sections = legacy ? [...legacySections] : [...(REQUIRED_MARKDOWN_SECTIONS[sectionKind] || [])];
+  if (sectionKind === "review" && (options.goalContract || REVIEW_GOAL_MARKDOWN_SECTIONS.some((section) => text.includes(section)))) {
+    sections.unshift(...REVIEW_GOAL_MARKDOWN_SECTIONS);
+  }
   for (const section of sections) {
     if (!text.includes(section)) {
       failures.push(makeFailure(artifactPath, record, "markdown_section", section, "missing"));
@@ -809,7 +855,7 @@ export function validateProvenance(record, root, artifactPath, failures) {
         failures.push(makeFailure(artifactPath, record, field, "existing path", repoPath));
       }
     }
-    if (source.basis === "direct_workspace_read" && source.target_included === true && record.status === "completed" && !source.paths_reviewed.includes(record.target_path)) {
+    if (source.basis === "direct_workspace_read" && source.target_included === true && record.status === "completed" && typeof record.target_path === "string" && !source.paths_reviewed.includes(record.target_path)) {
       failures.push(makeFailure(artifactPath, record, `${prefix}.paths_reviewed`, `includes target_path ${record.target_path}`, source.paths_reviewed.join("|")));
     }
   }
@@ -1273,6 +1319,27 @@ function validateCompletionValidationReferences(record, artifactPath, failures) 
   }
 }
 
+let currentTemplateRevision;
+function reviewerTemplateRevision() {
+  if (currentTemplateRevision === undefined) {
+    try {
+      currentTemplateRevision = computeArtifactSha(PACKAGE_ROOT, readRegistry().entrypoints.reviewer_template);
+    } catch {
+      currentTemplateRevision = null;
+    }
+  }
+  return currentTemplateRevision;
+}
+
+// A review written to the goal-anchored reviewer contract records the lens
+// verdict fields or was stamped with the current reviewer template; its
+// Markdown must carry the Goal Gate and Goal Fit sections.
+export function isGoalContractReview(record) {
+  if (record.goal_fit !== undefined || record.blocking !== undefined) return true;
+  const templateRevision = reviewerTemplateRevision();
+  return Boolean(templateRevision) && record.template_revision === templateRevision;
+}
+
 export function validateReviewRecord(record, options = {}) {
   const root = options.artifactRoot || repoRootFrom();
   const artifactPath = options.artifactPath || options.inputPath || record.artifact_path || "review-output";
@@ -1302,7 +1369,7 @@ export function validateReviewRecord(record, options = {}) {
   validateLensVerdict(record, artifactPath, failures);
   validateProvenance(record, root, artifactPath, failures);
   const requiresMarkdown = record.status === "completed" || record.fixture_kind !== "schema_only_minimal";
-  validateMarkdownBinding(root, artifactPath, record, "review", failures, { required: requiresMarkdown });
+  validateMarkdownBinding(root, artifactPath, record, "review", failures, { required: requiresMarkdown, goalContract: isGoalContractReview(record) });
 
   if (["fresh_spawned_lens_reviewers", "fresh_spawned_orchestrator"].includes(record.execution_mode) && record.status === "completed") {
     if (!record.agent_id) failures.push(makeFailure(artifactPath, record, "agent_id", "present", record.agent_id));
@@ -1318,6 +1385,9 @@ export function validateReviewRecord(record, options = {}) {
 // missing fields are filled; a supplied value that disagrees still fails
 // validation. A category the lens does not own and the review skipped is not
 // applicable; an owned category is the reviewer's to answer and is never filled.
+// Fields stampRunProvenance fills for a review when they are missing.
+export const STAMPED_REVIEW_FIELDS = ["pass_id", "target_path", "target_revision", "run_mode", "review_input_revision", "execution_mode", "template_revision", "lens_revision", "markdown_artifact_sha"];
+
 export function stampRunProvenance(root, ledger, record, kind) {
   const stamped = [];
   const fill = (field, value) => {
@@ -1479,6 +1549,58 @@ function requireDetachedEvent(events, artifactPath, record, eventName, expected,
   }
 }
 
+// Delivered counts. A blocking gap is an accepted finding that is not minor; a
+// minor issue is an accepted minor or a downgraded finding; a question is a
+// needs_author decision. Reviewer Open Questions (and minor issues without a
+// decision) live only in the synthesis Markdown, so its line may count more
+// minor issues and questions than the decisions, never fewer, and exactly the
+// decisions' blocking gaps.
+export const isBlockingGapDecision = (entry) => entry?.decision === "accepted" && entry.severity !== "minor";
+export const isMinorIssueDecision = (entry) => (entry?.decision === "accepted" && entry.severity === "minor") || entry?.decision === "downgraded";
+export const isQuestionDecision = (entry) => entry?.decision === "needs_author";
+
+export function deliveredFromDecisions(decisions) {
+  const list = Array.isArray(decisions) ? decisions : [];
+  return {
+    blocking_gaps: list.filter(isBlockingGapDecision).length,
+    minor_issues: list.filter(isMinorIssueDecision).length,
+    questions: list.filter(isQuestionDecision).length
+  };
+}
+
+export function parseDeliveredLine(text) {
+  const match = String(text || "").match(DELIVERED_LINE_PATTERN);
+  return match ? { blocking_gaps: Number(match[1]), minor_issues: Number(match[2]), questions: Number(match[3]) } : null;
+}
+
+export function formatDelivered(delivered) {
+  return `Review delivered: ${delivered.blocking_gaps} blocking gaps, ${delivered.minor_issues} minor issues, ${delivered.questions} questions`;
+}
+
+export function deliveredCountFailures(claimed, decisions, artifactPath, record, field) {
+  const failures = [];
+  if (!claimed || !Array.isArray(decisions)) return failures;
+  const counted = deliveredFromDecisions(decisions);
+  const message = `the Review delivered line must agree with the synthesis finding_decisions (claimed: ${formatDelivered(claimed)})`;
+  if (claimed.blocking_gaps !== counted.blocking_gaps) {
+    failures.push(makeFailure(artifactPath, record, `${field}.blocking_gaps`, `${counted.blocking_gaps} (accepted non-minor finding decisions)`, claimed.blocking_gaps, message));
+  }
+  if (claimed.minor_issues < counted.minor_issues) {
+    failures.push(makeFailure(artifactPath, record, `${field}.minor_issues`, `at least ${counted.minor_issues} (accepted minor and downgraded finding decisions)`, claimed.minor_issues, message));
+  }
+  if (claimed.questions < counted.questions) {
+    failures.push(makeFailure(artifactPath, record, `${field}.questions`, `at least ${counted.questions} (needs_author finding decisions)`, claimed.questions, message));
+  }
+  return failures;
+}
+
+export function readSynthesisDeliveredLine(root, synthesis) {
+  if (typeof synthesis?.markdown_artifact_path !== "string" || !isRepoRelativePath(synthesis.markdown_artifact_path)) return null;
+  const resolved = resolveRepoPath(root, synthesis.markdown_artifact_path);
+  if (!resolved || !existsSync(resolved)) return null;
+  return parseDeliveredLine(readFileSync(resolved, "utf8"));
+}
+
 export function validateSynthesisRecord(record, options = {}) {
   const root = options.artifactRoot || repoRootFrom();
   const artifactPath = options.artifactPath || options.inputPath || record.artifact_path || "synthesis-output";
@@ -1509,6 +1631,7 @@ export function validateSynthesisRecord(record, options = {}) {
   validatePriorMaterialFindings(record, artifactPath, failures);
   const markdownContract = validateMarkdownBinding(root, artifactPath, record, "synthesis", failures);
   validateGoalAnchoredSynthesis(record, markdownContract, artifactPath, failures);
+  failures.push(...deliveredCountFailures(readSynthesisDeliveredLine(root, record), record.finding_decisions, artifactPath, record, "markdown.review_delivered"));
 
   if (options.ledger) {
     const synthesisArtifacts = new Map((options.ledger.synthesis_record_artifacts || []).map((entry) => [entry.record_id, entry.artifact_path]));
@@ -1704,7 +1827,11 @@ export function validateLedgerRecord(record, options = {}) {
     }
   }
   if (options.targetRevision && record.target_revision !== options.targetRevision) {
-    failures.push(makeFailure(artifactPath, record, "target_revision", options.targetRevision, record.target_revision));
+    const edits = Array.isArray(record.target_edits) ? record.target_edits.length : 0;
+    const message = edits > 0
+      ? `the target was edited after delivery (${edits} target_edits recorded); this ledger keeps the revision pass ${record.pass_id} reviewed, so validate it with --target-revision ${record.target_revision}, and review the edited text in a rerun pass`
+      : `this ledger records the revision pass ${record.pass_id} reviewed; validate it with --target-revision ${record.target_revision}, or start a new pass for the current text`;
+    failures.push(makeFailure(artifactPath, record, "target_revision", options.targetRevision, record.target_revision, message));
   }
   for (const field of ["selected_lenses", "current_review_record_ids", "superseded_review_record_ids", "synthesis_record_ids", "archive_paths", "review_record_artifacts", "synthesis_record_artifacts"]) {
     if (!Array.isArray(record[field])) {
@@ -1799,6 +1926,7 @@ export function validateLedgerRecord(record, options = {}) {
       findingDecisions.set(decision.finding_id, decision);
     }
   }
+  failures.push(...registeredArtifactHashFailures(root, record, artifactPath));
   validateTargetEdits(record, findingDecisions, artifactPath, failures, intent);
   failures.push(...validatePassLineage(record, intent, artifactPath));
 
@@ -1878,6 +2006,25 @@ export function validateCompletionSummaryRecord(record, options = {}) {
   if (record.run_mode === "full" && record.run_scope === "selected_lenses" && text.includes("LensTemper pass complete") && !text.includes("Full LensTemper review for selected lenses only")) {
     failures.push(makeFailure(artifactPath, record, "summary_text.scope_label", "selected-lens scope label", "missing"));
   }
+  // The headline line must match the structured counts and, with a ledger,
+  // the finding decisions of the synthesis it reports.
+  const textDelivered = parseDeliveredLine(text);
+  const recordDelivered = record.delivered && typeof record.delivered === "object" ? record.delivered : null;
+  if (textDelivered && recordDelivered && ["blocking_gaps", "minor_issues", "questions"].some((key) => textDelivered[key] !== recordDelivered[key])) {
+    failures.push(makeFailure(artifactPath, record, "summary_text.review_delivered", formatDelivered(recordDelivered), formatDelivered(textDelivered)));
+  }
+  const claimed = textDelivered || recordDelivered;
+  if (claimed && options.ledger) {
+    const synthesisIds = options.ledger.synthesis_record_ids || [];
+    const synthesisId = record.synthesis_record_id || synthesisIds.at(-1);
+    const synthesisPath = (options.ledger.synthesis_record_artifacts || []).find((entry) => entry.record_id === synthesisId)?.artifact_path;
+    if (record.synthesis_record_id !== undefined && !synthesisIds.includes(record.synthesis_record_id)) {
+      failures.push(makeFailure(artifactPath, record, "synthesis_record_id", `one of the ledger synthesis_record_ids: ${synthesisIds.join(",")}`, record.synthesis_record_id));
+    } else if (synthesisPath && isRepoRelativePath(synthesisPath) && fileExistsAt(root, synthesisPath)) {
+      const synthesis = readJsonFile(resolveRepoPath(root, synthesisPath));
+      failures.push(...deliveredCountFailures(claimed, synthesis.finding_decisions, artifactPath, record, "review_delivered"));
+    }
+  }
   return failures;
 }
 
@@ -1887,6 +2034,28 @@ export function ensureNode18() {
     process.stderr.write(`Node 18+ required, actual=${process.versions.node}\n`);
     process.exit(EXIT_CODES.internal);
   }
+  ignoreBrokenPipes();
+}
+
+// A reader that closes early (`| head`) must not turn a finished run into a
+// stack trace: output to a closed pipe is dropped and the script finishes.
+let brokenPipesIgnored = false;
+export function ignoreBrokenPipes() {
+  if (brokenPipesIgnored) return;
+  brokenPipesIgnored = true;
+  for (const stream of [process.stdout, process.stderr]) {
+    stream.on("error", (error) => {
+      if (error?.code === "EPIPE" || error?.code === "ERR_STREAM_DESTROYED") return;
+      throw error;
+    });
+  }
+}
+
+// Validators confirm success in one line unless --quiet; --json prints the
+// valid event instead.
+export function printValid(opts, text, event) {
+  if (opts.json) process.stdout.write(`${JSON.stringify({ event: "valid", ...event })}\n`);
+  else if (!opts.quiet) process.stdout.write(`${text}\n`);
 }
 
 export function writeJsonLinesEvent(event, data) {

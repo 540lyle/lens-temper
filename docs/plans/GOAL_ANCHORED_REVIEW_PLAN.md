@@ -462,6 +462,21 @@ plans. The expectation is that detached reviewers, now anchored to the goal,
 find gaps inline review misses. Results are directional given run-to-run
 variance.
 
+**Result (2026-10, two real plans, two lenses, two runs per arm, blind rater,
+directional).** Not supported on this evidence. Detached single-lens reviewers
+did not find goal-relevant gaps that an inline review missed: every
+goal-serving theme found by detached reviewers was also found inline, and inline
+found two more on one plan, in both of its runs. Inline was not more lenient: it
+raised more blocking findings, harsher verdicts and more removals. Neither arm
+settled pending owner decisions, and both kept blocking findings on the goal
+(about 5% non-goal blocking), which suggests the goal gate, not isolation, is
+doing most of the work. Confounds: the inline arm was a simulated author with
+more context, not the real authoring session, so real author blind spots were
+not reproduced; within-arm variance was about as large as the gap between arms.
+Detached review remains defensible for parallelism and protection against real
+author bias, but LensTemper should not claim it finds more. A follow-up should
+use a plan's actual authoring session as the inline arm.
+
 ## Decisions Made
 
 - Locks: lighter `open`/`settled` states (Phase 3), not deletion and not

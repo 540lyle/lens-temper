@@ -293,6 +293,18 @@ export const REQUIRED_MARKDOWN_SECTIONS = {
   ]
 };
 
+// Sections the goal-anchored reviewer contract added. A review written to that
+// contract (one that records goal_fit or blocking, was stamped with the
+// current reviewer template revision, or already carries either section) must
+// include both; reviews written before it keep REQUIRED_MARKDOWN_SECTIONS.review.
+export const REVIEW_GOAL_MARKDOWN_SECTIONS = [
+  "### Goal Gate",
+  "### Goal Fit / Recommended Removals"
+];
+
+// The headline line a synthesis ends with and a completion summary repeats.
+export const DELIVERED_LINE_PATTERN = /^Review delivered: (\d+) blocking gaps?, (\d+) minor issues?, (\d+) questions?\s*$/m;
+
 // Synthesis Markdown written before the goal-anchored output contract stays
 // valid. It is recognized by its first section.
 export const LEGACY_MARKDOWN_SECTIONS = {
