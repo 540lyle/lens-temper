@@ -74,7 +74,7 @@
     {
       "id": "implementation-agent-invents-behavior",
       "path": "reviews/evals/fixtures/implementation-agent-invents-behavior.md",
-      "expected_finding": "implementation agent must invent behavior",
+      "expected_finding": "fallback for the feature's own saved defaults is unspecified, so implementers would build incompatible behavior",
       "must_contain": ["choose", "invent", "default behavior", "does not specify"],
       "severity": "critical"
     },

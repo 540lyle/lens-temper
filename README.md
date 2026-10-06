@@ -46,7 +46,7 @@ LensTemper turns the critique-agent pattern into a spec-review system:
 - detached-context subagents that receive no planning conversation or history
 - reviewers read the current spec directly from the workspace
 - narrower per-reviewer context, with an explicit multi-agent token tradeoff
-- explicit scoring and materiality rules
+- a materiality gate anchored to the plan's own goal
 - reruns only for lenses affected by spec changes
 - validated artifacts before completion claims
 - full, selected-lens, and inline modes with clear claim boundaries
@@ -121,20 +121,23 @@ and cannot produce lockable completion claims.
 | Highest-confidence spec review | Full standard-v2 core-profile review |
 | Narrow risk area | Selected-lens full review |
 | Fast early feedback | Inline advisory review |
-| Verify fixes after review | Rerun decider, then rerun affected lenses |
+| Recheck after you edit the spec | Rerun decider, then rerun affected lenses |
 
 ## What You Get Back
 
-A normal LensTemper run should give you:
+A normal LensTemper run ends with `Review delivered: N blocking gaps, K minor issues, M
+questions`:
 
-- per-lens findings with material blockers separated from polish
-- a synthesized readiness assessment
-- recommended spec changes before implementation starts
-- rerun guidance after the spec changes
+- blocking gaps, judged against the plan's stated goal
+- minor issues the owner or developer should still see, never hidden behind a score
+- questions for the plan's owner, ranked by consequence, none dropped
+- recommended changes, each an add, clarify, or remove
 - artifact and validation evidence for any completion claim
 
-The goal is not more review theater. The goal is a clearer spec and fewer
-surprises when a coding agent or engineer starts implementation.
+LensTemper never edits your spec; you decide what to apply. The goal is not
+more review theater or a longer spec. The goal is a plan that still does what
+its author wanted, with fewer surprises when a coding agent or engineer starts
+implementation.
 
 ## Which Skill Should I Choose?
 
@@ -179,7 +182,7 @@ A full run typically follows this path:
 3. Create a ledger and prompt packets for the selected lenses.
 4. Spawn one detached-context reviewer subagent per selected lens.
 5. Capture structured reviewer outputs.
-6. Synthesize findings, decide materiality, and select reruns if needed.
+6. Synthesize findings and deliver blocking gaps and questions.
 7. Archive final artifacts and report what the evidence supports.
 
 The detailed agent-facing contract lives in [reviews/README.md](reviews/README.md).
@@ -209,7 +212,7 @@ LensTemper's `standard-v2` profile requires seven core lenses:
 | Risk | Rollout risk, regressions, failure modes, observability, recovery |
 | Security | Trust boundaries, authn/authz, secrets, injection, SSRF, exploitability |
 | Test Strategy | Coverage, edge cases, validation, regression prevention |
-| Product & UX | User-visible behavior, states, copy, recovery paths, accessibility |
+| Product & UX | User-visible behavior, states, recovery paths, accessibility |
 | Data Model | Schemas, storage, migrations, compatibility, integrity |
 
 Natty is a triggered specialist for probabilistic-to-authoritative boundaries:
@@ -221,8 +224,7 @@ is detected, Natty becomes required for that run; otherwise she is omitted.
 
 ## When To Use The Core Profile
 
-Use the full core-profile pass when the plan is broad, high-risk, or intended to
-be implementation-ready without more human interpretation. Examples:
+Use the full core-profile pass when the plan is broad or high-risk. Examples:
 
 - a new user-facing workflow
 - persistence or saved-state behavior
@@ -273,13 +275,6 @@ per lens, and do not fall back to inline review.
 ```text
 Use LensTemper to review docs/plans/import-export.md with Data Model,
 Implementation, and Test Strategy only.
-```
-
-### Rerun After Fixes
-
-```text
-Use LensTemper to decide which lenses need rerun after the edits to
-docs/plans/import-export.md, then rerun only affected lenses.
 ```
 
 ### Inline Advisory Review

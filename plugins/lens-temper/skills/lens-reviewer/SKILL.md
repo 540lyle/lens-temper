@@ -27,5 +27,6 @@ verification runner.
 ## Output
 
 Return exactly the structure required by `reviews/reviewer-template.md`.
-Complete the cross-cutting sweep, complete the stateful workflow sweep when it
-applies, and keep findings evidence-based.
+Start with its goal gate, ask pending owner decisions as questions instead of
+answering them, complete the cross-cutting sweep, complete the stateful workflow
+sweep when it applies, and keep findings evidence-based.

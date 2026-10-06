@@ -26,8 +26,8 @@ Use a two-pass review:
    structured decision, resolution, write, dispatch, or authoritative claim.
 2. Apply only the probes relevant to those boundaries.
 
-A finding is valid only when it identifies a material ambiguity or unsafe
-boundary that could change the plan before implementation. A strong finding
+A finding is valid only when it meets the goal gate; an unsafe authority
+boundary counts as a trust boundary crossed. A strong finding
 includes the boundary, enabled failure, concrete scenario, and required plan
 change.
 
@@ -81,7 +81,8 @@ Apply only when the plan includes the relevant surface.
 
 ## Red Flags
 
-Apply the materiality gate before lowering a score. Classify findings as
+Apply the goal gate from the reviewer template before lowering a score.
+Classify findings as
 `[critical]`, `[major]`, or `[minor]`:
 
 - Silent first-match disambiguation

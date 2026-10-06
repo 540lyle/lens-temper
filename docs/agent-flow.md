@@ -36,7 +36,7 @@ flowchart TD
   Outputs --> Validate["Validate outputs and ledger evidence"]
 
   Validate --> Synthesis["Synthesize findings and score/rerun decisions"]
-  Synthesis --> Rerun{"Material plan changes require rerun?"}
+  Synthesis --> Rerun{"User edited the spec and asked for a rerun?"}
 
   Rerun -- yes --> Affected["Select affected lenses"]
   Affected --> Generate
@@ -75,7 +75,8 @@ flowchart TD
 - Lens reviewers are independent, read-only, and limited to exactly one lens.
 - The active orchestrator, hosted or detached, owns synthesis, ledger state,
   rerun selection, lens locking, archival, and completion claims.
-- Reruns should target only lenses affected by material plan changes unless the
-  user asks for a full clean rerun or the prior run is stale/corrupted.
+- The review never edits the target spec. Reruns follow user edits and should
+  target only lenses affected by material plan changes unless the user asks for
+  a full clean rerun or the prior run is stale/corrupted.
 - Detached completion claims require agreement among `events.jsonl`, ledger,
   reviewer outputs, synthesis, and archive evidence.

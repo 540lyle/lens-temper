@@ -1,12 +1,16 @@
 # Review Lens: Product & UX
 
 Evaluate the plan from a product behavior and user experience perspective.
-Focus on whether the plan defines enough user-visible behavior to implement
-consistently, whether users can understand and recover from the experience, and
-whether the behavior fits the existing product.
+Focus on whether the user-visible behavior serves the plan's goal: whether users
+can complete the journeys the goal depends on, understand and recover from them,
+and whether the behavior fits the existing product.
+
+When the goal is reductive, such as simplifying, removing, consolidating, or
+reducing a surface, review for subtraction first: flag user-visible surface that
+works against the goal and recommend removals before additions.
 
 This is not a visual design critique. Review the plan as a specification for
-user-facing behavior.
+user-facing behavior, not as a spec that must be as detailed as the UI.
 
 ## Review Method
 
@@ -16,15 +20,15 @@ Use a two-pass review:
 2. Apply only the probes relevant to those surfaces.
 
 Do not turn every checklist item into a finding. A finding is valid only when it
-identifies a material ambiguity or missing user-visible behavior that could
-change the plan before implementation.
+meets the goal gate in the reviewer template. Copy, labels, layout details, and
+ordinary defaults are implementer discretion unless a goal is about them.
 
 A strong finding must include:
 
-- the missing or ambiguous spec detail
+- the goal, data, or accessibility outcome at stake
 - the user impact
 - a concrete scenario where the issue appears
-- the plan change needed to resolve it
+- the plan change needed to resolve it: add, clarify, or remove
 
 ## Focus Areas
 
@@ -34,7 +38,7 @@ A strong finding must include:
 - Empty, loading, pending, error, success, retry, fallback, and partial-success states
 - Save, update, delete, duplicate, rename, restore, reset, overwrite, and undo semantics
 - Settings, defaults, permissions, preferences, and configuration scope
-- User mental model, terminology, labels, helper text, and error copy
+- User mental model and terminology where confusion would defeat the goal
 - Consistency with existing product patterns and platform conventions
 - Accessibility and inclusive interaction behavior
 - Recoverability from user mistakes
@@ -44,24 +48,24 @@ A strong finding must include:
 ## Key Questions
 
 - Does the plan define the target user, user problem, and expected outcome clearly enough to guide UX decisions?
-- Is the user-visible behavior clearly defined, or will developers have to guess?
+- Would competent implementers build incompatible user-visible behavior that the goal depends on?
+- Does the plan add user-visible surface the goal does not need?
 - Where does the user discover or enter the flow?
 - What appears before, during, and after each important user action?
 - Are loading, empty, pending, success, error, retry, cancellation, fallback, and partial-success states addressed?
 - Can users tell which action completed and which record, object, view, or context changed?
 - Are edit, update, overwrite, rename, restore, reset, delete, and undo semantics distinct enough that users will not confuse them?
-- Are defaults sensible, safe, and explainable?
+- Are defaults safe where a wrong default could lose data or mislead users about the result?
 - Are failure and retry paths clear, recoverable, and respectful of user input?
 - Are state transitions understandable from the user's perspective?
-- Could users misinterpret what the feature does or how to use it?
-- Are labels, actions, and messages specific enough to avoid implementation-by-copywriting?
-- Does the plan define enough UX detail to implement consistently across platforms?
+- Where platforms differ materially, would they diverge on behavior the goal depends on?
+- Could localization, long names, date/time formats, or RTL layout break a journey the goal depends on?
 - Does the plan create surprising, inconsistent, or dead-end behavior?
 
 ## Triggered Probes
 
-Apply these only when the plan includes the relevant surface. Do not cite missing
-details as issues unless they materially affect the plan.
+Apply these only when the plan includes the relevant surface. Every probe sits
+behind the goal gate: an unanswered probe is a finding only when the gate is met.
 
 ### Stateful Workflows and Persistence
 
@@ -103,7 +107,6 @@ user-entered data.
 Ask:
 
 - Are required, optional, default, disabled, and read-only fields defined?
-- Are field labels, helper text, constraints, and examples specified?
 - Is validation timing defined: on input, blur, submit, server-side, or async check?
 - Do errors identify the exact problem and how to fix it?
 - Does the UI preserve user input after validation or submission failure?
@@ -131,9 +134,9 @@ drag/drop, gestures, keyboard shortcuts, dynamic content, status messages,
 notifications, toasts, authentication, animation, media, or visual status.
 
 Use WCAG 2.2 AA as the default planning baseline unless the product has a stricter
-standard. Do not claim accessibility conformance from a spec review. Flag missing
-accessibility requirements only when they would block implementation or testing
-of the changed surface.
+standard. Do not claim accessibility conformance from a spec review. Flag a
+missing accessibility requirement when the changed surface would regress
+accessibility without it.
 
 Ask:
 
@@ -147,48 +150,42 @@ Ask:
 - If functionality relies on dragging, swiping, hover, motion, or complex gestures, is there a non-gesture alternative?
 - Are pressed, selected, disabled, loading, error, and focus states perceptible?
 
-### Terminology, Labels, and UX Copy
+### Terminology and Copy
 
-Trigger for user-facing labels, buttons, status messages, errors, empty states,
-confirmations, onboarding, help text, notifications, destructive actions, or new
-domain terms.
+Trigger only when a goal is about wording or terminology, or when wording could
+make a destructive or irreversible action ambiguous. Otherwise copy is
+implementer discretion.
 
 Ask:
 
-- Does copy use user language instead of internal implementation language?
-- Are labels and actions specific enough to distinguish similar operations?
-- Does error copy explain what happened, why if known, and what the user can do next?
 - Are destructive or irreversible actions named plainly?
-- Are empty states useful rather than decorative filler?
-- Are terms consistent with existing product vocabulary?
-- Could localization, long names, date/time formats, or RTL layout break the experience?
+- Would a new term conflict with existing product vocabulary in a way users would misread?
 
 ## Red Flags
 
-Apply the materiality gate before lowering a score: would this product or UX issue
-justify changing the plan before implementation? If not, record it as non-blocking
-polish and do not let it prevent a `5/5`.
+Apply the goal gate before lowering a score: does this product or UX issue meet
+the gate? If not, it does not lower the score; report it as `[minor]` only when
+it is a real issue the plan's owner should still see.
 
 Treat the list below as examples of issues to watch for, not a checklist that
 must produce findings.
 
 Flag and classify as `[critical]`, `[major]`, or `[minor]`:
 
-- User-visible behavior left to implementation guesswork
+- User-visible behavior on a goal journey where competent implementers would build incompatible results
+- User-visible surface the goal did not ask for, or that works against a reductive goal
 - Missing primary journey, entry point, or success path
-- Unspecified loading, pending, transition, empty, error, retry, fallback, or success states
+- Unspecified loading, pending, transition, empty, error, retry, fallback, or success states on a journey the goal depends on
 - Unclear default behavior, rollout behavior, unavailable behavior, or disabled state
 - Async or persisted state that can mislead users
 - Mutation actions with no visible confirmation or ambiguous target/context
 - Ambiguous title, edit, update, rename, reset, restore, delete, overwrite, or undo semantics
 - Destructive actions without prevention, confirmation, undo, or recovery where appropriate
 - Discoverability issues that make the feature effectively unreachable
-- Settings that are too hidden, too complex, unclear in scope, or have confusing defaults
-- Hidden settings consequences left unexplained
+- Settings with unclear scope or hidden consequences that users would misread
 - Missing accessibility requirements needed for implementation or testing
 - Touch, pointer, keyboard, focus, disabled, selected, loading, or error states that are imperceptible
 - Drag, hover, gesture, animation, or motion-only interactions without alternatives
-- User-facing terminology, labels, or messages left to implementation judgment
 - Interaction flows that are technically correct but confusing to use
 - Inconsistency with existing UX patterns without a user-centered reason
 - Cross-platform behavior left undefined where platforms differ materially
@@ -197,28 +194,26 @@ Flag and classify as `[critical]`, `[major]`, or `[minor]`:
 
 `[critical]`
 Use when the plan is likely to ship an unusable, inaccessible, data-losing, or
-misleading experience for a core flow, or when implementation cannot proceed
-consistently without major product decisions.
+misleading experience for a core flow, or when competent implementers would build
+incompatible behavior on a flow the goal depends on.
 
 `[major]`
-Use when the issue would likely confuse users, block an important segment, cause
-avoidable mistakes, or require meaningful plan changes before implementation.
+Use when the issue meets the goal gate and would likely confuse users, block an
+important segment, or cause avoidable mistakes.
 
 `[minor]`
-Use when the issue is real but localized, recoverable, or polish-level, and does
-not materially change the plan.
+Use when the issue is real but below the goal gate. It does not lower a score.
 
 ## Reviewer Bias
 
 When two approaches are roughly equivalent, prefer:
 
-- Explicit user-visible behavior specification over implementation notes
+- Removing or reusing surface over adding it
 - Consistent patterns over novel interactions
-- Reduced ambiguity in the spec
 - Recoverable interactions
 - Accessible defaults
 - Clear state transitions over implicit state
-- Specific UX copy over placeholder text
+- Leaving copy, layout, and ordinary defaults to the implementer unless a goal is about them
 - Native or design-system components over custom controls
 - User mental models over internal data model terminology
 
@@ -226,12 +221,12 @@ When two approaches are roughly equivalent, prefer:
 
 For each finding, include:
 
-- Severity: `[critical]`, `[major]`, or `[minor]`
+- Severity: `[critical]`, `[major]`, or `[minor]`, per the goal gate
 - Area: Product, UX Flow, Accessibility, Content, State, Settings, or Cross-platform
 - Issue: concise statement
 - Scenario: concrete user situation
-- Impact: why it matters
-- Recommended plan change: what the spec should add or clarify
+- Impact: which goal, data, or accessibility outcome it affects
+- Recommended plan change: add, clarify, or remove
 
-Do not produce generic critique. If the plan already defines the behavior clearly,
-do not restate the checklist. Reward strong specs.
+Do not produce generic critique. If the plan already serves its goal, do not
+restate the checklist; zero findings is the expected result for a sound plan.

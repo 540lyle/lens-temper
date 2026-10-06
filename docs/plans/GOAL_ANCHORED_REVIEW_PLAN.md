@@ -1,6 +1,6 @@
 # Goal-Anchored Review Plan: LensTemper
 
-Status: Proposed. Phase 0 complete; Phase 1 next.
+Status: In progress. Phases 0 and 1 complete; Phase 2 next.
 
 ## Intent
 
@@ -204,6 +204,19 @@ and the lens most likely to add scope.
 implementer-discretion, author-decision and scope-adding findings drops; fewer
 pending decisions are settled per run; goal-relevant gaps found in Phase 0 are
 still found.
+
+**Result (2026-10, 3 old vs 3 new runs per lens, one blind rater, directional).**
+Blocking findings fell from about 6.7 to 2.0 per run, and the share of blocking
+findings that do not serve the goal fell from 62% to 25%. No new run settled a
+pending owner decision. Reviewer Open Questions matched the plan's own owner
+questions far more often (24 of 32, up from 3 of 27). Both recall anchors were
+still found in the same number of runs, but some hits were downgraded to minor,
+and two Product & UX runs gave Strong 5/5 while listing real minor issues.
+Follow-up in the same phase: a severity self-check (if the reviewer's own impact
+text says the goal's outcome would be wrong, the gate is met), declared non-goals
+no longer discount unsafe output, minor issues are counted in the delivered line
+and named in a Strong verdict. The Goal fit / Recommended removals section stayed
+empty on a lean plan; it still needs a target with removable surface.
 
 ### Phase 2: Intent card and output contract
 

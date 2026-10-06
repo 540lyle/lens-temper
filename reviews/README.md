@@ -21,6 +21,7 @@ Standardize plan review so that:
    subagent per selected lens.
 4. Collect the structured output from each spawned reviewer.
 5. Run `synthesize-review-feedback.md` across all review outputs to produce a consolidated assessment.
+   Deliver it as `Review delivered: N blocking gaps, K minor issues, M questions`. The review never edits the target spec.
 6. Lock lenses only from validated `full` run artifacts. Inline and advisory outputs may guide planning, but their scores are not lockable.
 
 Store completed review outputs outside this folder unless they are still being actively assembled.
@@ -172,13 +173,13 @@ Rerun protocol:
 - Locked lenses are not rerun unless the target plan/spec changes in that lens's domain or the user explicitly asks to reopen that lens.
 - After changing the plan/spec, spawn new fresh agents only for active, failing, or domain-affected lenses. Do not reuse prior reviewer agents for reruns.
 - Before each rerun, add a rerun decision note for every selected lens: `rerun`, `passing_locked`, `converged_locked`, `not_affected`, `superseded`, or `error`, with a short reason.
-- After three passes, the synthesis owner should stop rerunning a lens unless a fresh review identifies an accepted material issue. After five passes, continue only with explicit user approval or clearly new material evidence.
+- After three passes, the synthesis owner should stop rerunning a lens unless a fresh review identifies an accepted material issue. After five passes, continue only with explicit user approval.
 - A full clean rerun is exceptional. Use it only for broad plan rewrites, suspected reviewer contamination, corrupted/stale inputs, or explicit user request.
 - Treat rerun outputs as current only if the reviewer read the updated workspace files directly and reported the current `target_revision`.
 - If one lens finds a defect and the plan/spec changes, close completed reviewers from the prior pass before starting the next pass. Preserve locked lens outputs as current unless the change affects that lens's domain.
-- If the same lens returns repeated non-material or preference-only findings after material fixes, record them as optional polish and stop rerunning that lens.
-- The review is complete when every selected lens is either `passing_locked`, `converged_locked`, or has only accepted non-blocking issues, all material blockers are resolved or explicitly deferred by the synthesis owner, and all spawned agents are closed.
-  Unqualified completion also requires `run_mode: full`, `run_scope: core_profile`, `core_gate_passed: true`, successful `completion_validation`, and no missing current reviewer evidence.
+- If the same lens returns repeated non-material or preference-only findings after material fixes, record them as non-blocking and stop rerunning that lens.
+- A review is delivered when every selected lens has a captured, validated output and all spawned agents are closed. Report it as `Review delivered: N blocking gaps, K minor issues, M questions`, listing every question. Delivery does not require resolving blocking gaps, answering questions, or reaching a lock state. The review never edits the target spec; applying fixes is the user's call, and rerunning a lens after the user edits the spec is a supported user-driven action.
+  An unqualified `LensTemper pass complete` claim also requires `run_mode: full`, `run_scope: core_profile`, `core_gate_passed: true`, successful `completion_validation`, and no missing current reviewer evidence.
 
 ## Available Lenses
 
@@ -235,7 +236,7 @@ Resolve lens scope before creating the ledger or spawning reviewers.
    selected when one paragraph or bounded text window establishes a
    natural-language, model-output, tool-return, or retrieval boundary that can
    affect resolution, authoritative state, narration, write, or dispatch.
-   Negated safety requirements such as “the model must not write state” still
+   Negated safety requirements such as “the LLM must not write state” still
    establish a boundary. Generic mentions of an LLM, MCP tool, free-text field,
    or RAG do not select Natty unless an authority-boundary rule also matches.
    Explicit absence statements may be encoded as narrow rule exclusions; the
@@ -303,12 +304,16 @@ The synthesis template (`synthesize-review-feedback.md`) uses one additional var
 - Critique the plan rather than replacing it unless replacement is necessary.
 - Prefer concrete corrections over vague commentary.
 - Call out missing steps, unsupported assumptions, sequencing problems, and meaningful risks.
-- Review whether the plan is specific enough for a competent implementation
-  agent to execute without inventing behavior. Missing ownership, current-vs-
-  remaining scope, state reset rules, fallback precedence, visible copy or
-  labels, validation pass/fail criteria, rollout gates, and command/API
-  contracts are material when they can cause divergent implementation.
-- Separate material blockers from non-blocking polish. A material blocker is something that would reasonably block implementation because it affects correctness, review convergence, reviewer independence, reproducibility, validation, maintainability, or ship safety.
+- Judge every finding against the plan's goal. A finding is material only if,
+  left unaddressed, a stated goal fails, data is lost, a trust boundary is
+  crossed, accessibility regresses, or competent implementers would build
+  incompatible behavior the goal depends on. A finding whose fix adds
+  unrequested surface is not material. Copy, labels, layout details, and
+  ordinary defaults are implementer discretion unless a goal is about them.
+  Zero findings is the expected result for a sound plan.
+- Questions stay questions. A decision the plan explicitly hands to its owner
+  is asked, not answered, and does not lower Completeness or the verdict. Every
+  question reaches the user, ranked by consequence; none is dropped.
 - Preference-only polish, wording improvements, or optional refactors must not prevent a `Strong` verdict or `5/5` score when no material issue remains.
 - Reruns are for material blockers, score-lowering gaps, or domain-relevant plan/spec changes. Do not spawn reruns only to chase nits.
 - Reviewers must complete the cross-cutting sweep. Do not silently skip security/privacy, accessibility, performance, reliability/rollback, observability/debuggability, or compatibility/platform concerns.
@@ -323,7 +328,7 @@ Final evidence before completion:
 - Confirmation that each current reviewer read the current workspace files directly.
 - Confirmation that every spawned reviewer has terminal status and is closed.
 - Run mode, run scope, completion-validation result, and whether scores are lockable or advisory.
-- A concise synthesis listing material fixes applied, accepted non-blocking issues, rejected or downgraded findings that affected rerun scope, and any explicitly deferred risks.
+- A concise synthesis listing blocking gaps, questions for the plan's owner, accepted non-blocking issues, rejected or downgraded findings that affected rerun scope, and any explicitly deferred risks.
 
 User-facing completion summary:
 
@@ -336,6 +341,7 @@ Required fields:
 - Review artifact path, plus whether the artifact is committed, ignored/local-only, or stored elsewhere.
 - Per-lens score table with lens, verdict, all six score values, material-blocker status, and lock/rerun status.
 - Accepted material findings and the plan changes or follow-up actions they require.
+- Every question for the plan's owner, ranked by consequence.
 - Rejected, downgraded, deferred, or non-blocking findings that affect rerun scope.
 - Verification evidence: reviewer outputs captured, reviewers terminal and closed, current reviewers read current workspace files directly, and any validator or stale-output checks that were run.
 

@@ -97,14 +97,14 @@
             "no llm or model generated", "no model generated state", "without an llm"
           ],
           "all_of": [
-            ["llm", "language model", "model", "ai", "assistant"],
+            ["llm", "language model", "ai", "assistant"],
             ["structured output", "json", "schema", "tool argument", "tool arguments", "identity", "confidence", "filter", "state", "write", "persist", "authoritative narration", "narration"]
           ]
         },
         {
           "id": "model-selected-tool-or-route",
           "all_of": [
-            ["llm", "language model", "model", "ai", "assistant"],
+            ["llm", "language model", "ai", "assistant"],
             ["choose tool", "chooses tool", "choose which tool", "chooses which tool", "select tool", "selects tool", "select which tool", "selected tool", "tool call", "route", "routing", "dispatcher"]
           ]
         },
@@ -116,7 +116,7 @@
           ],
           "all_of": [
             ["tool output", "tool result", "tool response", "mcp result", "api response", "rag", "retrieval result", "retrieved document", "retrieved context"],
-            ["model context", "prompt", "llm", "model", "assistant", "decision", "resolve", "route", "routing", "narration"]
+            ["model context", "prompt", "llm", "language model", "assistant", "decision", "resolve", "route", "routing", "narration"]
           ]
         },
         {

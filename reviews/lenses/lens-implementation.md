@@ -1,6 +1,6 @@
 # Review Lens: Implementation
 
-Evaluate the plan from an implementation realism and execution clarity perspective. Focus on whether a developer could pick up this plan and ship it without guessing.
+Evaluate the plan from an implementation realism and execution clarity perspective. Focus on whether competent implementers, human or agent, would build compatible behavior from this plan wherever the goal depends on it.
 
 ## Focus Areas
 
@@ -21,7 +21,19 @@ Evaluate the plan from an implementation realism and execution clarity perspecti
 - Are there steps too vague to implement safely?
 - Does the plan assume infrastructure, services, or code paths that may not exist?
 - Are fallback or backward-compatibility paths needed and accounted for?
-- Can a developer begin implementation from this plan without asking clarifying questions?
+
+## Agent Implementability
+
+Behind the goal gate, check where an implementing agent following the plan
+literally could build behavior incompatible with the goal:
+
+- Ambiguous source of truth: two places the plan treats as authoritative for the same value or decision.
+- Missing cross-module contracts: a step depends on another module's shape, ordering, or behavior that the plan does not pin down.
+- Conflicting readings: plan statements that support incompatible implementations.
+
+Copy, labels, layout, and ordinary defaults are not implementability gaps.
+A decision the plan hands to its owner is a question, not a gap; do not pick
+the answer.
 
 ## Stateful Workflow Ownership
 
@@ -37,7 +49,7 @@ these checks:
 
 ## Red Flags
 
-Apply the materiality gate before lowering a score: would this implementation issue justify changing the plan before implementation? If not, record it as non-blocking polish and do not let it prevent a `5/5`. Treat the list below as examples of issues to watch for, not a checklist that must produce findings.
+Apply the goal gate from the reviewer template before lowering a score: does this implementation issue meet it? If not, it does not lower the score or block a `5/5`. Treat the list below as examples of issues to watch for, not a checklist that must produce findings.
 
 Flag and classify as `[critical]`, `[major]`, or `[minor]`:
 - Vague steps that obscure real work

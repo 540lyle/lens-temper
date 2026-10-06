@@ -67,10 +67,11 @@ Review \`${targetPath}\` through the ${lensDisplayName} lens and return a valid 
 - Read the prompt packet at \`${inputPacketPath}\`.
 - Verify the target, review input, template, and lens revisions before reviewing.
 - Review exactly one lens: \`${lensId}\` (${lensDisplayName}).
+- Apply the template's Goal Gate first. Raise \`[critical]\` or \`[major]\` only
+  when the gate is met, and ask pending owner decisions without answering them.
+  Zero findings is the expected result for a sound plan.
 - Return exactly the sections required by \`${templatePath}\`.
 - Complete the cross-cutting sweep and stateful workflow sweep.
-- Challenge whether the plan gives an implementation agent enough concrete
-  guidance to avoid inventing behavior.
 - Include score-challenge evidence for every \`5/5\`.
 - Report missing files or revision mismatches as input problems.
 
@@ -95,7 +96,7 @@ Revisions:
 - lens: \`${lensRevision}\`
 
 # Constraints
-Read-only. Do not edit files, update ledgers, inspect sibling review outputs, or synthesize multi-review feedback.
+Read-only. Do not edit the target spec or any other file, update ledgers, inspect sibling review outputs, or synthesize multi-review feedback.
 Ignore inherited conversation context.
 `;
 }

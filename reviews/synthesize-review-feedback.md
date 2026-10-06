@@ -98,7 +98,7 @@ Return output in exactly this structure. Do not add, remove, or rename sections.
 - High-value non-critical improvements.
 
 #### Minor Notes
-- Optional polish or lower-priority suggestions.
+- Real `[minor]` issues below the blocking bar that the plan's owner or developer should still see.
 
 ### Synthesis Decisions
 - For each finding that affects readiness, plan edits, or rerun scope:
@@ -142,7 +142,7 @@ Provide a prioritized list of changes to the existing plan. Do not rewrite the p
 If the plan requires revised step ordering, provide the reordered sequence.
 
 ### Unresolved Questions
-- Only questions that should be answered before implementation begins.
+- Every reviewer Open Question, deduplicated and ranked by consequence; none dropped. Do not turn a question into a plan change.
 
 ### Final Assessment
 

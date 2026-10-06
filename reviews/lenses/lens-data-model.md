@@ -40,7 +40,7 @@ these checks:
 
 ## Red Flags
 
-Apply the materiality gate before lowering a score: would this data-model issue justify changing the plan before implementation? If not, record it as non-blocking polish and do not let it prevent a `5/5`. Treat the list below as examples of issues to watch for, not a checklist that must produce findings.
+Apply the goal gate from the reviewer template before lowering a score: does this data-model issue meet it? If not, it does not lower the score or block a `5/5`. Treat the list below as examples of issues to watch for, not a checklist that must produce findings.
 
 Flag and classify as `[critical]`, `[major]`, or `[minor]`:
 - Schema changes with no migration plan

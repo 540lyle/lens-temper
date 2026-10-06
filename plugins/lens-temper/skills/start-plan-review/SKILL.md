@@ -103,6 +103,11 @@ and selected role manifests before running a review.
     Do not author `completed_lens_ids`, `completion_validation`, ledger
     completion status, or `core_gate_passed` directly.
 
+Report the result as `Review delivered: N blocking gaps, K minor issues, M questions`, listing
+every question ranked by consequence. The review never edits the target spec;
+applying fixes is the user's call, and rerunning a lens after the user edits the
+spec is a supported user-driven action.
+
 The orchestrator may update ledger state. Lens reviewers may not.
 Detached orchestration may not claim completion unless `events.jsonl`, ledger,
 reviewer outputs, synthesis, and archive evidence agree.

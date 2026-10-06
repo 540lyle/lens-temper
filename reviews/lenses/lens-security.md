@@ -92,7 +92,8 @@ Apply only when the plan includes the relevant surface.
 
 ## Red Flags
 
-Apply the materiality gate before lowering a score. Classify findings as
+Apply the goal gate from the reviewer template before lowering a score.
+Classify findings as
 `[critical]`, `[major]`, or `[minor]`:
 
 - Confirmed secrets exposure, RCE, injection, or broken authn/authz (hard block)
