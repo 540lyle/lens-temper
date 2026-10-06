@@ -224,8 +224,10 @@ still found.
   changes what happens next (if every answer leads to the same action, take the
   conservative default and say so instead of asking); is written in plain
   language with enough background to answer without reading the spec; offers
-  concrete choices and what each leads to; and is ranked by consequence, with
-  only the top few sent. Evidence: a ten-question spot-check written for agents
+  concrete choices and what each leads to; and is ranked by consequence, most
+  consequential first. Every question is delivered: ranking orders attention, it
+  never drops an issue, and a question answered by a stated default stays
+  visible with that default. Evidence: a ten-question spot-check written for agents
   was unanswerable by the plan's owner, and only two answers would have changed
   anything.
 - **`decided_by`** on every applied decision (`human` or `policy`), and every
