@@ -7,8 +7,9 @@ import {
   ensureNode18,
   isRepoRelativePath,
   parseCommonArgs,
+  projectRootFrom,
   readJsonFile,
-  repoRootFrom,
+  resolveInputPath,
   resolveRepoPath,
   usage,
   validateLedgerRecord
@@ -21,7 +22,7 @@ const scriptName = "update-ledger.mjs";
 try {
   const opts = parseCommonArgs(process.argv.slice(2));
   if (opts.help) {
-    process.stdout.write(`${usage(scriptName, "--ledger <ledger-json> [--review <review-json>] [--synthesis <synthesis-json>] [--finalize] --write")}\n`);
+    process.stdout.write(`${usage(scriptName, "--ledger <ledger-json> [--review <review-json>] [--synthesis <synthesis-json>] [--finalize] [--root <path>] --write")}\n`);
     process.exit(EXIT_CODES.ok);
   }
   if (opts.version) {
@@ -33,10 +34,10 @@ try {
     process.stderr.write(`validation error: missing ledger or artifact path\n`);
     process.exit(EXIT_CODES.usage);
   }
-  const root = repoRootFrom(import.meta.url);
-  const ledger = readJsonFile(opts.ledger);
+  const root = projectRootFrom(opts);
+  const ledger = readJsonFile(resolveInputPath(root, opts.ledger));
   if (opts.review) {
-    const review = readJsonFile(opts.review);
+    const review = readJsonFile(resolveInputPath(root, opts.review));
     ledger.review_record_artifacts = ledger.review_record_artifacts || [];
     ledger.current_review_record_ids = ledger.current_review_record_ids || [];
     if (!ledger.current_review_record_ids.includes(review.record_id)) ledger.current_review_record_ids.push(review.record_id);
@@ -44,7 +45,7 @@ try {
     ledger.review_record_artifacts.push({ record_id: review.record_id, artifact_path: opts.review });
   }
   if (opts.synthesis) {
-    const synthesis = readJsonFile(opts.synthesis);
+    const synthesis = readJsonFile(resolveInputPath(root, opts.synthesis));
     ledger.synthesis_record_ids = ledger.synthesis_record_ids || [];
     ledger.synthesis_record_artifacts = ledger.synthesis_record_artifacts || [];
     if (!ledger.synthesis_record_ids.includes(synthesis.record_id)) ledger.synthesis_record_ids.push(synthesis.record_id);

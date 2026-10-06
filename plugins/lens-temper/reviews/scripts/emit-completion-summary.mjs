@@ -8,9 +8,10 @@ import {
   isRepoRelativePath,
   loadValidatedRunContext,
   normalizeRepoInputPath,
+  lensStateOf,
   parseCommonArgs,
+  projectRootFrom,
   readJsonFile,
-  repoRootFrom,
   resolveRepoPath,
   usage,
   validateCompletionSummaryRecord,
@@ -35,6 +36,8 @@ function collectLensScores(reviews) {
       record_id: review.record_id,
       lens: review.lens,
       verdict: review.verdict,
+      blocking: review.blocking || (review.material_blockers?.present ? "yes" : "no"),
+      goal_fit: review.goal_fit || "not recorded",
       material_blockers: review.material_blockers,
       scorecard: review.scorecard,
       average_score: averageScore(review.scorecard)
@@ -70,19 +73,20 @@ function asMarkdown(ledger, synthesis, synthesisPath, lensScores) {
   if (ledger.review_input_revision) lines.push(`Review input revision: ${ledger.review_input_revision}`);
   lines.push(`Artifact storage: ${(ledger.archive_paths || []).join(", ") || "not archived"}`);
   lines.push("");
-  lines.push("| Lens | Verdict | Average score | Material blockers |");
-  lines.push("|------|---------|---------------|-------------------|");
+  lines.push("| Lens | Verdict | Blocking | Goal fit | Average score | Material blockers |");
+  lines.push("|------|---------|----------|----------|---------------|-------------------|");
   for (const row of lensScores) {
     const blockers = row.material_blockers?.present
       ? `${row.material_blockers.count}: ${row.material_blockers.summary}`
       : "none";
-    lines.push(`| ${row.lens} | ${row.verdict} | ${row.average_score}/5 | ${blockers} |`);
+    lines.push(`| ${row.lens} | ${row.verdict} | ${row.blocking} | ${row.goal_fit} | ${row.average_score}/5 | ${blockers} |`);
   }
   lines.push("");
-  lines.push("| Lens | Status | Rerun needed | Reason |");
-  lines.push("|------|--------|--------------|--------|");
-  for (const lock of synthesis.lens_lock_decisions || []) {
-    lines.push(`| ${lock.lens} | ${lock.lock_state} | ${lock.rerun_needed ? "yes" : "no"} | ${lock.reason || ""} |`);
+  lines.push("| Lens | State | Rerun needed | Reason |");
+  lines.push("|------|-------|--------------|--------|");
+  for (const entry of synthesis.lens_lock_decisions || []) {
+    const state = lensStateOf(entry);
+    lines.push(`| ${entry.lens} | ${state} | ${state === "open" ? "yes" : "no"} | ${entry.reason || ""} |`);
   }
   lines.push("");
   // Every decision the owner must see is listed; only rejected findings stay
@@ -109,7 +113,7 @@ function asMarkdown(ledger, synthesis, synthesisPath, lensScores) {
 try {
   const opts = parseCommonArgs(process.argv.slice(2));
   if (opts.help) {
-    process.stdout.write(`${usage(scriptName, "--ledger <ledger-json> --synthesis <synthesis-json> [--out <path.md|path.json>] [--json] [--quiet]")}\n`);
+    process.stdout.write(`${usage(scriptName, "--ledger <ledger-json> --synthesis <synthesis-json> [--out <path.md|path.json>] [--root <path>] [--json] [--quiet]")}\n`);
     process.exit(EXIT_CODES.ok);
   }
   if (opts.version) {
@@ -121,7 +125,7 @@ try {
     process.stderr.write(`validation error: missing --ledger or --synthesis\n`);
     process.exit(EXIT_CODES.usage);
   }
-  const root = repoRootFrom(import.meta.url);
+  const root = projectRootFrom(opts);
   const context = await loadValidatedRunContext(root, opts.ledger);
   const ledger = context.ledger;
   const synthesisPath = normalizeRepoInputPath(root, opts.synthesis);
@@ -163,7 +167,7 @@ try {
     artifact_storage: ledger.archive_paths || [],
     lens_scores: lensScores,
     accepted_findings: (synthesis.finding_decisions || []).filter((entry) => entry.decision === "accepted"),
-    rerun_or_lock_status: synthesis.lens_lock_decisions || [],
+    rerun_or_lock_status: (synthesis.lens_lock_decisions || []).map((entry) => ({ ...entry, lens_state: lensStateOf(entry) })),
     verification_evidence: "reviewer outputs captured, review records validated, synthesis emitted"
   };
   const text = asMarkdown(ledger, synthesis, opts.synthesis, lensScores);

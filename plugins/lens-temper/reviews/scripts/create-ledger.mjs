@@ -1,22 +1,24 @@
 #!/usr/bin/env node
 import { writeFileSync, mkdirSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname } from "node:path";
 import {
   CONTRACT_VERSION,
   EXIT_CODES,
   archiveRunPath,
+  buildPassLineage,
   computeArtifactSha,
   ensureNode18,
   isRepoRelativePath,
   normalizeRepoInputPath,
   parseCommonArgs,
+  projectRootFrom,
   readJsonFile,
-  repoRootFrom,
+  readRegistry,
   resolveReviewInput,
   resolveRepoPath,
   usage
 } from "./validation-helpers.mjs";
-import { EXECUTION_MODES, LEDGER_SCHEMA_VERSION, RUN_MODES, RUN_SCOPES } from "./validation-contracts.mjs";
+import { APPLY_MODES, EXECUTION_MODES, LEDGER_SCHEMA_VERSION, RUN_MODES, RUN_SCOPES } from "./validation-contracts.mjs";
 import { validateLensSelectionRecord } from "./lens-selection.mjs";
 
 ensureNode18();
@@ -30,7 +32,7 @@ function lensSetEquals(left, right) {
 try {
   const opts = parseCommonArgs(process.argv.slice(2));
   if (opts.help) {
-    process.stdout.write(`${usage(scriptName, "--target <path> --pass-id <id> [--review-input <path>] [--lens-selection <path>] [--lens a,b] [--run-mode inline|advisory|full] [--execution-mode manual_or_imported|fresh_spawned_lens_reviewers|fresh_spawned_orchestrator] [--out <path>] [--json]")}\n`);
+    process.stdout.write(`${usage(scriptName, "--target <path> --pass-id <id> [--review-input <path>] [--lens-selection <path>] [--lens a,b] [--run-mode inline|advisory|full] [--execution-mode manual_or_imported|fresh_spawned_lens_reviewers|fresh_spawned_orchestrator] [--apply-mode interactive|auto] [--parent-ledger <path> [--human-approval <summary>]] [--root <path>] [--out <path>] [--json]")}\n`);
     process.exit(EXIT_CODES.ok);
   }
   if (opts.version) {
@@ -42,13 +44,13 @@ try {
     process.stderr.write(`validation error: missing --target or --pass-id\n`);
     process.exit(EXIT_CODES.usage);
   }
-  const root = repoRootFrom(import.meta.url);
+  const root = projectRootFrom(opts);
   const targetPath = normalizeRepoInputPath(root, opts.target);
   if (!targetPath) {
-    process.stderr.write(`validation error: --target must resolve under the repository root\n`);
+    process.stderr.write(`validation error: --target must resolve under the project root\n`);
     process.exit(EXIT_CODES.usage);
   }
-  const registry = readJsonFile(join(root, "reviews", "registry.json"));
+  const registry = readRegistry();
   const selected = opts.lens
     ? opts.lens.split(",").map((item) => item.trim()).filter(Boolean)
     : registry.lenses.map((entry) => entry.id);
@@ -113,13 +115,26 @@ try {
     process.stderr.write(`validation error: full run mode requires --lens-selection\n`);
     process.exit(EXIT_CODES.usage);
   }
+  const applyMode = opts.applyMode || "interactive";
+  if (!APPLY_MODES.includes(applyMode)) {
+    process.stderr.write(`validation error: --apply-mode must be one of ${APPLY_MODES.join(", ")}\n`);
+    process.exit(EXIT_CODES.usage);
+  }
   const reviewInput = opts.reviewInput ? resolveReviewInput(root, opts) : null;
+  // A rerun names its parent pass: one automatic rerun, then the user's
+  // recorded approval, with the intent card fixed unless its owner amends it.
+  const lineage = buildPassLineage(root, opts.parentLedger, {
+    passId: opts.passId,
+    targetPath,
+    intent: reviewInput?.record.intent,
+    humanApproval: opts.humanApproval
+  });
   let lensSelection = null;
   let lensSelectionPath = null;
   if (opts.lensSelection) {
     lensSelectionPath = normalizeRepoInputPath(root, opts.lensSelection);
     if (!lensSelectionPath) {
-      process.stderr.write(`validation error: --lens-selection must resolve under the repository root\n`);
+      process.stderr.write(`validation error: --lens-selection must resolve under the project root\n`);
       process.exit(EXIT_CODES.usage);
     }
     lensSelection = readJsonFile(resolveRepoPath(root, lensSelectionPath));
@@ -146,6 +161,7 @@ try {
   const ledger = {
     schema_version: LEDGER_SCHEMA_VERSION,
     pass_id: opts.passId,
+    ...lineage,
     target_path: targetPath,
     target_revision: targetRevision,
     ...(reviewInput ? {
@@ -166,6 +182,7 @@ try {
       core_gate_passed: false
     } : {}),
     execution_mode: executionMode,
+    apply_mode: applyMode,
     events_path: eventsPath,
     selected_lenses: selected,
     current_review_record_ids: [],

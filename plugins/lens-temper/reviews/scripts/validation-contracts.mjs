@@ -119,6 +119,8 @@ export const LEDGER_STATUSES = [
   "stale"
 ];
 
+// Legacy per-lens lock states. Records that use them stay valid and map onto
+// LENS_STATES through lensStateOf().
 export const LOCK_STATES = [
   "active",
   "failing",
@@ -129,6 +131,41 @@ export const LOCK_STATES = [
   "superseded",
   "error"
 ];
+
+export const LEGACY_SETTLED_LOCK_STATES = [
+  "passing_locked",
+  "converged_locked"
+];
+
+// A lens is open until it delivers a validated review, then settled. It
+// reopens only when one of its own findings is applied, another lens's applied
+// finding names it as affected, or the user reopens it.
+export const LENS_STATES = [
+  "open",
+  "settled"
+];
+
+export const LENS_BLOCKING_VALUES = [
+  "yes",
+  "no"
+];
+
+export const GOAL_FIT_VALUES = [
+  "ok",
+  "at_risk",
+  "violated"
+];
+
+// interactive (default) applies nothing; auto (opt-in) may apply accepted
+// blocking findings that cite a stated goal, logged as decided_by: policy.
+export const APPLY_MODES = [
+  "interactive",
+  "auto"
+];
+
+// Pass 1 is the review and pass 2 the one automatic rerun. A later pass needs a
+// recorded human_approval.
+export const AUTOMATIC_PASS_LIMIT = 2;
 
 export const FINDING_DECISIONS = [
   "accepted",
@@ -427,6 +464,8 @@ export const SCHEMA_CONTRACTS = {
     },
     enums: {
       verdict: REVIEW_VERDICTS,
+      blocking: LENS_BLOCKING_VALUES,
+      goal_fit: GOAL_FIT_VALUES,
       run_mode: RUN_MODES,
       execution_mode: EXECUTION_MODES,
       status: REVIEW_STATUSES
@@ -451,8 +490,8 @@ export const SCHEMA_CONTRACTS = {
       run_mode: RUN_MODES
     },
     arrayItemRequired: {
-      finding_decisions: ["finding_id", "source_lens", "source_review_record_id", "decision", "affects_rerun_scope", "reason"],
-      lens_lock_decisions: ["lens", "lock_state", "rerun_needed", "reason"],
+      finding_decisions: ["finding_id", "source_lens", "source_review_record_id", "decision", "reason"],
+      lens_lock_decisions: ["lens", "reason"],
       prior_material_findings_context: ["source_record_id", "finding_id", "source_target_path", "source_target_revision", "decision", "severity"]
     },
     arrayItemEnums: {
@@ -460,7 +499,8 @@ export const SCHEMA_CONTRACTS = {
       "finding_decisions.severity": FINDING_SEVERITIES,
       "finding_decisions.change_type": CHANGE_TYPES,
       "finding_decisions.rejection_reason": REJECTION_REASONS,
-      "lens_lock_decisions.lock_state": LOCK_STATES
+      "lens_lock_decisions.lock_state": LOCK_STATES,
+      "lens_lock_decisions.lens_state": LENS_STATES
     }
   },
   "review-ledger.schema.json": {
@@ -475,7 +515,8 @@ export const SCHEMA_CONTRACTS = {
       run_mode: RUN_MODES,
       run_scope: RUN_SCOPES,
       execution_mode: EXECUTION_MODES,
-      artifact_visibility: ARTIFACT_VISIBILITY
+      artifact_visibility: ARTIFACT_VISIBILITY,
+      apply_mode: APPLY_MODES
     },
     nestedRequired: {
       completion_validation: ["validator_name", "validator_contract_version", "passed", "validated_review_record_ids", "failures"]

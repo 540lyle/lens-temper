@@ -162,6 +162,19 @@ test("synthesis Markdown uses the output contract, and legacy Markdown stays val
   assert.deepEqual(check("legacy-untyped.md", `${legacy}\n\nNeeds revision\n`, { scope_delta: undefined, finding_decisions: decision({}) }), []);
 }));
 
+test("legacy synthesis Markdown is recognized by its first section only", () => withTempDir((dir) => {
+  const current = readFileSync(join(repoRoot, "reviews", "examples", "artifacts", "synthesis-output.valid.md"), "utf8");
+  const check = (name, text) => {
+    const path = join(dir, name);
+    writeFileSync(path, text, "utf8");
+    return synthesisFailures({ markdown_artifact_path: repoPath(path), markdown_artifact_sha: computeArtifactSha(repoRoot, repoPath(path)) });
+  };
+  const quoted = `${current}\n### Consolidated Critique\n\nQuoted from an archived run.\n`;
+  assert.deepEqual(check("quotes-legacy.md", quoted), []);
+  const dodge = `${current.replace("### Scope Delta", "### Scope Notes")}\n### Consolidated Critique\n`;
+  assert.deepEqual(check("dodges-contract.md", dodge).map((failure) => failure.expected), ["### Scope Delta"]);
+}));
+
 test("every target edit cites a finding or is logged as host-initiated", () => {
   const ledger = example("review-ledger.valid.json");
   const check = (target_edits) => fields(validateLedgerRecord({ ...ledger, target_edits }, { artifactRoot: repoRoot, targetRevision }));

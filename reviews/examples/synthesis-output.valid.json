@@ -22,9 +22,8 @@
   "lens_lock_decisions": [
     {
       "lens": "implementation",
-      "lock_state": "passing_locked",
-      "rerun_needed": false,
-      "reason": "All scores are 5/5 with no material blockers."
+      "lens_state": "settled",
+      "reason": "Validated review delivered with no blocking gaps."
     }
   ],
   "final_assessment": "Ready to implement",
@@ -40,8 +39,8 @@
   "run_mode": "full",
   "claim_flags": {
     "completion": false,
-    "lock_state": true,
-    "all_5_lockable": true,
+    "lock_state": false,
+    "all_5_lockable": false,
     "review_complete": false
   },
   "prior_material_findings_context": [],

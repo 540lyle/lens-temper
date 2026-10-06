@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-import { join } from "node:path";
 import {
   CONTRACT_VERSION,
   EXIT_CODES,
@@ -7,8 +6,8 @@ import {
   ensureNode18,
   normalizeRepoInputPath,
   parseCommonArgs,
-  readJsonFile,
-  repoRootFrom,
+  projectRootFrom,
+  readRegistry,
   resolveReviewInput,
   usage
 } from "./validation-helpers.mjs";
@@ -20,7 +19,7 @@ const scriptName = "select-lenses.mjs";
 try {
   const opts = parseCommonArgs(process.argv.slice(2));
   if (opts.help) {
-    process.stdout.write(`${usage(scriptName, "--target <path> (--review-input <path> | --feature-request <text>) [--lens a,b | --all-lenses | --core-profile <id>] [--lens-proposal <path>] [--selection-fallback all] [--json]")}\n`);
+    process.stdout.write(`${usage(scriptName, "--target <path> (--review-input <path> | --feature-request <text>) [--lens a,b | --all-lenses | --core-profile <id>] [--lens-proposal <path>] [--selection-fallback all] [--root <path>] [--json]")}\n`);
     process.exit(EXIT_CODES.ok);
   }
   if (opts.version) {
@@ -28,10 +27,10 @@ try {
     process.exit(EXIT_CODES.ok);
   }
   if (!opts.target) throw Object.assign(new Error("missing --target"), { exitCode: EXIT_CODES.usage });
-  const root = repoRootFrom(import.meta.url);
+  const root = projectRootFrom(opts);
   const targetPath = normalizeRepoInputPath(root, opts.target);
   if (!targetPath) throw Object.assign(new Error("--target must resolve under the repository root"), { exitCode: EXIT_CODES.usage });
-  const registry = readJsonFile(join(root, "reviews", "registry.json"));
+  const registry = readRegistry();
   const reviewInput = resolveReviewInput(root, opts);
   const explicitLenses = opts.lens === null ? null : opts.lens.split(",").map((item) => item.trim()).filter(Boolean);
   const proposalPath = opts.lensProposal ? normalizeRepoInputPath(root, opts.lensProposal) : null;

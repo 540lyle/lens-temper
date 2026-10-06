@@ -78,6 +78,14 @@
     "verdict": {
       "enum": ["Strong", "Usable with fixes", "High risk", "Incomplete"]
     },
+    "blocking": {
+      "description": "Lens verdict: yes when the lens raised a [critical] or [major] finding. Must agree with material_blockers.present.",
+      "enum": ["yes", "no"]
+    },
+    "goal_fit": {
+      "description": "Lens verdict: ok when the plan can meet its goal as written, at_risk when an unaddressed gap could make a goal fail, violated when the plan works against a stated goal or non-goal. Not ok when blocking is yes.",
+      "enum": ["ok", "at_risk", "violated"]
+    },
     "material_blockers": {
       "type": "object",
       "required": ["present", "summary", "count"],

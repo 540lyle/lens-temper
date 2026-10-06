@@ -36,15 +36,15 @@ flowchart TD
   Outputs --> Validate["Validate outputs and ledger evidence"]
 
   Validate --> Synthesis["Filter findings against the goal: blocking gaps, questions, minor issues"]
-  Synthesis --> Rerun{"User edited the spec and asked for a rerun?"}
+  Synthesis --> Rerun{"Findings applied or a lens reopened?"}
 
-  Rerun -- yes --> Affected["Select affected lenses"]
+  Rerun -- yes --> Affected["Rerun reopened lenses as the next pass"]
   Affected --> Generate
 
   Rerun -- no --> Archive["Archive run artifacts and completion summary"]
   Archive --> Final["Final user-facing review summary"]
 
-  Synthesis -. "finding decisions and lock states" .-> Prep
+  Synthesis -. "finding decisions and lens states" .-> Prep
   Archive -. "artifact paths and hashes" .-> Prep
   Prep -. "trace events" .-> Trace["events.jsonl"]
   Generate -. "trace events" .-> Trace
@@ -75,11 +75,16 @@ flowchart TD
   synthesis, reruns, archive, and completion reporting.
 - Lens reviewers are independent, read-only, and limited to exactly one lens.
 - The active orchestrator, hosted or detached, owns synthesis, ledger state,
-  rerun selection, lens locking, archival, and completion claims.
-- The review never edits the target spec. Every later edit to the target is
+  rerun selection, lens states, archival, and completion claims.
+- The review never edits the target spec. In the default `interactive` mode
+  nothing is applied; in opt-in `auto` mode the host may apply accepted
+  blocking findings that cite a stated goal. Every later edit to the target is
   logged in the ledger's `target_edits`, citing a finding id or marked
-  host-initiated. Reruns follow user edits and should
-  target only lenses affected by material plan changes unless the user asks for
-  a full clean rerun or the prior run is stale/corrupted.
+  host-initiated.
+- Each lens is `open` or `settled`. A settled lens reopens only when one of its
+  own findings is applied, an applied finding names it as affected, or the user
+  reopens it; `decide-reruns.mjs` derives this from `target_edits`. A rerun is a
+  new pass linked by `parent_pass_id`. Pass 2 is the one automatic rerun; later
+  passes need the user's recorded approval.
 - Detached completion claims require agreement among `events.jsonl`, ledger,
   reviewer outputs, synthesis, and archive evidence.

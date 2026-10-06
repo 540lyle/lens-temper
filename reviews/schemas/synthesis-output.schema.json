@@ -47,7 +47,6 @@
           "source_lens",
           "source_review_record_id",
           "decision",
-          "affects_rerun_scope",
           "reason"
         ],
         "properties": {
@@ -56,7 +55,16 @@
           "source_review_record_id": { "type": "string" },
           "decision": { "enum": ["accepted", "rejected", "downgraded", "deferred", "needs_author"] },
           "severity": { "enum": ["critical", "major", "minor"] },
-          "affects_rerun_scope": { "type": "boolean" },
+          "affects_rerun_scope": {
+            "description": "Legacy and optional. Reruns follow applied findings and affected_lenses, not this flag.",
+            "type": "boolean"
+          },
+          "affected_lenses": {
+            "description": "Other lenses whose settled review this finding's fix would invalidate. Applying the finding reopens its source lens and these lenses.",
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 },
+            "uniqueItems": true
+          },
           "reason": { "type": "string", "minLength": 1 },
           "change_type": { "enum": ["clarify", "add", "remove"] },
           "serves_goal": {
@@ -101,11 +109,17 @@
     },
     "lens_lock_decisions": {
       "type": "array",
+      "description": "Per-lens state. Current records use lens_state; legacy records use lock_state with rerun_needed, mapped as passing_locked and converged_locked to settled, otherwise open when rerun_needed is true and settled when it is false.",
       "items": {
         "type": "object",
-        "required": ["lens", "lock_state", "rerun_needed", "reason"],
+        "required": ["lens", "reason"],
+        "anyOf": [
+          { "required": ["lens_state"] },
+          { "required": ["lock_state", "rerun_needed"] }
+        ],
         "properties": {
           "lens": { "type": "string" },
+          "lens_state": { "enum": ["open", "settled"] },
           "lock_state": {
             "enum": [
               "active",

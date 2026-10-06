@@ -1,4 +1,4 @@
-import { computeArtifactSha, readJsonFile, readTextFile, resolveReviewInput } from "./validation-helpers.mjs";
+import { PACKAGE_ROOT, computeArtifactSha, readJsonFile, readTextFile, resolveReviewInput } from "./validation-helpers.mjs";
 import {
   evaluateLensPolicy,
   LENS_ADDITIONS_SCHEMA_VERSION,
@@ -10,9 +10,11 @@ import {
 
 export { LENS_ADDITIONS_SCHEMA_VERSION, LENS_SELECTION_SCHEMA_VERSION } from "./lens-selection-contract.mjs";
 
-export function loadLensSelectionPolicy(root, registry) {
+// The policy belongs to the package; targets, review inputs, and proposals
+// resolve against the project root passed by the caller.
+export function loadLensSelectionPolicy(registry) {
   const path = "reviews/manifests/lens-selection.json";
-  const policy = readJsonFile(`${root}/${path}`);
+  const policy = readJsonFile(`${PACKAGE_ROOT}/${path}`);
   if (policy.schema_version !== "1.1" || !Array.isArray(policy.domains) || policy.domains.length === 0) {
     throw new Error("invalid lens-selection policy");
   }
@@ -45,7 +47,7 @@ export function loadLensSelectionPolicy(root, registry) {
       }
     }
   }
-  return { path, revision: computeArtifactSha(root, path), policy };
+  return { path, revision: computeArtifactSha(PACKAGE_ROOT, path), policy };
 }
 
 export function loadLensAdditions(root, repoPath, registry) {
@@ -79,7 +81,7 @@ export function validateLensSelectionRecord(root, record, registry, expected = {
   }
   try {
     if (record?.policy_path !== "reviews/manifests/lens-selection.json") failures.push("policy_path must reference the canonical policy");
-    else if (record.policy_revision !== computeArtifactSha(root, record.policy_path)) failures.push("policy_revision is stale");
+    else if (record.policy_revision !== computeArtifactSha(PACKAGE_ROOT, record.policy_path)) failures.push("policy_revision is stale");
     if (record?.llm_proposal_path) {
       if (record.llm_proposal_revision !== computeArtifactSha(root, record.llm_proposal_path)) failures.push("llm_proposal_revision is stale");
       const proposal = loadLensAdditions(root, record.llm_proposal_path, registry);
@@ -90,7 +92,7 @@ export function validateLensSelectionRecord(root, record, registry, expected = {
         failures.push("automatic selection requires review_input_path for deterministic replay");
       } else if (record.review_input_path) {
         const reviewInput = resolveReviewInput(root, { reviewInput: record.review_input_path });
-        const policy = loadLensSelectionPolicy(root, registry);
+        const policy = loadLensSelectionPolicy(registry);
         const replay = evaluateLensPolicy(policy.policy, registry, reviewInput.record, readTextFile(`${root}/${record.target_path}`));
         if (JSON.stringify(record.deterministic_lenses) !== JSON.stringify(replay.deterministicLenses)) failures.push("deterministic_lenses do not match policy replay");
         if (JSON.stringify(record.matched_domains) !== JSON.stringify(replay.matchedDomains)) failures.push("matched_domains do not match policy replay");
@@ -101,7 +103,7 @@ export function validateLensSelectionRecord(root, record, registry, expected = {
       if (!profile) failures.push("core_profile_id must reference a known registry core profile");
       else if (record.review_input_path) {
         const reviewInput = resolveReviewInput(root, { reviewInput: record.review_input_path });
-        const policy = loadLensSelectionPolicy(root, registry);
+        const policy = loadLensSelectionPolicy(registry);
         const replay = evaluateLensPolicy(policy.policy, registry, reviewInput.record, readTextFile(`${root}/${record.target_path}`));
         const expected = orderedKnownLenses(registry, new Set([...profile.required_lens_ids, ...replay.deterministicLenses]));
         if (JSON.stringify(record.deterministic_lenses) !== JSON.stringify(expected)) failures.push("deterministic_lenses do not match core-profile policy replay");
@@ -138,7 +140,7 @@ export function selectLenses({
   if (fallback && coreProfileId) throw new Error("--selection-fallback cannot be combined with --core-profile");
   if (fallback && fallback !== "all") throw new Error("--selection-fallback must be all when supplied");
 
-  const policy = loadLensSelectionPolicy(root, registry);
+  const policy = loadLensSelectionPolicy(registry);
   const allIds = registry.lenses.map((entry) => entry.id);
   let mode;
   let deterministicLenses;

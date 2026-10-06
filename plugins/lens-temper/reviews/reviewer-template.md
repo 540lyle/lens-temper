@@ -187,6 +187,10 @@ One of:
 - **High risk** — gaps or risks that are likely to make the goal fail if not addressed
 - **Incomplete** — missing information the goal depends on; the plan cannot yet be judged against its goal
 
+Then one line each:
+- **Blocking:** `yes` if you raised a `[critical]` or `[major]` finding, otherwise `no`.
+- **Goal fit:** `ok` if the plan as written can meet its goal, `at_risk` if an unaddressed gap could make a goal fail, or `violated` if the plan works against a stated goal or non-goal.
+
 ### What the Plan Gets Right
 - Concise bullets only.
 - Include only meaningful strengths.

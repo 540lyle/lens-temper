@@ -80,8 +80,8 @@ outputs are admitted only after deterministic ledger and artifact validation.
     - `deferred`: valid material risk accepted by the human/synthesis owner for later handling.
     - `needs_author`: belongs to the plan's owner; it appears only under Questions for the Author.
     For each decision that changes the plan, and always for an accepted `[critical]` or `[major]` finding, record `change_type` (`clarify`, `add`, or `remove`) and `serves_goal` (the goal id, or the goal text when no intent card exists; `null` when it serves no stated goal). An accepted `add` with `serves_goal: null` fails validation.
-13. Decide lens lock/rerun status from material findings and validated review records, not score averages. A lens can be `passing_locked` only in `run_mode: full` when a current valid review record has all `5/5`, no material blockers, valid provenance, and score-challenge evidence for every `5/5`. A lens can be `converged_locked` only in `run_mode: full` at all `4/5` or better with no accepted material blockers. Inline and advisory synthesis may say issues appear resolved, but must not invent per-lens scores or lock states.
-14. Use `claim_flags` for completion, lock-state, all-5 lockability, and review-complete claims. Do not set those flags unless the ledger and referenced records support them.
+13. Record each lens as `settled` once its current review is validated and delivered, and `open` when it has no usable review (missing, errored, or unvalidated). Settling does not depend on scores or on blocking gaps being fixed. A settled lens reopens only when one of its own findings is applied, an applied finding names it in `affected_lenses`, or the user reopens it; for each accepted finding whose fix would invalidate another lens's review, list that lens in `affected_lenses`. Inline and advisory synthesis must not invent per-lens scores.
+14. Use `claim_flags` for completion and review-complete claims, and set them only when the ledger and referenced records support them. `lock_state` and `all_5_lockable` are legacy lock claims; leave them `false`.
 15. If prior accepted material findings affect all-5 confidence, record them in `prior_material_findings_context` with explicit source records. Do not infer them by scanning unrelated archives.
 
 ---
@@ -176,12 +176,11 @@ Summarize each category with material issues, non-blocking polish, or `No materi
 - Compatibility / platform constraints:
 
 ### Lens Lock And Rerun Decisions
-For each reviewed lens, report one status: `passing_locked`, `converged_locked`, `rerun_required`, `not_affected`, `superseded`, or `error`.
+For each reviewed lens, report its state: `settled` or `open`.
 
 - **Lens**:
-- **Status**:
+- **State**:
 - **Reason**:
-- **Rerun needed**: yes/no
 
 ### Final Assessment
 

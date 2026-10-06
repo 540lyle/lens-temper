@@ -1,6 +1,6 @@
 # Goal-Anchored Review Plan: LensTemper
 
-Status: In progress. Phases 0 and 1 complete; Phase 2 implemented, awaiting a run on a real plan.
+Status: In progress. Phases 0 and 1 complete; Phases 2 and 3 implemented, awaiting a run on a real plan.
 
 ## Intent
 
@@ -306,6 +306,68 @@ scripts in use, or fold the parts that matter into the prose in Phases 1-2.
 - **Interactive and auto modes** as described above.
 - **`--root`** (default: current directory) separate from the package root, with
   a test that runs from a project outside the package.
+
+**Result (2026-10, mechanics only; no observed run yet).**
+
+- Lens state is `open | settled` (`lens_state` on synthesis lens decisions).
+  Legacy `lock_state` records still validate and map onto it: the two locked
+  states are settled, any other state is open exactly when `rerun_needed` is
+  true, which is what the old rerun decider did. Settling needs a current
+  validated review in a full run, not scores. Review records gain optional
+  `blocking: yes|no` (must match `material_blockers.present`) and
+  `goal_fit: ok|at_risk|violated` (not `ok` when blocking), and the reviewer
+  template asks for both.
+- `decide-reruns.mjs` derives reruns from the ledger's `target_edits` and the
+  synthesis decisions (`source_lens` plus new optional `affected_lenses`), plus
+  `--reopen` for an explicit user reopen. `--changed-domains` is removed. A
+  host-initiated edit reopens nothing. Without a ledger, `--lens <id>` with
+  `--applied` or `--reopen` covers a single-lens run. A lens settled in an
+  earlier pass can be reopened by a later pass's finding.
+- Target revisions are an audit trail. Archiving, reporting, and the
+  validators' `--ledger` mode no longer fail because the target changed after
+  delivery, and lens-selection replay runs only against the reviewed text.
+  `run-synthesis.mjs` still requires the live target to match, because it hands
+  the text to a model; `validate-ledger.mjs --target-revision` still reports an
+  edit when asked.
+- Ledgers carry `pass_index`, `parent_pass_id`, `parent_intent_revision`, and
+  `human_approval`. `create-ledger.mjs` and `run-plan-review.mjs` take
+  `--parent-ledger` and `--human-approval`; a rerun without `--lens` reruns only
+  the parent's reopened lenses. Pass 3 and later need a recorded
+  `human_approval`. A changed intent card (canonical JSON, ignoring
+  `amended_by`) needs `amended_by: human`; adding or removing a card counts as a
+  change.
+- `apply_mode: interactive | auto` is written on every new ledger (default
+  `interactive`). Interactive rejects every `decided_by: policy` edit. Auto
+  allows policy only on pass 1 and only for an accepted blocking finding whose
+  `serves_goal` is an intent card goal id (or non-empty text when there is no
+  card). Ledgers from before this field keep the Phase 2 rule. The orchestrator
+  packet takes the mode from the ledger and, in auto mode, states the one
+  automatic rerun. `affects_rerun_scope` on findings is legacy and optional.
+- `--root` (default: current directory) is accepted by every script that takes
+  a target or run artifact; the registry, manifests, lenses, templates, and
+  lens-selection policy always resolve against the package. A test runs the
+  runner, hasher, rerun decider, synthesis assembler, and archiver from a
+  temporary project outside the package.
+- Completion: "Review delivered" stays the claim. No validator path ties
+  completion to locks; the remaining legacy claim flags `lock_state` and
+  `all_5_lockable` are documented as legacy and the synthesis prompt leaves them
+  false. The completion summary reports lens state instead of lock state.
+- Fixed: legacy synthesis Markdown is recognized only when its first section is
+  `### Consolidated Critique`.
+- Not done: the completion summary still cannot count reviewer Open Questions
+  (Phase 2 limit), so it does not print the `Review delivered` line itself.
+  `run_scope: core_profile` still needs every required lens reviewed in one
+  pass, so a partial rerun pass is a selected-lens run.
+
+**Result (2026-10).** Implemented: open/settled lens states with legacy lock
+states mapped, reruns derived from applied findings or a user reopen, pass
+lineage with one automatic rerun before `human_approval`, intent-card amendment
+enforced across a lineage, interactive and auto modes, and `--root` for every
+target-taking script. An end-to-end run from a separate project passed every
+step, including both guardrails, and was the first observed run to exercise the
+scripts. It surfaced doc and CLI mismatches (single-lens path, selector defaults,
+no CLI for recording target edits, the completion summary lacking the delivered
+line, archive layout) that are fixed in a follow-up.
 
 ### Phase 4: Defaults
 

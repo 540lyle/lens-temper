@@ -1,62 +1,101 @@
 #!/usr/bin/env node
-import { writeFileSync } from "node:fs";
+import { existsSync, writeFileSync } from "node:fs";
 import {
   CONTRACT_VERSION,
   EXIT_CODES,
+  deriveRerunDecisions,
   ensureNode18,
+  isRepoRelativePath,
   parseCommonArgs,
+  projectRootFrom,
   readJsonFile,
-  repoRootFrom,
+  readRegistry,
+  resolveInputPath,
   resolveRepoPath,
   usage
 } from "./validation-helpers.mjs";
+import { AUTOMATIC_PASS_LIMIT } from "./validation-contracts.mjs";
 
 ensureNode18();
 
 const scriptName = "decide-reruns.mjs";
+const usageText = "(--ledger <ledger-json> | --lens <id> [--applied f1,f2]) [--synthesis <synthesis-json>] [--reopen a,b] [--root <path>] [--write] [--json]";
+
+function list(value) {
+  return (value || "").split(",").map((item) => item.trim()).filter(Boolean);
+}
+
+function readArtifact(root, repoPath) {
+  const resolved = isRepoRelativePath(repoPath) ? resolveRepoPath(root, repoPath) : null;
+  return resolved && existsSync(resolved) ? readJsonFile(resolved) : null;
+}
 
 try {
   const opts = parseCommonArgs(process.argv.slice(2));
   if (opts.help) {
-    process.stdout.write(`${usage(scriptName, "--ledger <ledger-json> [--synthesis <synthesis-json>] [--changed-domains a,b] [--write] [--json]")}\n`);
+    process.stdout.write(`${usage(scriptName, usageText)}\n`);
     process.exit(EXIT_CODES.ok);
   }
   if (opts.version) {
     process.stdout.write(`${CONTRACT_VERSION}\n`);
     process.exit(EXIT_CODES.ok);
   }
-  if (!opts.ledger) {
-    process.stderr.write(`${usage(scriptName, "--ledger <ledger-json> [--synthesis <synthesis-json>]")}\n`);
-    process.stderr.write(`validation error: missing --ledger\n`);
-    process.exit(EXIT_CODES.usage);
+  if (Boolean(opts.ledger) === Boolean(opts.lens)) {
+    throw Object.assign(new Error("supply --ledger, or --lens for a run without a ledger"), { exitCode: EXIT_CODES.usage });
   }
-  const root = repoRootFrom(import.meta.url);
-  const ledger = readJsonFile(opts.ledger);
-  const changed = new Set((opts.changedDomains || "").split(",").map((item) => item.trim()).filter(Boolean));
-  const synthesis = opts.synthesis ? readJsonFile(opts.synthesis) : null;
-  const locks = new Map((synthesis?.lens_lock_decisions || []).map((entry) => [entry.lens, entry]));
-  const decisions = (ledger.selected_lenses || []).map((lens) => {
-    const lock = locks.get(lens);
-    if (changed.has(lens)) {
-      return { lens, decision: "rerun", reason: "target changed in lens domain", rerun_needed: true };
-    }
-    if (lock && ["passing_locked", "converged_locked"].includes(lock.lock_state)) {
-      return { lens, decision: lock.lock_state, reason: lock.reason, rerun_needed: false };
-    }
-    if (lock && lock.rerun_needed) {
-      return { lens, decision: "rerun", reason: lock.reason, rerun_needed: true };
-    }
-    return { lens, decision: "not_affected", reason: "no accepted material change in lens domain", rerun_needed: false };
-  });
+  if (opts.ledger && opts.applied) {
+    throw Object.assign(new Error("with a ledger, applied findings come from its target_edits; log the edit there instead of passing --applied"), { exitCode: EXIT_CODES.usage });
+  }
+  if (opts.write && !opts.ledger) {
+    throw Object.assign(new Error("--write requires --ledger"), { exitCode: EXIT_CODES.usage });
+  }
+  const root = projectRootFrom(opts);
+  const ledger = opts.ledger ? readJsonFile(resolveInputPath(root, opts.ledger)) : null;
+  const lenses = ledger ? ledger.selected_lenses || [] : list(opts.lens);
+  const known = new Set(readRegistry().lenses.map((entry) => entry.id));
+  const unknown = [...lenses, ...list(opts.reopen)].filter((lens) => !known.has(lens));
+  if (unknown.length > 0) throw Object.assign(new Error(`unknown lens ${unknown.join(", ")}`), { exitCode: EXIT_CODES.usage });
+  const syntheses = (ledger?.synthesis_record_artifacts || []).map((entry) => readArtifact(root, entry.artifact_path)).filter(Boolean);
+  if (opts.synthesis) syntheses.push(readJsonFile(resolveInputPath(root, opts.synthesis)));
+  const findings = new Map(syntheses.flatMap((record) => record.finding_decisions || []).map((entry) => [entry.finding_id, entry]));
+
+  // Without a synthesis, a lens in a ledger is settled once it has a current
+  // review and open until then.
+  let lensEntries = syntheses.at(-1)?.lens_lock_decisions || [];
+  if (syntheses.length === 0 && ledger) {
+    const currentIds = new Set(ledger.current_review_record_ids || []);
+    const reviewed = new Set((ledger.review_record_artifacts || [])
+      .filter((entry) => currentIds.has(entry.record_id))
+      .map((entry) => readArtifact(root, entry.artifact_path)?.lens)
+      .filter(Boolean));
+    lensEntries = lenses.map((lens) => reviewed.has(lens)
+      ? { lens, lens_state: "settled", reason: "current review delivered" }
+      : { lens, lens_state: "open", reason: "no current review for this lens" });
+  }
+
+  const applied = ledger
+    ? (ledger.target_edits || []).map((edit) => edit.finding_id).filter(Boolean)
+    : list(opts.applied);
+  const decisions = deriveRerunDecisions({ lenses, lensEntries, findings, applied, reopen: list(opts.reopen) });
+  const passIndex = (ledger?.pass_index ?? 1) + 1;
   const output = {
-    pass_id: ledger.pass_id,
-    target_revision: ledger.target_revision,
-    ...(ledger.review_input_revision ? { review_input_revision: ledger.review_input_revision } : {}),
-    decisions
+    ...(ledger ? {
+      pass_id: ledger.pass_id,
+      target_revision: ledger.target_revision,
+      ...(ledger.review_input_revision ? { review_input_revision: ledger.review_input_revision } : {})
+    } : {}),
+    decisions,
+    ...(decisions.some((entry) => entry.rerun_needed) ? {
+      next_pass: {
+        pass_index: passIndex,
+        ...(ledger ? { parent_pass_id: ledger.pass_id } : {}),
+        human_approval_required: passIndex > AUTOMATIC_PASS_LIMIT
+      }
+    } : {})
   };
   if (opts.write) {
     ledger.rerun_decisions = decisions;
-    writeFileSync(resolveRepoPath(root, opts.ledger), `${JSON.stringify(ledger, null, 2)}\n`, "utf8");
+    writeFileSync(resolveInputPath(root, opts.ledger), `${JSON.stringify(ledger, null, 2)}\n`, "utf8");
     if (!opts.quiet) process.stdout.write(`updated ${opts.ledger}\n`);
   } else if (opts.json) {
     process.stdout.write(`${JSON.stringify({ event: "rerun_decisions", ...output })}\n`);
@@ -64,7 +103,7 @@ try {
     process.stdout.write(`${JSON.stringify(output, null, 2)}\n`);
   }
 } catch (error) {
-  process.stderr.write(`${usage(scriptName, "--ledger <ledger-json> [--synthesis <synthesis-json>]")}\n`);
+  process.stderr.write(`${usage(scriptName, usageText)}\n`);
   process.stderr.write(`validation error: ${error.message}\n`);
   process.exit(error.exitCode || EXIT_CODES.internal);
 }

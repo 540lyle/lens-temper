@@ -5,7 +5,9 @@ import { dirname, isAbsolute, join, normalize, relative, resolve } from "node:pa
 import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
 import {
+  APPLY_MODES,
   ARTIFACT_VISIBILITY,
+  AUTOMATIC_PASS_LIMIT,
   BLOCKING_SEVERITIES,
   CHANGE_TYPES,
   CLAIM_FLAG_KEYS,
@@ -21,6 +23,7 @@ import {
   FINAL_ASSESSMENTS,
   FINDING_DECISIONS,
   FINDING_SEVERITIES,
+  GOAL_FIT_VALUES,
   INTENT_AMENDED_BY,
   INTENT_CARD_FIELDS,
   LEDGER_REQUIRED_FIELDS,
@@ -29,6 +32,9 @@ import {
   LEDGER_SCHEMA_VERSION,
   LEDGER_STATUSES,
   LEGACY_MARKDOWN_SECTIONS,
+  LEGACY_SETTLED_LOCK_STATES,
+  LENS_BLOCKING_VALUES,
+  LENS_STATES,
   LOCK_STATES,
   PROVENANCE_BASIS_VALUES,
   REJECTION_REASONS,
@@ -58,6 +64,26 @@ export { CONTRACT_VERSION, EXIT_CODES };
 export function repoRootFrom(importMetaUrl = import.meta.url) {
   const here = dirname(fileURLToPath(importMetaUrl));
   return resolve(here, "../..");
+}
+
+// The LensTemper package root holds the registry, manifests, lenses, and
+// templates. The project root (--root, default: the current directory) holds
+// the reviewed target, run artifacts, and archives. They are the same
+// directory only when the package reviews its own files.
+export const PACKAGE_ROOT = repoRootFrom();
+
+export function projectRootFrom(opts = {}) {
+  return resolve(opts.root || opts.artifactRoot || process.cwd());
+}
+
+// Repository-relative inputs resolve against the project root; other paths
+// resolve as given.
+export function resolveInputPath(root, value) {
+  return isRepoRelativePath(value) ? join(root, value) : resolve(value);
+}
+
+export function readRegistry() {
+  return readJsonFile(join(PACKAGE_ROOT, "reviews", "registry.json"));
 }
 
 export function usage(scriptName, argsText) {
@@ -93,7 +119,12 @@ export function parseCommonArgs(argv) {
     inputPacket: null,
     final: null,
     archiveRoot: null,
-    changedDomains: "",
+    root: null,
+    reopen: "",
+    applied: "",
+    parentLedger: null,
+    humanApproval: null,
+    applyMode: null,
     runMode: null,
     runScope: null,
     executionMode: null,
@@ -512,14 +543,23 @@ export function computeArtifactSha(root, repoPath) {
   return `sha256:${hash}`;
 }
 
-export async function loadValidatedRunContext(root, ledgerInput) {
+// The ledger's target revision is the audit record of what was reviewed. Only
+// callers that hand the target text to a model (synthesis) require the live
+// target to still match it; archiving and reporting work after later edits.
+export async function loadValidatedRunContext(root, ledgerInput, options = {}) {
   const ledgerPath = normalizeRepoInputPath(root, ledgerInput);
   const ledgerResolved = ledgerPath ? resolveRepoPath(root, ledgerPath) : null;
   if (!ledgerResolved || !existsSync(ledgerResolved)) {
     throw Object.assign(new Error(`ledger not found ${ledgerInput}`), { exitCode: EXIT_CODES.read });
   }
   const ledger = readJsonFile(ledgerResolved);
-  const targetRevision = computeArtifactSha(root, ledger.target_path);
+  let targetRevision = ledger.target_revision;
+  if (options.requireCurrentTarget) {
+    if (!fileExistsAt(root, ledger.target_path)) {
+      throw Object.assign(new Error(`target not found ${ledger.target_path}`), { exitCode: EXIT_CODES.read });
+    }
+    targetRevision = computeArtifactSha(root, ledger.target_path);
+  }
   const ledgerFailures = validateLedgerRecord(ledger, {
     artifactRoot: root,
     targetRevision,
@@ -543,7 +583,7 @@ export async function loadValidatedRunContext(root, ledgerInput) {
   return {
     ledger,
     ledgerPath,
-    targetRevision,
+    targetRevision: ledger.target_revision,
     reviewInput: resolveReviewInput(root, { reviewInput: ledger.review_input_path }),
     reviews
   };
@@ -578,7 +618,10 @@ export function validateMarkdownBinding(root, artifactPath, record, sectionKind,
 
   const text = readTextFile(resolved);
   const legacySections = LEGACY_MARKDOWN_SECTIONS[sectionKind];
-  const legacy = Boolean(legacySections && text.includes(legacySections[0]));
+  // Legacy Markdown is recognized by its first section, not by the legacy
+  // heading appearing anywhere in the text.
+  const firstSection = text.match(/^###[ \t]+.*$/m)?.[0].trim();
+  const legacy = Boolean(legacySections && firstSection === legacySections[0]);
   const sections = legacy ? legacySections : REQUIRED_MARKDOWN_SECTIONS[sectionKind] || [];
   for (const section of sections) {
     if (!text.includes(section)) {
@@ -625,6 +668,24 @@ export function validateMaterialBlockers(record, artifactPath, failures) {
   }
   if (typeof mb.summary !== "string" || mb.summary.length === 0) {
     failures.push(makeFailure(artifactPath, record, "material_blockers.summary", "non-empty string", mb.summary));
+  }
+}
+
+// The lens verdict. Both fields are optional so records written before them
+// stay valid; when present they must agree with material_blockers.
+function validateLensVerdict(record, artifactPath, failures) {
+  if (record.blocking !== undefined) {
+    validateEnum(record.blocking, LENS_BLOCKING_VALUES, artifactPath, record, "blocking", failures);
+    const present = record.material_blockers?.present;
+    if (typeof present === "boolean" && LENS_BLOCKING_VALUES.includes(record.blocking) && (record.blocking === "yes") !== present) {
+      failures.push(makeFailure(artifactPath, record, "blocking", `${present ? "yes" : "no"} to match material_blockers.present`, record.blocking));
+    }
+  }
+  if (record.goal_fit !== undefined) {
+    validateEnum(record.goal_fit, GOAL_FIT_VALUES, artifactPath, record, "goal_fit", failures);
+    if (record.blocking === "yes" && record.goal_fit === "ok") {
+      failures.push(makeFailure(artifactPath, record, "goal_fit", "at_risk or violated when blocking is yes", record.goal_fit));
+    }
   }
 }
 
@@ -750,6 +811,7 @@ export function validateFindingDecisions(record, artifactPath, failures) {
     failures.push(makeFailure(artifactPath, record, "finding_decisions", "array", record.finding_decisions));
     return;
   }
+  let knownLenses;
   for (const [index, decision] of record.finding_decisions.entries()) {
     const prefix = `finding_decisions[${index}]`;
     if (!decision.finding_id) failures.push(makeFailure(artifactPath, record, `${prefix}.finding_id`, "stable slug", decision.finding_id));
@@ -759,8 +821,16 @@ export function validateFindingDecisions(record, artifactPath, failures) {
     if (decision.severity !== undefined) {
       validateEnum(decision.severity, FINDING_SEVERITIES, artifactPath, record, `${prefix}.severity`, failures);
     }
-    if (typeof decision.affects_rerun_scope !== "boolean") {
+    // Legacy and optional: reruns follow applied findings and affected_lenses.
+    if (decision.affects_rerun_scope !== undefined && typeof decision.affects_rerun_scope !== "boolean") {
       failures.push(makeFailure(artifactPath, record, `${prefix}.affects_rerun_scope`, "boolean", decision.affects_rerun_scope));
+    }
+    if (decision.affected_lenses !== undefined) {
+      const lenses = decision.affected_lenses;
+      knownLenses ||= new Set(readRegistry().lenses.map((entry) => entry.id));
+      if (!Array.isArray(lenses) || !lenses.every((lens) => knownLenses.has(lens)) || new Set(lenses).size !== lenses.length) {
+        failures.push(makeFailure(artifactPath, record, `${prefix}.affected_lenses`, "array of unique registry lens ids", JSON.stringify(lenses)));
+      }
     }
     if (!decision.reason) failures.push(makeFailure(artifactPath, record, `${prefix}.reason`, "short reason", decision.reason));
     if (decision.change_type !== undefined) {
@@ -821,9 +891,11 @@ function validateGoalAnchoredSynthesis(record, markdownContract, artifactPath, f
   }
 }
 
-// Policy (auto mode) may apply only an accepted blocking finding that names the
-// goal it serves. Questions and minor issues reach the target only by a human.
-function validateTargetEdits(record, findingDecisions, artifactPath, failures) {
+// Policy may apply only in auto mode, only on pass 1 (the automatic rerun and
+// later passes apply nothing), and only an accepted blocking finding that cites
+// a stated goal: an intent card goal id when the run has a card. Questions and minor issues reach the target only by a human. Ledgers written
+// before apply_mode existed keep the policy rule without the mode check.
+export function validateTargetEdits(record, findingDecisions, artifactPath, failures, intent) {
   if (record.target_edits === undefined) return;
   if (!Array.isArray(record.target_edits)) {
     failures.push(makeFailure(artifactPath, record, "target_edits", "array", record.target_edits));
@@ -845,15 +917,70 @@ function validateTargetEdits(record, findingDecisions, artifactPath, failures) {
       failures.push(makeFailure(artifactPath, record, `${prefix}.finding_id`, "a finding id from this ledger's synthesis decisions", edit.finding_id));
     }
     if (edit.decided_by === "policy") {
+      if (record.apply_mode === "interactive") {
+        failures.push(makeFailure(artifactPath, record, `${prefix}.decided_by`, "human in interactive mode; only apply_mode auto applies by policy", "policy"));
+        continue;
+      }
+      if ((record.pass_index ?? 1) >= AUTOMATIC_PASS_LIMIT) {
+        failures.push(makeFailure(artifactPath, record, `${prefix}.decided_by`, `human on pass ${record.pass_index}; policy applies only on pass 1, before the one automatic rerun`, "policy"));
+        continue;
+      }
       const decision = citesFinding ? findingDecisions.get(edit.finding_id) : undefined;
+      const goalIds = Array.isArray(intent?.goals) ? intent.goals.map((goal) => goal?.id) : null;
+      const citesStatedGoal = goalIds ? goalIds.includes(decision?.serves_goal) : isNonEmptyString(decision?.serves_goal);
       const applicable = decision?.decision === "accepted"
         && BLOCKING_SEVERITIES.includes(decision.severity)
-        && isNonEmptyString(decision.serves_goal);
+        && citesStatedGoal;
       if (!applicable) {
-        failures.push(makeFailure(artifactPath, record, `${prefix}.decided_by`, "human unless the edit applies an accepted blocking finding that names the goal it serves", "policy"));
+        failures.push(makeFailure(artifactPath, record, `${prefix}.decided_by`, "human unless the edit applies an accepted blocking finding that cites a stated goal", "policy"));
       }
     }
   }
+}
+
+// Maps a lens decision onto open | settled. Legacy lock states keep the
+// meaning the old rerun decider gave them: a locked lens is settled, and any
+// other lens is open exactly when its rerun_needed is true.
+export function lensStateOf(entry) {
+  if (LENS_STATES.includes(entry?.lens_state)) return entry.lens_state;
+  if (LEGACY_SETTLED_LOCK_STATES.includes(entry?.lock_state)) return "settled";
+  return entry?.rerun_needed === true ? "open" : "settled";
+}
+
+// Rerun decisions follow applied findings, not target hashes. Each lens starts
+// from its synthesis state (settled when there is none) and reopens only when
+// one of its own findings was applied, an applied finding from another lens
+// names it in affected_lenses, or the user reopens it. A reopened lens outside
+// this pass (settled in an earlier pass of the lineage) is added.
+export function deriveRerunDecisions({ lenses, lensEntries = [], findings = new Map(), applied = [], reopen = [] }) {
+  const reasons = new Map();
+  const reopenLens = (lens, reason) => {
+    if (!reasons.has(lens)) reasons.set(lens, reason);
+  };
+  for (const lens of reopen) reopenLens(lens, "reopened by the user");
+  for (const findingId of applied) {
+    // A single-lens run without a synthesis owns every finding it reported.
+    const finding = findings.get(findingId) || (lenses.length === 1 ? { source_lens: lenses[0] } : null);
+    if (!finding) {
+      throw Object.assign(new Error(`applied finding ${findingId} has no synthesis decision naming its source lens`), { exitCode: EXIT_CODES.usage });
+    }
+    reopenLens(finding.source_lens, `own finding ${findingId} was applied`);
+    for (const lens of finding.affected_lenses || []) {
+      reopenLens(lens, `applied finding ${findingId} from ${finding.source_lens} names this lens as affected`);
+    }
+  }
+  const baseline = new Map(lensEntries.map((entry) => [entry.lens, entry]));
+  return [...new Set([...lenses, ...reasons.keys()])].map((lens) => {
+    if (reasons.has(lens)) return { lens, lens_state: "open", rerun_needed: true, reason: reasons.get(lens) };
+    const entry = baseline.get(lens);
+    const lensState = entry ? lensStateOf(entry) : "settled";
+    return {
+      lens,
+      lens_state: lensState,
+      rerun_needed: lensState === "open",
+      reason: entry?.reason || "review delivered; no applied finding or user reopen"
+    };
+  });
 }
 
 export function validateLensLocks(record, artifactPath, failures) {
@@ -864,12 +991,104 @@ export function validateLensLocks(record, artifactPath, failures) {
   for (const [index, lock] of record.lens_lock_decisions.entries()) {
     const prefix = `lens_lock_decisions[${index}]`;
     if (!lock.lens) failures.push(makeFailure(artifactPath, record, `${prefix}.lens`, "lens id", lock.lens));
-    validateEnum(lock.lock_state, LOCK_STATES, artifactPath, record, `${prefix}.lock_state`, failures);
-    if (typeof lock.rerun_needed !== "boolean") {
-      failures.push(makeFailure(artifactPath, record, `${prefix}.rerun_needed`, "boolean", lock.rerun_needed));
+    if (lock.lens_state === undefined && lock.lock_state === undefined) {
+      failures.push(makeFailure(artifactPath, record, `${prefix}.lens_state`, LENS_STATES.join("|"), "missing"));
+    }
+    if (lock.lens_state !== undefined) {
+      validateEnum(lock.lens_state, LENS_STATES, artifactPath, record, `${prefix}.lens_state`, failures);
+    }
+    if (lock.lock_state !== undefined) {
+      validateEnum(lock.lock_state, LOCK_STATES, artifactPath, record, `${prefix}.lock_state`, failures);
+      if (typeof lock.rerun_needed !== "boolean") {
+        failures.push(makeFailure(artifactPath, record, `${prefix}.rerun_needed`, "boolean", lock.rerun_needed));
+      }
+    } else if (lock.rerun_needed !== undefined && lock.rerun_needed !== (lock.lens_state === "open")) {
+      failures.push(makeFailure(artifactPath, record, `${prefix}.rerun_needed`, "true only for an open lens", lock.rerun_needed));
+    }
+    if (LENS_STATES.includes(lock.lens_state) && LOCK_STATES.includes(lock.lock_state)) {
+      const legacyState = lensStateOf({ lock_state: lock.lock_state, rerun_needed: lock.rerun_needed });
+      if (legacyState !== lock.lens_state) {
+        failures.push(makeFailure(artifactPath, record, `${prefix}.lens_state`, `${legacyState} to match legacy lock_state`, lock.lens_state));
+      }
     }
     if (!lock.reason) failures.push(makeFailure(artifactPath, record, `${prefix}.reason`, "short reason", lock.reason));
   }
+}
+
+function canonicalJson(value) {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  if (value && typeof value === "object") {
+    return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`).join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
+// Revision of an intent card for lineage checks. amended_by records who changed
+// the card, not what it says, so it is left out.
+export function intentRevision(intent) {
+  if (intent === undefined) return "none";
+  const { amended_by: _amendedBy, ...card } = intent || {};
+  return `sha256:${createHash("sha256").update(canonicalJson(card), "utf8").digest("hex")}`;
+}
+
+// Pass lineage: pass 1 has no parent; pass 2 is the one automatic rerun; a
+// later pass needs a recorded human_approval. The intent card stays fixed
+// across a lineage unless its owner amends it.
+export function validatePassLineage(record, intent, artifactPath = "review-ledger") {
+  const failures = [];
+  const index = record.pass_index ?? 1;
+  if (!Number.isInteger(index) || index < 1) {
+    failures.push(makeFailure(artifactPath, record, "pass_index", "positive integer", record.pass_index));
+    return failures;
+  }
+  if (record.human_approval !== undefined || index > AUTOMATIC_PASS_LIMIT) {
+    const approval = record.human_approval;
+    if (approval?.decided_by !== "human" || !isNonEmptyString(approval?.summary)) {
+      failures.push(makeFailure(artifactPath, record, "human_approval", `decided_by: human with a summary${index > AUTOMATIC_PASS_LIMIT ? ` for pass ${index}; only pass ${AUTOMATIC_PASS_LIMIT} reruns automatically` : ""}`, JSON.stringify(approval)));
+    }
+  }
+  if (index === 1) {
+    for (const field of ["parent_pass_id", "parent_intent_revision"]) {
+      if (record[field] !== undefined) failures.push(makeFailure(artifactPath, record, field, "absent on pass 1", record[field]));
+    }
+    return failures;
+  }
+  if (!isNonEmptyString(record.parent_pass_id) || record.parent_pass_id === record.pass_id) {
+    failures.push(makeFailure(artifactPath, record, "parent_pass_id", "the parent pass id for pass 2 or later", record.parent_pass_id));
+  }
+  if (!isNonEmptyString(record.parent_intent_revision)) {
+    failures.push(makeFailure(artifactPath, record, "parent_intent_revision", "the parent pass intent revision", record.parent_intent_revision));
+  } else if (record.parent_intent_revision !== intentRevision(intent) && intent?.amended_by !== "human") {
+    failures.push(makeFailure(artifactPath, record, "intent.amended_by", "human when the intent card differs from the parent pass", intent?.amended_by ?? "missing"));
+  }
+  return failures;
+}
+
+// Lineage fields for a new pass whose parent is the ledger at parentLedgerInput.
+// Throws a usage error when the parent reviews another target, when the pass
+// needs the user's approval and none is recorded, or when the intent card
+// changed without amended_by: human.
+export function buildPassLineage(root, parentLedgerInput, { passId, targetPath, intent, humanApproval }) {
+  if (!parentLedgerInput) {
+    if (humanApproval) throw Object.assign(new Error("--human-approval records approval for a rerun pass and requires --parent-ledger"), { exitCode: EXIT_CODES.usage });
+    return { pass_index: 1 };
+  }
+  const parent = readJsonFile(resolveInputPath(root, parentLedgerInput));
+  if (parent.target_path !== targetPath) {
+    throw Object.assign(new Error(`--parent-ledger reviews ${parent.target_path}, not ${targetPath}`), { exitCode: EXIT_CODES.usage });
+  }
+  const parentInput = parent.review_input_path ? resolveReviewInput(root, { reviewInput: parent.review_input_path }) : null;
+  const lineage = {
+    pass_index: (parent.pass_index ?? 1) + 1,
+    parent_pass_id: parent.pass_id,
+    parent_intent_revision: intentRevision(parentInput?.record.intent),
+    ...(humanApproval ? { human_approval: { decided_by: "human", summary: humanApproval } } : {})
+  };
+  const failures = validatePassLineage({ pass_id: passId, ...lineage }, intent, "--parent-ledger");
+  if (failures.length > 0) {
+    throw Object.assign(new Error(`invalid pass lineage: ${failures.map(formatFailure).join("; ")}`), { exitCode: EXIT_CODES.usage });
+  }
+  return lineage;
 }
 
 function validatePriorMaterialFindings(record, artifactPath, failures) {
@@ -891,7 +1110,12 @@ function validatePriorMaterialFindings(record, artifactPath, failures) {
 
 function validateSynthesisLockClaims(record, currentReviewsByLens, artifactPath, failures) {
   for (const lock of record.lens_lock_decisions || []) {
-    if (!["passing_locked", "converged_locked"].includes(lock.lock_state)) continue;
+    // A settled lens in a full run has delivered a current validated review.
+    // Settling asks nothing of scores; the legacy lock states below still do.
+    if (lock.lens_state === "settled" && record.run_mode === "full" && !currentReviewsByLens.has(lock.lens)) {
+      failures.push(makeFailure(artifactPath, record, `lens_lock_decisions.${lock.lens}.source_review`, "current included review for settled lens", "missing"));
+    }
+    if (!LEGACY_SETTLED_LOCK_STATES.includes(lock.lock_state)) continue;
     if (record.run_mode !== "full") {
       failures.push(makeFailure(artifactPath, record, `lens_lock_decisions.${lock.lens}.lock_state`, "full run_mode for lockable state", record.run_mode));
       continue;
@@ -964,7 +1188,7 @@ function validateUniqueArrayItems(record, field, artifactPath, failures) {
 }
 
 function validateLedgerLensScope(root, record, artifactPath, failures) {
-  const registry = readJsonFile(join(root, "reviews", "registry.json"));
+  const registry = readRegistry();
   const registryLensIds = registry.lenses.map((entry) => entry.id);
   const registryLensSet = new Set(registryLensIds);
   const selectedLensSet = validateUniqueArrayItems(record, "selected_lenses", artifactPath, failures);
@@ -1063,6 +1287,7 @@ export function validateReviewRecord(record, options = {}) {
   validateScoreChallenges(record, artifactPath, failures);
   validateCrossCutting(record, artifactPath, failures);
   validateMaterialBlockers(record, artifactPath, failures);
+  validateLensVerdict(record, artifactPath, failures);
   validateProvenance(record, root, artifactPath, failures);
   const requiresMarkdown = record.status === "completed" || record.fixture_kind !== "schema_only_minimal";
   validateMarkdownBinding(root, artifactPath, record, "review", failures, { required: requiresMarkdown });
@@ -1289,10 +1514,15 @@ export function validateLedgerRecord(record, options = {}) {
   validateRunMode(record, artifactPath, failures);
   validateEnum(record.artifact_visibility, ARTIFACT_VISIBILITY, artifactPath, record, "artifact_visibility", failures);
   validatePathField(root, artifactPath, record, "target_path", failures, { mustExist: false });
+  if (record.apply_mode !== undefined) {
+    validateEnum(record.apply_mode, APPLY_MODES, artifactPath, record, "apply_mode", failures);
+  }
+  let intent;
   if (record.review_input_path !== undefined) {
     validatePathField(root, artifactPath, record, "review_input_path", failures, { mustExist: true });
     try {
       const reviewInput = resolveReviewInput(root, { reviewInput: record.review_input_path });
+      intent = reviewInput.record.intent;
       if (record.review_input_revision !== reviewInput.revision) {
         failures.push(makeFailure(artifactPath, record, "review_input_revision", reviewInput.revision, record.review_input_revision));
       }
@@ -1311,7 +1541,10 @@ export function validateLedgerRecord(record, options = {}) {
           failures.push(makeFailure(artifactPath, record, "lens_selection_revision", actualRevision, record.lens_selection_revision));
         }
         const selection = readJsonFile(selectionPath);
-        const registry = readJsonFile(join(root, "reviews", "registry.json"));
+        const registry = readRegistry();
+        // Replay the policy only against the reviewed text. After a later edit
+        // the recorded revisions are the audit trail.
+        const replayable = fileExistsAt(root, selection.target_path) && computeArtifactSha(root, selection.target_path) === selection.target_revision;
         for (const reason of validateLensSelectionShape(selection, registry)) {
           failures.push(makeFailure(artifactPath, selection, "lens_selection", "valid selection contract", reason));
         }
@@ -1340,12 +1573,12 @@ export function validateLedgerRecord(record, options = {}) {
         if (selection.policy_path !== "reviews/manifests/lens-selection.json") {
           failures.push(makeFailure(artifactPath, selection, "lens_selection.policy_path", "reviews/manifests/lens-selection.json", selection.policy_path));
         } else {
-          const policyRevision = computeArtifactSha(root, selection.policy_path);
+          const policyRevision = computeArtifactSha(PACKAGE_ROOT, selection.policy_path);
           if (selection.policy_revision !== policyRevision) failures.push(makeFailure(artifactPath, selection, "lens_selection.policy_revision", policyRevision, selection.policy_revision));
         }
-        if (["deterministic", "deterministic_plus_llm_additions"].includes(selection.mode) && selection.review_input_path) {
+        if (replayable && ["deterministic", "deterministic_plus_llm_additions"].includes(selection.mode) && selection.review_input_path) {
           const replayInput = resolveReviewInput(root, { reviewInput: selection.review_input_path });
-          const replayPolicy = readJsonFile(join(root, selection.policy_path));
+          const replayPolicy = readJsonFile(join(PACKAGE_ROOT, selection.policy_path));
           const replay = evaluateLensPolicy(replayPolicy, registry, replayInput.record, readTextFile(join(root, selection.target_path)));
           if (JSON.stringify(selection.deterministic_lenses) !== JSON.stringify(replay.deterministicLenses)) {
             failures.push(makeFailure(artifactPath, selection, "lens_selection.deterministic_lenses", JSON.stringify(replay.deterministicLenses), JSON.stringify(selection.deterministic_lenses)));
@@ -1354,13 +1587,13 @@ export function validateLedgerRecord(record, options = {}) {
             failures.push(makeFailure(artifactPath, selection, "lens_selection.matched_domains", JSON.stringify(replay.matchedDomains), JSON.stringify(selection.matched_domains)));
           }
         }
-        if (["core_profile", "core_profile_plus_llm_additions"].includes(selection.mode) && selection.review_input_path) {
+        if (replayable && ["core_profile", "core_profile_plus_llm_additions"].includes(selection.mode) && selection.review_input_path) {
           const profile = (registry.core_profiles || []).find((entry) => entry.id === selection.core_profile_id);
           if (!profile) {
             failures.push(makeFailure(artifactPath, selection, "lens_selection.core_profile_id", "known registry core profile", selection.core_profile_id));
           } else {
             const replayInput = resolveReviewInput(root, { reviewInput: selection.review_input_path });
-            const replayPolicy = readJsonFile(join(root, selection.policy_path));
+            const replayPolicy = readJsonFile(join(PACKAGE_ROOT, selection.policy_path));
             const replay = evaluateLensPolicy(replayPolicy, registry, replayInput.record, readTextFile(join(root, selection.target_path)));
             const expectedSet = new Set([...profile.required_lens_ids, ...replay.deterministicLenses]);
             const expected = registry.lenses.map((entry) => entry.id).filter((id) => expectedSet.has(id));
@@ -1507,7 +1740,8 @@ export function validateLedgerRecord(record, options = {}) {
       findingDecisions.set(decision.finding_id, decision);
     }
   }
-  validateTargetEdits(record, findingDecisions, artifactPath, failures);
+  validateTargetEdits(record, findingDecisions, artifactPath, failures, intent);
+  failures.push(...validatePassLineage(record, intent, artifactPath));
 
   return failures;
 }

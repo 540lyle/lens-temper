@@ -79,6 +79,45 @@
     "artifact_visibility": {
       "enum": ["public_safe", "private_local_only"]
     },
+    "apply_mode": {
+      "description": "interactive (default) applies nothing by policy; auto (opt-in) may apply accepted blocking findings that cite a stated goal. Ledgers written before this field keep the policy rule on target_edits only.",
+      "enum": ["interactive", "auto"]
+    },
+    "pass_index": {
+      "description": "1 for the first pass of a lineage; absent means 1. Pass 2 is the one automatic rerun; later passes need human_approval.",
+      "type": "integer",
+      "minimum": 1
+    },
+    "parent_pass_id": { "type": "string", "minLength": 1 },
+    "parent_intent_revision": {
+      "description": "Intent card revision of the parent pass. A different current card requires intent.amended_by: human.",
+      "type": "string",
+      "minLength": 1
+    },
+    "human_approval": {
+      "type": "object",
+      "required": ["decided_by", "summary"],
+      "properties": {
+        "decided_by": { "const": "human" },
+        "summary": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": true
+    },
+    "rerun_decisions": {
+      "description": "Written by decide-reruns.mjs --write.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["lens", "reason"],
+        "properties": {
+          "lens": { "type": "string" },
+          "lens_state": { "enum": ["open", "settled"] },
+          "rerun_needed": { "type": "boolean" },
+          "reason": { "type": "string" }
+        },
+        "additionalProperties": true
+      }
+    },
     "completion_validation": {
       "type": "object",
       "readOnly": true,
@@ -166,6 +205,24 @@
   },
   "additionalProperties": true,
   "allOf": [
+    {
+      "if": {
+        "required": ["pass_index"],
+        "properties": { "pass_index": { "minimum": 2 } }
+      },
+      "then": {
+        "required": ["parent_pass_id", "parent_intent_revision"]
+      }
+    },
+    {
+      "if": {
+        "required": ["pass_index"],
+        "properties": { "pass_index": { "minimum": 3 } }
+      },
+      "then": {
+        "required": ["human_approval"]
+      }
+    },
     {
       "if": {
         "properties": {

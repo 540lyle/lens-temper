@@ -5,23 +5,24 @@ description: Use after a LensTemper review and later plan edits when the task is
 
 # LensTemper Rerun Decider
 
-Use `reviews/scripts/decide-reruns.mjs` when a ledger exists. Otherwise follow
-the rerun protocol in `reviews/README.md` from the skill package or repository
-root.
+Use `reviews/scripts/decide-reruns.mjs --ledger <run>/ledger.json` when a
+ledger exists, or `--lens <id>` for a run without one. Follow the rerun
+protocol in `reviews/README.md` from the skill package or repository root.
 
 ## Inputs
 
-- Ledger state.
-- Synthesis decisions.
-- Current target revision.
-- Domains changed by the latest plan/spec edit.
-- Previous adjudications.
+- Ledger state, including `target_edits` and `pass_index`.
+- Synthesis decisions, including each finding's source lens and
+  `affected_lenses`.
+- Findings applied without a ledger (`--applied`), and lenses the user
+  explicitly reopens (`--reopen`).
 
 ## Outputs
 
-- Rerun decisions.
-- Reasons for selected, skipped, locked, stale, and superseded lenses.
-- Previous adjudications for rerun prompts.
+- One decision per lens: `open` (rerun) or `settled`, with a reason.
+- The next pass index and whether it needs the user's recorded approval.
 
-Locked lenses stay locked unless the target changed in their domain or the user
-explicitly reopens them.
+A settled lens reopens only when one of its own findings was applied, another
+lens's applied finding names it as affected, or the user reopens it. An edit to
+the target does not reopen a lens by itself. Pass 2 is the one automatic rerun;
+a later pass needs `--human-approval` from the user.

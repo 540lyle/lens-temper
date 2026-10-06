@@ -10,8 +10,8 @@ import {
   isRepoRelativePath,
   loadValidatedRunContext,
   parseCommonArgs,
+  projectRootFrom,
   readJsonFile,
-  repoRootFrom,
   resolveRepoPath,
   usage,
   validateLedgerRecord,
@@ -34,7 +34,7 @@ async function copyRepoArtifact(root, sourceRepoPath, targetRepoPath) {
 async function main() {
   const opts = parseCommonArgs(process.argv.slice(2));
   if (opts.help) {
-    process.stdout.write(`${usage(scriptName, "--ledger <ledger-json> [--input-packet <path>] [--final <path>] [--archive-root <path>] [--json]")}\n`);
+    process.stdout.write(`${usage(scriptName, "--ledger <ledger-json> [--input-packet <path>] [--final <path>] [--archive-root <path>] [--root <path>] [--json]")}\n`);
     return;
   }
   if (opts.version) {
@@ -43,7 +43,7 @@ async function main() {
   }
   if (!opts.ledger) throw Object.assign(new Error("missing --ledger"), { exitCode: EXIT_CODES.usage });
 
-  const root = repoRootFrom(import.meta.url);
+  const root = projectRootFrom(opts);
   const context = await loadValidatedRunContext(root, opts.ledger);
   const sourceLedger = context.ledger;
   const archiveRoot = opts.archiveRoot || "reviews/archive";

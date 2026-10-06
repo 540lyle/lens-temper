@@ -109,10 +109,21 @@ every question ranked by consequence and every minor issue. The review never
 edits the target spec; applying fixes is the user's call, and rerunning a lens
 after the user edits the spec is a supported user-driven action.
 
+Runs are `interactive` by default: apply nothing and deliver every blocking
+gap, question, and minor issue together. Only when the user opts into
+`--apply-mode auto` may the host apply accepted blocking findings that cite a
+stated goal, as `decided_by: policy`, followed by the one automatic rerun pass
+of reopened lenses (`run-plan-review.mjs --parent-ledger`). Questions are never
+applied. A third pass needs the user's approval, recorded with
+`--human-approval`.
+
 Log every edit to the target in the ledger's `target_edits`, citing the finding
 id it applies or marking it `host_initiated`, with `decided_by: human` or
-`policy`. Policy may apply only accepted blocking findings that name the goal
-they serve; never apply questions or minor issues without the user.
+`policy`.
+
+For a plan in another project, run the package scripts with `--root <project>`
+(default: the current directory); targets, run artifacts, and archives resolve
+there.
 
 The orchestrator may update ledger state. Lens reviewers may not.
 Detached orchestration may not claim completion unless `events.jsonl`, ledger,

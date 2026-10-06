@@ -148,7 +148,7 @@ detached experiment that proves all of the following:
   artifact.
 - `node reviews/scripts/validate-ledger.mjs` passes for the run ledger.
 - `node reviews/scripts/validate-synthesis-output.mjs` passes for synthesis.
-- `node reviews/scripts/decide-reruns.mjs` records rerun or lock decisions.
+- `node reviews/scripts/decide-reruns.mjs` records rerun decisions from applied findings.
 - `node reviews/scripts/emit-completion-summary.mjs --out <run>/completion-summary.json`
   writes `completion-summary.json`.
 - `node reviews/scripts/validate-completion-summary.mjs <completion.json> --ledger <run>/ledger.json` passes for final

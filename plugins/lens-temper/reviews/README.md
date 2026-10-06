@@ -22,7 +22,7 @@ Standardize plan review so that:
 4. Collect the structured output from each spawned reviewer.
 5. Run `synthesize-review-feedback.md` across all review outputs to filter the findings against the plan's goal.
    Deliver it as `Review delivered: N blocking gaps, K minor issues, M questions`, counting the synthesis Blocking Gaps, Minor Issues, and Questions for the Author. The review never edits the target spec.
-6. Lock lenses only from validated `full` run artifacts. Inline and advisory outputs may guide planning, but their scores are not lockable.
+6. A lens is `settled` once its validated review is delivered and reopens only when one of its findings is applied, an applied finding names it as affected, or the user reopens it. Inline and advisory outputs may guide planning, but their scores are not lockable.
 
 Store completed review outputs outside this folder unless they are still being actively assembled.
 `reviews/` is for reusable tooling and review-input packets; durable finished outputs or synthesis
@@ -114,6 +114,10 @@ Ledger fields:
 | `completed_lens_ids` | for core-profile runs | Required lenses with current validated completion evidence. |
 | `core_gate_passed` | for core-profile runs | True only when all required lenses and completion evidence pass. |
 | `execution_mode` | yes | `manual_or_imported`, `fresh_spawned_lens_reviewers`, or `fresh_spawned_orchestrator`. |
+| `apply_mode` | written by `create-ledger.mjs` | `interactive` (default) or `auto`. See Applying Findings. |
+| `pass_index` | absent means 1 | Position in a rerun lineage. Pass 2 is the one automatic rerun; pass 3 and later need `human_approval`. |
+| `parent_pass_id`, `parent_intent_revision` | from pass 2 | The parent pass and its intent card revision. A different card needs `intent.amended_by: human`. |
+| `human_approval` | from pass 3 | `{ "decided_by": "human", "summary": "..." }`, recorded only when the user approved another pass. |
 | `events_path` | yes for detached | Repository-relative path to the run's `events.jsonl` trace. |
 | `completion_validation` | yes | Validation evidence record with validator name/version, pass flag, validated records, and field-level failures. |
 | `lens` | yes | Lens name. |
@@ -126,8 +130,9 @@ Ledger fields:
 | `verdict` | yes after completion | Reviewer verdict. |
 | `scorecard` | yes after completion | Named scores for Correctness, Completeness, Risk Awareness, Testability, Maintainability, and Ship Readiness. |
 | `material_blockers` | yes after completion | `yes`, `no`, or a short count/summary. |
-| `lock_state` | yes | One of `active`, `failing`, `passing_locked`, `rerun_required`, `converged_locked`. Keep this separate from `status`; `status` describes reviewer lifecycle outcome, while `lock_state` describes whether the lens still needs review. |
-| `rerun_reason` | required for reruns | Why this lens is being rerun, tied to a material issue or domain-relevant plan/spec change. |
+| `lens_state` | yes | `open` or `settled`. Keep this separate from `status`; `status` describes reviewer lifecycle outcome, while `lens_state` describes whether the lens still needs review. Legacy `lock_state` values map onto it: `passing_locked` and `converged_locked` are settled, and any other value is open exactly when `rerun_needed` is true. |
+| `blocking`, `goal_fit` | recommended after completion | Lens verdict: `blocking` is `yes` or `no` and matches `material_blockers.present`; `goal_fit` is `ok`, `at_risk`, or `violated`, and is not `ok` when blocking. |
+| `rerun_reason` | required for reruns | Why this lens is being rerun: its own finding was applied, an applied finding named it as affected, or the user reopened it. |
 | `finding_decisions` | recommended after synthesis | Per-finding synthesis decisions: `accepted`, `rejected`, `downgraded`, `deferred`, or `needs_author`, with a short reason. |
 | `target_edits` | when the target is edited after delivery | One entry per edit: `finding_id` or `host_initiated: true`, `decided_by` (`human` or `policy`), and a `summary`. See Applying Findings. |
 
@@ -145,7 +150,7 @@ write is rejected if the derived ledger does not validate.
 
 Synthesis owner:
 
-- The parent orchestrator owns the ledger, final synthesis, materiality decisions, lens locking, rerun selection, and final completion decision.
+- The parent orchestrator owns the ledger, final synthesis, materiality decisions, lens states, rerun selection, and final completion decision.
 - In `full_detached`, the fresh orchestrator owns those duties; the parent launcher reports only what the detached artifacts prove.
 - Lens reviewers stay independent. They review only their assigned lens and do not coordinate convergence with other reviewers.
 - The synthesis owner is a filter that defends the plan's goal, not a merger. It records a decision for every finding: an accepted `add` must name the goal it serves (`serves_goal`), rejections carry a `rejection_reason` (`conflicts_with_goal`, `adds_unrequested_scope`, `implementer_discretion`, `unsupported`, `duplicate`, `out_of_domain`, or `contradicted`), and decisions that belong to the plan's owner are `needs_author` and become questions. Filtering decides what becomes a plan change, never what the owner sees.
@@ -165,20 +170,18 @@ Score discipline:
 - A `5/5` score requires `score_challenges.<dimension>` with `would_make_this_a_4`, `why_not_present`, and `evidence_no_material_issue`.
 - The challenge evidence is machine-readable in JSON. Markdown reviews should include concise score notes when the score supports a lock or completion claim.
 - If prior accepted material findings are relevant, record them in `prior_material_findings_context`; do not infer them by broad archive scanning.
-- Synthesis may treat reviewer outputs as lockable only when they are validated, current for the target revision, captured into artifacts, and closed. Unvalidated outputs remain advisory/imported and must be labeled that way.
+- Synthesis may settle a lens only from a reviewer output that is validated, current for the target revision, captured into artifacts, and closed. Unvalidated outputs remain advisory/imported and must be labeled that way.
 
 Rerun protocol:
 
-- A lens auto-locks only in `full` mode when all six scorecard dimensions are `5/5`, no material blockers remain, and every `5/5` score includes score-challenge evidence.
-- A lens may also be marked `converged_locked` only in `full` mode when all six scorecard dimensions are `4/5` or better, no accepted material blocker remains, and the synthesis owner records that lower scores are caused only by non-material, rejected, downgraded, deferred, duplicate, or already-addressed feedback.
-- Locked lenses are not rerun unless the target plan/spec changes in that lens's domain or the user explicitly asks to reopen that lens.
-- After changing the plan/spec, spawn new fresh agents only for active, failing, or domain-affected lenses. Do not reuse prior reviewer agents for reruns.
-- Before each rerun, add a rerun decision note for every selected lens: `rerun`, `passing_locked`, `converged_locked`, `not_affected`, `superseded`, or `error`, with a short reason.
-- After three passes, the synthesis owner should stop rerunning a lens unless a fresh review identifies an accepted material issue. After five passes, continue only with explicit user approval.
-- A full clean rerun is exceptional. Use it only for broad plan rewrites, suspected reviewer contamination, corrupted/stale inputs, or explicit user request.
+- Each lens is `open` or `settled`. A lens settles when its validated review is delivered; settling does not depend on scores or on blocking gaps being fixed.
+- A settled lens reopens only when one of its own findings is applied, an applied finding from another lens names it in `affected_lenses`, or the user reopens it. Editing the target does not by itself reopen anything: target revisions stay as the audit trail of what each review read, not as a staleness trigger.
+- `decide-reruns.mjs --ledger <run>/ledger.json` derives the decisions from the ledger's `target_edits` and the synthesis `finding_decisions`; `--reopen <lens,...>` records an explicit user reopen. Without a ledger (a single-lens run, for example), pass `--lens <id>` with `--applied <finding,...>` or `--reopen`. `--write` stores the decisions as the ledger's `rerun_decisions`.
+- Reruns start a new pass with `run-plan-review.mjs --parent-ledger <run>/ledger.json`, which reruns only the reopened lenses unless the user names lenses. Pass 2 is the one automatic rerun. Pass 3 and later require `--human-approval "<what the user approved>"`, recorded in the ledger as `human_approval`. The intent card stays fixed across a lineage unless the owner amends it with `amended_by: human`.
+- Spawn new fresh agents for reruns. Do not reuse prior reviewer agents.
+- A full clean rerun is exceptional. Use it only for broad plan rewrites, suspected reviewer contamination, corrupted inputs, or explicit user request.
 - Treat rerun outputs as current only if the reviewer read the updated workspace files directly and reported the current `target_revision`.
-- If one lens finds a defect and the plan/spec changes, close completed reviewers from the prior pass before starting the next pass. Preserve locked lens outputs as current unless the change affects that lens's domain.
-- If the same lens returns repeated non-material or preference-only findings after material fixes, record them as non-blocking and stop rerunning that lens.
+- If the same lens returns repeated non-material or preference-only findings after material fixes, record them as non-blocking and do not reopen that lens.
 - A review is delivered when every selected lens has a captured, validated output and all spawned agents are closed. Report it as `Review delivered: N blocking gaps, K minor issues, M questions`, counting the synthesis Blocking Gaps, Minor Issues, and Questions for the Author, and listing every question and minor issue. Delivery does not require resolving blocking gaps, answering questions, or reaching a lock state. The review never edits the target spec; applying fixes is the user's call, and rerunning a lens after the user edits the spec is a supported user-driven action.
   An unqualified `LensTemper pass complete` claim also requires `run_mode: full`, `run_scope: core_profile`, `core_gate_passed: true`, successful `completion_validation`, and no missing current reviewer evidence.
 
@@ -191,10 +194,35 @@ entry so growth that bypasses synthesis stays visible:
 - Cite the synthesis `finding_id` the edit applies, or set
   `host_initiated: true` for an edit no finding asked for.
 - Set `decided_by: human` when a person chose the edit. `decided_by: policy`
-  (auto mode) may apply only an accepted `[critical]` or `[major]` finding that
-  names the goal it serves; the validator rejects anything else.
+  may apply only an accepted `[critical]` or `[major]` finding that cites a
+  stated goal (an intent card goal id when the review input has a card); the
+  validator rejects anything else.
 - Questions for the author and minor issues are never applied by policy. A
   question becomes an edit only after the owner answers it.
+
+Apply modes (`--apply-mode` on `run-plan-review.mjs` and `create-ledger.mjs`,
+recorded as the ledger's `apply_mode`):
+
+- `interactive` (default): nothing is applied. The run finishes and delivers
+  every blocking gap, question, and minor issue in one list; the validator
+  rejects any `decided_by: policy` edit.
+- `auto` (opt-in): after delivery, the host may apply the blocking fixes above
+  as `decided_by: policy`, run `decide-reruns.mjs --write`, and run the one
+  automatic rerun pass of the reopened lenses. It then stops and presents what
+  remains. Questions are never converted into edits. Policy edits are valid only
+  on pass 1; the validator rejects them on the rerun pass and later passes.
+
+Ledgers written before `apply_mode` existed keep the policy rule without the
+mode check.
+
+## Project Root
+
+Scripts that take a target or a run artifact accept `--root <path>` (default:
+the current directory). The target, review input, ledger, run artifacts, and
+`reviews/archive/` resolve against that project root, so a plan in another
+project can be hashed, reviewed, and archived there. The registry, manifests,
+lenses, and templates always come from the LensTemper package. Validators also
+accept the older `--artifact-root` spelling.
 
 ## Available Lenses
 
@@ -335,7 +363,7 @@ The synthesis template (`synthesize-review-feedback.md`) uses one additional var
   its rejected alternative unless keeping the decision makes a goal fail or
   meets another condition of the goal gate.
 - Preference-only polish, wording improvements, or optional refactors must not prevent a `Strong` verdict or `5/5` score when no material issue remains.
-- Reruns are for material blockers, score-lowering gaps, or domain-relevant plan/spec changes. Do not spawn reruns only to chase nits.
+- Reruns follow applied findings or an explicit user reopen. Do not spawn reruns only to chase nits.
 - Reviewers must complete the cross-cutting sweep. Do not silently skip security/privacy, accessibility, performance, reliability/rollback, observability/debuggability, or compatibility/platform concerns.
 - Do not invent repository details that are not present in the provided input.
 - Optimize for safe, shippable implementation over theoretical elegance.
@@ -344,7 +372,7 @@ Final evidence before completion:
 
 - Latest output, verdict, scorecard, and material-blocker status for each selected lens.
 - Cross-cutting sweep status for each selected lens, including any `Not applicable from this lens` entries.
-- Lock/rerun status for each selected lens, including why any locked lens was not rerun after plan/spec edits.
+- Lens state for each selected lens, including why any settled lens was not rerun after plan/spec edits.
 - Confirmation that each current reviewer read the current workspace files directly.
 - Confirmation that every spawned reviewer has terminal status and is closed.
 - Run mode, run scope, completion-validation result, and whether scores are lockable or advisory.
@@ -359,7 +387,7 @@ Required fields:
 - Final assessment from synthesis.
 - Target path and deterministic target revision reviewed.
 - Review artifact path, plus whether the artifact is committed, ignored/local-only, or stored elsewhere.
-- Per-lens score table with lens, verdict, all six score values, material-blocker status, and lock/rerun status.
+- Per-lens score table with lens, verdict, all six score values, material-blocker status, and lens state.
 - Accepted material findings and the plan changes or follow-up actions they require.
 - Every question for the plan's owner, ranked by consequence.
 - Every minor issue, even when nothing blocks.
@@ -368,9 +396,9 @@ Required fields:
 
 Use this table shape unless the host interface requires a shorter form:
 
-| Lens | Verdict | Correctness | Completeness | Risk Awareness | Testability | Maintainability | Ship Readiness | Material Blockers | Status |
-|------|---------|-------------|--------------|----------------|-------------|-----------------|----------------|-------------------|--------|
-| Implementation | Usable with fixes | 4/5 | 3/5 | 4/5 | 4/5 | 4/5 | 3/5 | yes | rerun_required |
+| Lens | Verdict | Correctness | Completeness | Risk Awareness | Testability | Maintainability | Ship Readiness | Material Blockers | State |
+|------|---------|-------------|--------------|----------------|-------------|-----------------|----------------|-------------------|-------|
+| Implementation | Usable with fixes | 4/5 | 3/5 | 4/5 | 4/5 | 4/5 | 3/5 | yes | settled |
 
 ## Recommended Prompt Assembly
 

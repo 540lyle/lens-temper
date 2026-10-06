@@ -17,6 +17,8 @@
   "markdown_artifact_path": "reviews/examples/artifacts/review-output.valid-full.md",
   "markdown_artifact_sha": "git:b35d57a7bef682c1fea29994a61ad99c66ed777e",
   "verdict": "Strong",
+  "blocking": "no",
+  "goal_fit": "ok",
   "material_blockers": {
     "present": false,
     "summary": "no accepted material blockers",

@@ -47,7 +47,8 @@ LensTemper turns the critique-agent pattern into a spec-review system:
 - reviewers read the current spec directly from the workspace
 - narrower per-reviewer context, with an explicit multi-agent token tradeoff
 - a materiality gate anchored to the plan's own goal
-- reruns only for lenses affected by spec changes
+- reruns only for lenses whose findings were applied or that you reopen, with
+  one automatic rerun at most
 - validated artifacts before completion claims
 - full, selected-lens, and inline modes with clear claim boundaries
 
@@ -149,10 +150,14 @@ card (goals with ids, non-goals, surfaces that must not grow, and trade-offs
 already decided) to the review input. See
 [reviews/README.md](reviews/README.md#recommended-prompt-assembly).
 
-LensTemper never edits your spec; you decide what to apply. The goal is not
-more review theater or a longer spec. The goal is a plan that still does what
-its author wanted, with fewer surprises when a coding agent or engineer starts
-implementation.
+LensTemper never edits your spec on its own; by default you decide what to
+apply. In opt-in auto mode (`--apply-mode auto`) the host may apply only
+accepted blocking fixes that cite a stated goal, then runs one rerun of the
+affected lenses and stops; questions and minor issues still wait for you.
+
+The goal is not more review theater or a longer spec. The goal is a plan that
+still does what its author wanted, with fewer surprises when a coding agent or
+engineer starts implementation.
 
 ## Which Skill Should I Choose?
 
@@ -193,7 +198,7 @@ LensTemper has three run families:
 A full run typically follows this path:
 
 1. Choose lenses based on the plan's risk.
-2. Hash the target plan/spec so stale review output can be detected.
+2. Hash the target plan/spec so each review records the revision it read.
 3. Create a ledger and prompt packets for the selected lenses.
 4. Spawn one detached-context reviewer subagent per selected lens.
 5. Capture structured reviewer outputs.
@@ -334,6 +339,12 @@ node reviews/scripts/run-plan-review.mjs --target docs/plans/my-plan.md --pass-i
 node reviews/scripts/assemble-review-prompt.mjs --target docs/plans/my-plan.md --lens implementation --pass-id my-pass --review-input docs/plans/my-plan.review-input.json
 node reviews/scripts/run-review-evals.mjs
 ```
+
+Scripts resolve the target, run artifacts, and `reviews/archive/` against the
+current directory, or against `--root <project>` when given; the registry,
+lenses, and templates always come from the LensTemper package. To review a plan
+in another project, run the package's scripts from that project, for example
+`node <lens-temper>/reviews/scripts/run-plan-review.mjs --target docs/plan.md --pass-id p1 --lens product-ux --feature-request "..."`.
 
 `run-review-evals.mjs` is the `fixture-lint` lane of `validate-all.mjs`. It
 checks fixture integrity only: each eval fixture still contains the terms that

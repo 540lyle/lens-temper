@@ -8,9 +8,11 @@ import {
   ensureNode18,
   isRepoRelativePath,
   normalizeRepoInputPath,
+  PACKAGE_ROOT,
   parseCommonArgs,
+  projectRootFrom,
   readJsonFile,
-  repoRootFrom,
+  readRegistry,
   resolveReviewInput,
   resolveRepoPath,
   usage,
@@ -21,22 +23,22 @@ ensureNode18();
 
 const scriptName = "assemble-spawn-prompt.mjs";
 
-function resolveLensManifest(root, registry, lensInput) {
+function resolveLensManifest(registry, lensInput) {
   let lensManifestPath = lensInput;
   const lensById = registry.lenses.find((entry) => entry.id === lensInput);
   if (lensById) lensManifestPath = lensById.manifest_path;
   if (lensManifestPath.endsWith(".md")) {
-    const lensPath = normalizeRepoInputPath(root, lensManifestPath);
+    const lensPath = normalizeRepoInputPath(PACKAGE_ROOT, lensManifestPath);
     lensManifestPath = registry.lenses
       .map((entry) => entry.manifest_path)
-      .find((path) => readJsonFile(join(root, path)).prompt_path === lensPath);
+      .find((path) => readJsonFile(join(PACKAGE_ROOT, path)).prompt_path === lensPath);
   }
   if (!lensManifestPath || !isRepoRelativePath(lensManifestPath)) {
     throw Object.assign(new Error(`unknown lens ${lensInput}`), { exitCode: EXIT_CODES.usage });
   }
   return {
     path: lensManifestPath,
-    manifest: readJsonFile(join(root, lensManifestPath))
+    manifest: readJsonFile(join(PACKAGE_ROOT, lensManifestPath))
   };
 }
 
@@ -55,8 +57,12 @@ function buildSpawnPrompt({
   lensRevision,
   inputPacketPath,
   runScope,
-  executionMode
+  executionMode,
+  separatePackage
 }) {
+  const packageNote = separatePackage
+    ? "\nThe template, lens manifest, and lens prompt paths are relative to the LensTemper package, not this project; the prompt packet already contains their text.\n"
+    : "";
   return `Role: You are the fresh LensTemper ${lensDisplayName} lens reviewer for this one-lens handoff.
 
 # Goal
@@ -89,7 +95,7 @@ Paths:
 - lens prompt: \`${lensPromptPath}\`
 - prompt packet: \`${inputPacketPath}\`
 - review input: \`${reviewInputPath}\`
-
+${packageNote}
 Revisions:
 - target: \`${targetRevision}\`
 - review input: \`${reviewInputRevision}\`
@@ -113,7 +119,7 @@ function lensManifestDisplayName(lensId) {
 try {
   const opts = parseCommonArgs(process.argv.slice(2));
   if (opts.help) {
-    process.stdout.write(`${usage(scriptName, "--target <path> --lens <id|manifest|path> --pass-id <id> --input-packet <path> --review-input <path> [--out <path>] [--json]")}\n`);
+    process.stdout.write(`${usage(scriptName, "--target <path> --lens <id|manifest|path> --pass-id <id> --input-packet <path> --review-input <path> [--root <path>] [--out <path>] [--json]")}\n`);
     process.exit(EXIT_CODES.ok);
   }
   if (opts.version) {
@@ -126,8 +132,8 @@ try {
     process.exit(EXIT_CODES.usage);
   }
 
-  const root = repoRootFrom(import.meta.url);
-  const registry = readJsonFile(join(root, "reviews", "registry.json"));
+  const root = projectRootFrom(opts);
+  const registry = readRegistry();
   const targetPath = normalizeRepoInputPath(root, opts.target);
   if (!targetPath) {
     process.stderr.write(`validation error: --target must resolve under the repository root\n`);
@@ -150,14 +156,14 @@ try {
     process.exit(EXIT_CODES.read);
   }
 
-  const lens = resolveLensManifest(root, registry, opts.lens);
+  const lens = resolveLensManifest(registry, opts.lens);
   const reviewInput = resolveReviewInput(root, opts);
   const templatePath = registry.entrypoints.reviewer_template;
   const lensPromptPath = lens.manifest.prompt_path;
   const lensDisplayName = lens.manifest.display_name || lensManifestDisplayName(lens.manifest.id);
   const targetRevision = computeArtifactSha(root, targetPath);
-  const templateRevision = computeArtifactSha(root, templatePath);
-  const lensRevision = computeArtifactSha(root, lensPromptPath);
+  const templateRevision = computeArtifactSha(PACKAGE_ROOT, templatePath);
+  const lensRevision = computeArtifactSha(PACKAGE_ROOT, lensPromptPath);
   const runScope = opts.runScope || "selected_lenses";
   const executionMode = opts.executionMode || "fresh_spawned_lens_reviewers";
   const prompt = buildSpawnPrompt({
@@ -175,7 +181,8 @@ try {
     lensRevision,
     inputPacketPath,
     runScope,
-    executionMode
+    executionMode,
+    separatePackage: root !== PACKAGE_ROOT
   });
 
   if (opts.out) {

@@ -1,12 +1,12 @@
 ---
 name: synthesize-review-feedback
-description: Use after LensTemper reviewer outputs already exist and the task is only to consolidate findings, decisions, rerun status, or final readiness.
+description: Use after LensTemper reviewer outputs already exist and the task is only to consolidate findings, decisions, lens states, or final readiness.
 ---
 
 # LensTemper Synthesis Owner
 
 Use `reviews/synthesize-review-feedback.md` as the output contract and
-`reviews/README.md` for lock, rerun, and materiality rules from the skill
+`reviews/README.md` for lens state, rerun, and materiality rules from the skill
 package or repository root.
 
 ## Inputs
@@ -26,7 +26,8 @@ the ledger even when the target revision is unchanged.
 - Blocking gaps, questions for the author, minor issues, and notes.
 - Recommended plan changes and the scope delta.
 - Per-finding decisions with change type, served goal, and rejection reason.
-- Lens lock and rerun decisions.
+- Lens states (`open` or `settled`) and `affected_lenses` for findings whose fix
+  would invalidate another lens's review.
 - Final assessment and `Review delivered: N blocking gaps, K minor issues, M questions`.
 
 Synthesis is a filter that defends the plan's goal. Only the synthesis owner may

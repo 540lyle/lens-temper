@@ -53,7 +53,7 @@
           }
         },
         "amended_by": {
-          "description": "Set when the card differs from the previous pass's card. Only the plan's owner may amend it; enforcement across passes needs pass lineage.",
+          "description": "Set when the card differs from the parent pass's card. Only the plan's owner may amend it; a ledger whose card differs from its parent_intent_revision without this fails validation.",
           "enum": ["human"]
         }
       },

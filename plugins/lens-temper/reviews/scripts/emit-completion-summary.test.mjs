@@ -38,6 +38,7 @@ test("--out ending in .json writes a valid completion-summary JSON record", () =
     assert.equal(summary.schema_version, 3);
     assert.equal(summary.target_revision, "git:73eaed921475be235f6684abdd2ce19a4e367c7f");
     assert.equal(summary.run_mode, "full");
+    assert.deepEqual(summary.rerun_or_lock_status.map((entry) => entry.lens_state), ["settled"]);
     assert.doesNotMatch(summary.verification_evidence, /validators passed/i);
     assert.match(summary.verification_evidence, /review records validated/i);
     execFileSync(node, [
@@ -61,6 +62,8 @@ test("--out ending in .md keeps the human-readable Markdown summary", () => {
     const summary = readFileSync(resolve(repoRoot, outPath), "utf8");
     assert.match(summary, /^Full LensTemper review for selected lenses only/m);
     assert.match(summary, /^Final assessment: Ready to implement/m);
+    assert.match(summary, /^\| implementation \| settled \| no \| /m, "legacy passing_locked maps to settled");
+    assert.doesNotMatch(summary, /passing_locked/);
     assert.match(summary, /^Minor issues:\n- detached-lifecycle-valid: /m);
     assert.match(summary, /^Deferred risks:\n- None$/m);
     assert.match(summary, /^Questions for the author \(reviewer Open Questions are also in the synthesis/m);
