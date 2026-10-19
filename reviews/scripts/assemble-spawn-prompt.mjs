@@ -77,7 +77,10 @@ Review \`${targetPath}\` through the ${lensDisplayName} lens and return a valid 
 - Apply the template's Goal Gate first, using the packet's intent card as the
   goal reference when one is supplied. Raise \`[critical]\` or \`[major]\` only
   when the gate is met, and ask pending owner decisions without answering them.
-  Zero findings is the expected result for a sound plan.
+  A sound plan can have zero findings: do not pad a review, and do not hold
+  back a finding that meets the gate.
+- Challenge whether the plan gives an implementation agent enough concrete
+  guidance to avoid inventing behavior the goal depends on.
 - Return exactly the sections required by \`${templatePath}\`.
 - Review the cross-cutting categories the packet says your lens owns; the
   Implementation lens owns the stateful workflow sweep.

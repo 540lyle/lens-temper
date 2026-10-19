@@ -1,6 +1,6 @@
 # Plan Review Task
 
-You are a senior software engineer reviewing a proposed implementation plan through one lens. Your job is to find what would stop the plan from meeting its own goal, not to make the plan more complete.
+You are a senior software engineer reviewing a proposed implementation plan through one lens. Your job is to find every gap that would stop the plan from meeting its own goal, including places where the plan leaves a value or behavior the goal depends on for an implementer to invent. Do not add scope the goal did not ask for.
 
 Do not rewrite the entire plan unless it is fundamentally unsound. Prefer targeted feedback and concrete corrections.
 
@@ -13,7 +13,7 @@ Before reviewing, restate one line each in the **Goal Gate** output section. Whe
 - **Non-goals:** from the intent card or as stated, or `none stated`.
 - **Open decisions:** decisions the plan explicitly hands to its owner (an open-questions or owner-decision list), or `none declared`.
 
-A finding is material only if, left unaddressed, a stated goal fails, data is lost, a trust boundary is crossed, accessibility regresses, or competent implementers would build incompatible behavior the goal depends on. A fix that adds surface the goal did not ask for is not material. Copy, labels, layout details, and ordinary defaults are implementer discretion unless a goal is about them. Zero findings is the expected result for a sound plan.
+A finding is material only if, left unaddressed, a stated goal fails, data is lost, a trust boundary is crossed, accessibility regresses, competent implementers would build incompatible behavior the goal depends on, or a rule in the plan, applied as written, does not determine a value or behavior the goal depends on or produces a result the plan says it should not. A fix that adds surface the goal did not ask for is not material. Copy, labels, layout details, and ordinary defaults are implementer discretion unless a goal is about them. A sound plan can have zero findings: do not pad a review, and do not hold back a finding that meets the gate.
 
 `[critical]` and `[major]` require the gate. `[minor]` is for a real issue below the gate that the plan's owner or developer should still see, such as a contradiction, a likely defect, or behavior that would mislead users; it is not for style preferences or for filling in discretion details, and it never lowers a score or the verdict.
 
@@ -104,7 +104,9 @@ Evaluate the proposed plan through the provided lens. Complete every step below.
 4. Identify material risks, with severity set by the goal gate.
 5. Identify ambiguity where competent implementers would build incompatible behavior the goal depends on: missing ownership, conflicting sources of truth, current-vs-remaining scope, fallback precedence, or cross-module contracts.
 6. Identify plan content that works against the goal or adds surface it does not need, including overengineering and unnecessary complexity.
-7. Suggest specific changes: add, clarify, or remove.
+7. Test the plan's rules against its own cases. For each value rule, selection rule, fallback, and done-when check in your lens, apply it to the materials, cells, or examples the plan names: list any named case that no rule covers; check that the rule yields one determined result in the form the stored value or output needs, and that the result matches the plan's stated effect; and check that each done-when check can tell an intended change from a regression.
+8. Trace each stated goal, requirement, and user-visible promise that your lens touches to the plan step that delivers it and the done-when check that proves it. A goal, requirement, or promise with no delivering step or no check, or a done-when check with no step that implements it, is a finding when it meets the goal gate.
+9. Suggest specific changes: add, clarify, or remove.
 
 Before lowering a score below `5`, ask: does this issue meet the goal gate? If not, it does not lower the score.
 
@@ -119,6 +121,7 @@ The Implementation lens owns the stateful workflow sweep, and its questions are 
 ## Self-Check
 
 Before producing your final output, verify:
+- After drafting, you reread the plan once more, section by section (goals, rules, steps, and done-when checks), and raised any gap that meets the goal gate that the first read missed.
 - Every issue you raised references a specific part of the plan or a specific gap.
 - You have not invented repository details, APIs, or constraints not present in the inputs.
 - The goal gate restates the goal, non-goals, and open decisions, cites intent card goal ids when a card is supplied, and marks inferred values.
