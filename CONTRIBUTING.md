@@ -15,7 +15,7 @@ Useful checks:
 ```powershell
 node reviews/scripts/validate-package.mjs
 node reviews/scripts/validate-review-fixtures.mjs
-node reviews/scripts/run-review-evals.mjs
+node reviews/scripts/run-review-evals.mjs  # fixture-lint: fixture integrity only, not a model eval
 Get-ChildItem reviews/scripts -Filter *.mjs | ForEach-Object { node --check $_.FullName }
 git diff --check
 ```

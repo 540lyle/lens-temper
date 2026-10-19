@@ -13,39 +13,39 @@ Use this packet with:
 Save completed per-lens outputs and synthesis outside reusable workflow files;
 use `reviews/archive/` unless another folder explicitly owns the review history.
 
-## Recommended Lens Order
+## Lens Selection
 
-### First-Pass Lenses
-
-1. `lenses/lens-product-ux.md`
-   Reason: the plan changes user-visible hierarchy and interaction states.
-2. `lenses/lens-implementation.md`
-   Reason: the plan touches shared UI primitives and page-level layout.
-3. `lenses/lens-architecture.md`
-   Reason: the review should confirm refresh decisions stay in shared seams
-   rather than becoming duplicated screen-specific styling.
-4. `lenses/lens-test-strategy.md`
-   Reason: UI refresh work can silently regress compact layouts, keyboard
-   navigation, and loading/error states unless validation is explicit.
-
-### Optional Follow-Up Lens
-
-- `lenses/lens-risk.md`
-  Use if the first-pass reviews surface concern about accessibility,
-  performance, rollout, or broad shared-component blast radius.
-
-### Lens To Skip For This Plan
-
-- `lenses/lens-data-model.md`
-  Skip unless the refresh plan expands into persistence, schema, saved views, or
-  user preference contracts.
+Let the selector choose: run `select-lenses.mjs` or `run-plan-review.mjs`
+without `--lens`. For this packet it matches the user-facing workflow domain
+and selects Test Strategy and Product & UX. A visual refresh is reversible and
+touches no migration, authorization, money, or tool authority, so the full core
+profile is not needed. Add a lens only with an evidence-backed
+`--lens-proposal`, for example Architecture when the plan moves page-specific
+styling into shared components.
 
 ## Feature Request
 
 Create a concrete, repo-native UI refresh plan for a browser-based operations
-dashboard. The refresh should improve visual hierarchy, empty/loading/error
-states, and shared component consistency while preserving existing workflows and
-keyboard accessibility.
+dashboard. The refresh changes how the existing screens look, not what they do:
+clearer visual hierarchy and consistent shared component styling. Existing
+screens, interaction states, and workflows stay as they are, and keyboard
+accessibility and visible focus must not regress.
+
+## Intent Card
+
+```json
+{
+  "goals": [
+    { "id": "G1", "text": "Priority, ownership, and next action are easier to scan on the existing screens.", "success_signal": "Users find the next action on Overview, Work Queue, and Reports without new navigation." },
+    { "id": "G2", "text": "Shared components look consistent across the three workspace areas.", "success_signal": "Cards and tables use the shared design tokens with no page-specific overrides." }
+  ],
+  "non_goals": [
+    "New screens, interaction states, or workflows.",
+    "Changes to data contracts, routes, or command semantics."
+  ],
+  "must_not_grow": ["Interaction states", "Workflows"]
+}
+```
 
 ## Relevant Context
 
@@ -70,9 +70,10 @@ keyboard accessibility.
 
 ### Testing And Validation Constraints
 
-- Add component-level coverage for shared primitives that change behavior.
-- Add browser coverage for the main dashboard scan path, empty state, loading
-  state, error state, and keyboard navigation through primary actions.
+- Keep component-level coverage for shared primitives whose styling changes.
+- Keep regression coverage for the main dashboard scan path, the existing
+  empty, loading, and error states, and keyboard navigation through primary
+  actions.
 - Use layout assertions for narrow-width regressions when visibility checks are
   too weak.
 - Run expensive browser and performance checks only when page shell or exported
@@ -87,9 +88,10 @@ keyboard accessibility.
 
 ## Constraints
 
-- Treat `docs/plans/dashboard-refresh-plan.md` as a future implementation plan,
-  not a shipped-state document.
-- Preserve current workflows unless a behavior change is explicit.
+- Treat `docs/plans/dashboard-refresh-plan.md` as a future plan, not a
+  shipped-state document.
+- This is a visual refresh: do not add or change interaction states or
+  workflows.
 - Do not introduce third-party UI/runtime dependencies without a specific
   justification.
 - Keep design-token files as the source of truth for visual constants.
@@ -102,7 +104,7 @@ When running a review:
 
 1. Use `reviews/reviewer-template.md` as the base template.
 2. Inject the `Feature Request` section from this file into
-   `{{feature_request}}`.
+   `{{feature_request}}` and the `Intent Card` JSON into `{{intent_card}}`.
 3. Inject the full contents of `docs/plans/dashboard-refresh-plan.md` into
    `{{proposed_plan}}`.
 4. Inject the `Relevant Context` section from this file into

@@ -3,14 +3,16 @@ import { join } from "node:path";
 import {
   CONTRACT_VERSION,
   EXIT_CODES,
+  encodeIntentCard,
   encodePromptData,
   encodePromptJson,
   ensureNode18,
   loadValidatedRunContext,
+  PACKAGE_ROOT,
   parseCommonArgs,
+  projectRootFrom,
   readTextFile,
   renderTemplate,
-  repoRootFrom,
   resolveRepoPath,
   usage
 } from "./validation-helpers.mjs";
@@ -18,11 +20,12 @@ import {
 ensureNode18();
 
 const scriptName = "run-synthesis.mjs";
+const usageText = "--ledger <ledger-json> [--root <path>]";
 
 async function main() {
   const opts = parseCommonArgs(process.argv.slice(2));
   if (opts.help) {
-    process.stdout.write(`${usage(scriptName, "--ledger <ledger-json>")}\n`);
+    process.stdout.write(`${usage(scriptName, usageText)}\n`);
     return;
   }
   if (opts.version) {
@@ -33,12 +36,13 @@ async function main() {
     throw Object.assign(new Error("full synthesis accepts only --ledger; raw review Markdown, --target, and --review-input are not trusted inputs"), { exitCode: EXIT_CODES.usage });
   }
 
-  const root = repoRootFrom(import.meta.url);
-  const context = await loadValidatedRunContext(root, opts.ledger);
+  const root = projectRootFrom(opts);
+  // Synthesis reads the target text, so the target must still be the reviewed one.
+  const context = await loadValidatedRunContext(root, opts.ledger, { requireCurrentTarget: true });
   if (context.ledger.run_mode !== "full") {
     throw Object.assign(new Error("canonical synthesis runner requires a full review ledger"), { exitCode: EXIT_CODES.usage });
   }
-  const template = readTextFile(join(root, "reviews", "synthesize-review-feedback.md"));
+  const template = readTextFile(join(PACKAGE_ROOT, "reviews", "synthesize-review-feedback.md"));
   const targetText = readTextFile(resolveRepoPath(root, context.ledger.target_path));
   const reducedReviews = context.reviews.map(({ record, markdown }) => ({
     record_id: record.record_id,
@@ -52,6 +56,7 @@ async function main() {
   const prompt = renderTemplate(template, {
     review_input_revision: context.reviewInput.revision,
     feature_request: encodePromptData(context.reviewInput.record.feature_request),
+    intent_card: encodeIntentCard(context.reviewInput.record.intent),
     proposed_plan: encodePromptData(targetText),
     relevant_context: encodePromptData(context.reviewInput.record.relevant_context),
     constraints: encodePromptData(context.reviewInput.record.constraints),
@@ -62,7 +67,7 @@ async function main() {
 }
 
 main().catch((error) => {
-  process.stderr.write(`${usage(scriptName, "--ledger <ledger-json>")}\n`);
+  process.stderr.write(`${usage(scriptName, usageText)}\n`);
   process.stderr.write(`validation error: ${error.message}\n`);
   process.exit(error.exitCode || EXIT_CODES.internal);
 });

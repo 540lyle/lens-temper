@@ -1,4 +1,10 @@
 #!/usr/bin/env node
+// fixture-lint: checks fixture integrity only. It confirms each eval fixture still
+// contains the terms that describe its planted gap and that assembled reviewer
+// prompts still contain required probes. It does NOT run a reviewer model and does
+// NOT measure reviewer recall or precision (those fields report "not_measured").
+// The filename is kept as run-review-evals.mjs for compatibility with existing
+// references; validate-all.mjs runs it as the "fixture-lint" lane.
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
@@ -16,11 +22,12 @@ import {
 ensureNode18();
 
 const scriptName = "run-review-evals.mjs";
+const usageNote = "fixture-lint: checks fixture integrity and assembled-prompt probes only; does not run a reviewer model or measure reviewer recall or precision.";
 
 try {
   const opts = parseCommonArgs(process.argv.slice(2));
   if (opts.help) {
-    process.stdout.write(`${usage(scriptName, "[--json]")}\n`);
+    process.stdout.write(`${usage(scriptName, "[--json]")}\n${usageNote}\n`);
     process.exit(EXIT_CODES.ok);
   }
   if (opts.version) {
@@ -124,7 +131,7 @@ try {
     process.stdout.write(`recommendation: ${report.recommendation}\n`);
   }
 } catch (error) {
-  process.stderr.write(`${usage(scriptName, "[--json]")}\n`);
+  process.stderr.write(`${usage(scriptName, "[--json]")}\n${usageNote}\n`);
   process.stderr.write(`validation error: ${error.message}\n`);
   process.exit(error.exitCode || EXIT_CODES.internal);
 }

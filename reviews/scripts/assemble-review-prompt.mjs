@@ -5,13 +5,17 @@ import {
   CONTRACT_VERSION,
   EXIT_CODES,
   computeArtifactSha,
+  encodeIntentCard,
   encodePromptData,
   ensureNode18,
   isRepoRelativePath,
+  notFoundMessage,
+  PACKAGE_ROOT,
   parseCommonArgs,
+  projectRootFrom,
   readJsonFile,
+  readRegistry,
   readTextFile,
-  repoRootFrom,
   renderTemplate,
   resolveReviewInput,
   resolveRepoPath,
@@ -22,6 +26,17 @@ import {
 ensureNode18();
 
 const scriptName = "assemble-review-prompt.mjs";
+const usageText = "--target <path> --lens <id|manifest|path> --pass-id <id> (--review-input <path> | --feature-request <text>) [--relevant-context <text>] [--constraints <text>] [--previous-adjudications <text>] [--root <path>] [--out <path>] [--json]";
+
+// The lens manifest owns cross-cutting ownership; the packet states it so the
+// reviewer covers its own categories and skips the rest.
+function describeOwnership(manifest) {
+  const { primary = [], secondary = [] } = manifest.cross_cutting_ownership || {};
+  const parts = [];
+  if (primary.length > 0) parts.push(`${primary.join(", ")} (primary)`);
+  if (secondary.length > 0) parts.push(`${secondary.join(", ")} (secondary)`);
+  return parts.join("; ") || "no cross-cutting category";
+}
 
 function toRepo(root, input) {
   if (isRepoRelativePath(input)) return input;
@@ -31,7 +46,7 @@ function toRepo(root, input) {
 try {
   const opts = parseCommonArgs(process.argv.slice(2));
   if (opts.help) {
-    process.stdout.write(`${usage(scriptName, "--target <path> --lens <id|manifest|path> --pass-id <id> (--review-input <path> | --feature-request <text>) [--relevant-context <text>] [--constraints <text>] [--previous-adjudications <text>] [--out <path>] [--json]")}\n`);
+    process.stdout.write(`${usage(scriptName, usageText)}\n`);
     process.exit(EXIT_CODES.ok);
   }
   if (opts.version) {
@@ -39,17 +54,17 @@ try {
     process.exit(EXIT_CODES.ok);
   }
   if (!opts.target || !opts.lens || !opts.passId) {
-    process.stderr.write(`${usage(scriptName, "--target <path> --lens <id|manifest|path> --pass-id <id> (--review-input <path> | --feature-request <text>) [--out <path>]")}\n`);
+    process.stderr.write(`${usage(scriptName, usageText)}\n`);
     process.stderr.write(`validation error: missing --target, --lens, or --pass-id\n`);
     process.exit(EXIT_CODES.usage);
   }
 
-  const root = repoRootFrom(import.meta.url);
-  const registry = readJsonFile(join(root, "reviews", "registry.json"));
+  const root = projectRootFrom(opts);
+  const registry = readRegistry();
   const targetPath = toRepo(root, opts.target);
   const targetResolved = resolveRepoPath(root, targetPath);
   if (!targetResolved || !existsSync(targetResolved)) {
-    process.stderr.write(`validation error: target not found ${targetPath}\n`);
+    process.stderr.write(`validation error: ${notFoundMessage(root, targetPath, "target")}\n`);
     process.exit(EXIT_CODES.read);
   }
 
@@ -57,23 +72,23 @@ try {
   const lensById = registry.lenses.find((entry) => entry.id === opts.lens);
   if (lensById) lensManifestPath = lensById.manifest_path;
   if (lensManifestPath.endsWith(".md")) {
-    const lensPath = toRepo(root, lensManifestPath);
+    const lensPath = toRepo(PACKAGE_ROOT, lensManifestPath);
     lensManifestPath = registry.lenses
       .map((entry) => entry.manifest_path)
-      .find((path) => readJsonFile(join(root, path)).prompt_path === lensPath);
+      .find((path) => readJsonFile(join(PACKAGE_ROOT, path)).prompt_path === lensPath);
   }
   if (!lensManifestPath) {
     process.stderr.write(`validation error: unknown lens ${opts.lens}\n`);
     process.exit(EXIT_CODES.usage);
   }
-  const lensManifest = readJsonFile(join(root, lensManifestPath));
+  const lensManifest = readJsonFile(join(PACKAGE_ROOT, lensManifestPath));
   const templatePath = registry.entrypoints.reviewer_template;
-  const template = readTextFile(join(root, templatePath));
-  const lensText = readTextFile(join(root, lensManifest.prompt_path));
+  const template = readTextFile(join(PACKAGE_ROOT, templatePath));
+  const lensText = readTextFile(join(PACKAGE_ROOT, lensManifest.prompt_path));
   const targetText = readTextFile(targetResolved);
   const targetRevision = computeArtifactSha(root, targetPath);
-  const templateRevision = computeArtifactSha(root, templatePath);
-  const lensRevision = computeArtifactSha(root, lensManifest.prompt_path);
+  const templateRevision = computeArtifactSha(PACKAGE_ROOT, templatePath);
+  const lensRevision = computeArtifactSha(PACKAGE_ROOT, lensManifest.prompt_path);
   const reviewInput = resolveReviewInput(root, opts);
 
   const prompt = renderTemplate(template, {
@@ -84,10 +99,12 @@ try {
     template_revision: templateRevision,
     lens_revision: lensRevision,
     feature_request: encodePromptData(reviewInput.record.feature_request),
+    intent_card: encodeIntentCard(reviewInput.record.intent),
     proposed_plan: encodePromptData(targetText),
     relevant_context: encodePromptData(reviewInput.record.relevant_context),
     constraints: encodePromptData(reviewInput.record.constraints),
     review_lens: lensText,
+    cross_cutting_owned: describeOwnership(lensManifest),
     previous_adjudications: encodePromptData(reviewInput.record.previous_adjudications)
   });
 
@@ -130,7 +147,7 @@ try {
     }
   }
 } catch (error) {
-  process.stderr.write(`${usage(scriptName, "--target <path> --lens <id|manifest|path> --pass-id <id> (--review-input <path> | --feature-request <text>) [--out <path>]")}\n`);
+  process.stderr.write(`${usage(scriptName, usageText)}\n`);
   process.stderr.write(`validation error: ${error.message}\n`);
   process.exit(error.exitCode || EXIT_CODES.internal);
 }

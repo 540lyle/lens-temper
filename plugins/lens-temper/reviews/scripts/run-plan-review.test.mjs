@@ -199,22 +199,46 @@ test("omitted --lens uses the canonical selector and binds its audit artifact", 
   }
 });
 
-test("default core profile handles domain-light input while empty explicit scope fails", () => {
+test("default selection follows the spec's domains like select-lenses, and the core profile is opt-in", () => {
+  const focusedOut = makeOutDir();
   const ambiguousOut = makeOutDir();
+  const coreOut = makeOutDir();
   const emptyOut = makeOutDir();
   const sourceDir = makeOutDir();
   try {
+    const request = "Add a user-facing dialog with an error state.";
+    const selected = execFileSync(node, [
+      "reviews/scripts/select-lenses.mjs",
+      "--target", target,
+      "--feature-request", request
+    ], { cwd: repoRoot, encoding: "utf8" }).trim().split("\n");
+    execFileSync(node, [
+      "reviews/scripts/run-plan-review.mjs",
+      "--target", target,
+      "--pass-id", "runner-focused-selection",
+      "--out", repoPath(focusedOut),
+      "--feature-request", request
+    ], { cwd: repoRoot, encoding: "utf8" });
+    const focused = JSON.parse(readFileSync(join(focusedOut, "ledger.json"), "utf8"));
+    assert.deepEqual(focused.selected_lenses, selected, "both scripts pick the same lenses for the same input");
+    assert.equal(focused.run_scope, "selected_lenses");
+    assert.equal(JSON.parse(readFileSync(join(focusedOut, "lens-selection.json"), "utf8")).mode, "deterministic");
+
     const ambiguousTarget = join(sourceDir, "ambiguous.md");
     writeFileSync(ambiguousTarget, "# Internal Fixture\n\nNo domain details supplied.\n", "utf8");
-    const ambiguous = spawnSync(node, [
+    const ambiguousArgs = [
       "reviews/scripts/run-plan-review.mjs",
       "--target", repoPath(ambiguousTarget),
       "--pass-id", "runner-ambiguous-selection",
-      "--out", repoPath(ambiguousOut),
       "--feature-request", "Build an internal fixture."
-    ], { cwd: repoRoot, encoding: "utf8" });
-    assert.equal(ambiguous.status, 0);
-    const coreLedger = JSON.parse(readFileSync(join(ambiguousOut, "ledger.json"), "utf8"));
+    ];
+    const ambiguous = spawnSync(node, [...ambiguousArgs, "--out", repoPath(ambiguousOut)], { cwd: repoRoot, encoding: "utf8" });
+    assert.equal(ambiguous.status, 2);
+    assert.match(ambiguous.stderr, /clarification required: .*--core-profile standard-v2/);
+    assert.deepEqual(readdirSync(ambiguousOut), []);
+
+    execFileSync(node, [...ambiguousArgs, "--out", repoPath(coreOut), "--core-profile", "standard-v2"], { cwd: repoRoot, encoding: "utf8" });
+    const coreLedger = JSON.parse(readFileSync(join(coreOut, "ledger.json"), "utf8"));
     assert.equal(coreLedger.run_scope, "core_profile");
     assert.equal(coreLedger.core_profile_id, "standard-v2");
     assert.equal(coreLedger.required_lens_ids.length, 7);
@@ -233,13 +257,28 @@ test("default core profile handles domain-light input while empty explicit scope
     assert.match(empty.stderr, /must contain at least one lens id/);
     assert.deepEqual(readdirSync(emptyOut), []);
   } finally {
-    rmSync(ambiguousOut, { recursive: true, force: true });
-    rmSync(emptyOut, { recursive: true, force: true });
-    rmSync(sourceDir, { recursive: true, force: true });
+    for (const dir of [focusedOut, ambiguousOut, coreOut, emptyOut, sourceDir]) rmSync(dir, { recursive: true, force: true });
   }
 });
 
-test("runner supports explicit all-lenses scope", () => {
+test("a focused selection that touches irreversible work names the opt-in core profile", () => {
+  const outDir = makeOutDir();
+  try {
+    const output = execFileSync(node, [
+      "reviews/scripts/run-plan-review.mjs",
+      "--target", target,
+      "--pass-id", "runner-irreversible-hint",
+      "--out", repoPath(outDir),
+      "--feature-request", "Run a schema change with a backfill of stored records."
+    ], { cwd: repoRoot, encoding: "utf8" });
+    assert.match(output, /hint: the plan touches [^;]*migration-and-data[^;]*; .*--core-profile standard-v2/);
+    assert.equal(JSON.parse(readFileSync(join(outDir, "ledger.json"), "utf8")).run_scope, "selected_lenses");
+  } finally {
+    rmSync(outDir, { recursive: true, force: true });
+  }
+});
+
+test("runner supports explicit all-lenses scope as a valid selected-lens run", () => {
   const outDir = makeOutDir();
   try {
     execFileSync(node, [
@@ -254,9 +293,10 @@ test("runner supports explicit all-lenses scope", () => {
     const ledger = JSON.parse(readFileSync(join(outDir, "ledger.json"), "utf8"));
     assert.equal(selection.mode, "all_lenses");
     assert.equal(selection.selected_lenses.length, 8);
-    assert.equal(ledger.run_scope, "core_profile");
-    assert.equal(ledger.core_profile_id, "standard-v2");
-    assert.deepEqual(ledger.required_lens_ids, selection.selected_lenses);
+    // The core profile is opt-in: every lens is still a selected-lens run.
+    assert.equal(ledger.run_scope, "selected_lenses");
+    assert.equal(ledger.core_profile_id, undefined);
+    execFileSync(node, ["reviews/scripts/validate-ledger.mjs", `${repoPath(outDir)}/ledger.json`, "--target-revision", ledger.target_revision], { cwd: repoRoot, encoding: "utf8" });
   } finally {
     rmSync(outDir, { recursive: true, force: true });
   }
@@ -284,12 +324,52 @@ test("runner unions a validated evidence-backed lens proposal", () => {
       "--lens-proposal", repoPath(proposalPath)
     ], { cwd: repoRoot, encoding: "utf8" });
     const selection = JSON.parse(readFileSync(join(outDir, "lens-selection.json"), "utf8"));
-    assert.equal(selection.mode, "core_profile_plus_llm_additions");
+    assert.equal(selection.mode, "deterministic_plus_llm_additions");
     assert.equal(selection.deterministic_lenses.includes("natty"), false);
     assert.equal(selection.selected_lenses.includes("natty"), true);
     assert.equal(selection.llm_additions[0].evidence.includes("Target:"), true);
   } finally {
     rmSync(outDir, { recursive: true, force: true });
     rmSync(sourceDir, { recursive: true, force: true });
+  }
+});
+
+test("the standalone orchestrator packet defaults to the same focused selection", () => {
+  const outDir = makeOutDir();
+  try {
+    const args = ["--target", target, "--review-input", reviewInput];
+    const selected = execFileSync(node, ["reviews/scripts/select-lenses.mjs", ...args], { cwd: repoRoot, encoding: "utf8" }).trim().split("\n");
+    execFileSync(node, [
+      "reviews/scripts/assemble-orchestrator-prompt.mjs", ...args,
+      "--pass-id", "orchestrator-default-selection",
+      "--out", `${repoPath(outDir)}/orchestrator.md`
+    ], { cwd: repoRoot, encoding: "utf8" });
+    const packet = readFileSync(join(outDir, "orchestrator.md"), "utf8");
+    const listed = [...packet.matchAll(/^- ([a-z-]+): manifest /gm)].map((match) => match[1]);
+    assert.deepEqual(listed, selected);
+    assert.match(packet, /Run scope: `selected_lenses`/);
+  } finally {
+    rmSync(outDir, { recursive: true, force: true });
+  }
+});
+
+test("events log and detached lifecycle checks are an opt-in audit", () => {
+  const outDir = makeOutDir();
+  try {
+    const ledger = JSON.parse(readFileSync(join(repoRoot, "reviews", "examples", "review-ledger.valid-detached-completed.json"), "utf8"));
+    const events = readFileSync(join(repoRoot, ledger.events_path), "utf8").split("\n").filter((line) => line && !line.includes("reviewer_closed"));
+    writeFileSync(join(outDir, "events.jsonl"), `${events.join("\n")}\n`, "utf8");
+    writeFileSync(join(outDir, "ledger.json"), `${JSON.stringify({ ...ledger, events_path: `${repoPath(outDir)}/events.jsonl` }, null, 2)}\n`, "utf8");
+    const validate = (extra = []) => spawnSync(node, [
+      "reviews/scripts/validate-ledger.mjs", `${repoPath(outDir)}/ledger.json`,
+      "--target-revision", ledger.target_revision,
+      ...extra
+    ], { cwd: repoRoot, encoding: "utf8" });
+    assert.equal(validate().status, 0, "a detached run without reviewer_closed events passes the default check");
+    const audited = validate(["--audit"]);
+    assert.equal(audited.status, 1);
+    assert.match(audited.stderr, /event reviewer_closed/);
+  } finally {
+    rmSync(outDir, { recursive: true, force: true });
   }
 });

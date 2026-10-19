@@ -46,8 +46,9 @@ LensTemper turns the critique-agent pattern into a spec-review system:
 - detached-context subagents that receive no planning conversation or history
 - reviewers read the current spec directly from the workspace
 - narrower per-reviewer context, with an explicit multi-agent token tradeoff
-- explicit scoring and materiality rules
-- reruns only for lenses affected by spec changes
+- a materiality gate anchored to the plan's own goal
+- reruns only for lenses whose findings were applied or that you reopen, with
+  one automatic rerun at most
 - validated artifacts before completion claims
 - full, selected-lens, and inline modes with clear claim boundaries
 
@@ -85,14 +86,16 @@ In a full-review host such as Codex or Claude Code, the simplest prompt is:
 Use LensTemper to review docs/plans/my-plan.md.
 ```
 
-By default, LensTemper should run a full review with one detached-context
-reviewer subagent per selected lens, using the host's equivalent mechanism. A
+By default, LensTemper should run a full review of the lenses the plan's
+domains call for, with one detached-context reviewer subagent per selected lens,
+using the host's equivalent mechanism. A
 detached-context reviewer receives none of the host, parent, or orchestrator
 conversation or history and reads only its run packet and permitted workspace
 files. If the host cannot provide that isolation, the review should stop instead
 of silently falling back to inline/advisory mode.
 
-To force the standard core profile:
+To opt into the full standard core profile, for irreversible work such as
+migrations, authorization, money, or tool authority:
 
 ```text
 Run a full LensTemper standard-v2 core review of docs/plans/my-plan.md.
@@ -118,23 +121,46 @@ and cannot produce lockable completion claims.
 
 | Need | Use |
 |------|-----|
-| Highest-confidence spec review | Full standard-v2 core-profile review |
-| Narrow risk area | Selected-lens full review |
+| Most plans | Full review of the lenses the plan's domains select (the default) |
+| Irreversible work: migrations, authorization, money, tool authority | Full standard-v2 core-profile review (opt-in) |
+| Narrow risk area | Full review of lenses you name |
 | Fast early feedback | Inline advisory review |
-| Verify fixes after review | Rerun decider, then rerun affected lenses |
+| Recheck after you edit the spec | Rerun decider, then rerun affected lenses |
 
 ## What You Get Back
 
-A normal LensTemper run should give you:
+A normal LensTemper run ends with `Review delivered: N blocking gaps, K minor issues, M
+questions`:
 
-- per-lens findings with material blockers separated from polish
-- a synthesized readiness assessment
-- recommended spec changes before implementation starts
-- rerun guidance after the spec changes
+- blocking gaps: the plan's goal fails without a fix
+- questions for the plan's owner in plain language, with the choices and what
+  each leads to, ranked by consequence, none dropped
+- minor issues the owner or developer should still see, never hidden behind a
+  score and never applied automatically
+- notes, archived with the review
+- recommended changes, each an add, clarify, or remove that names the goal it
+  serves, plus a scope delta of what the changes add and remove
 - artifact and validation evidence for any completion claim
 
-The goal is not more review theater. The goal is a clearer spec and fewer
-surprises when a coding agent or engineer starts implementation.
+Synthesis filters findings against the plan's goal instead of merging them: a
+finding that adds scope the goal did not ask for is rejected with that reason,
+and a decision that belongs to you comes back as a question. If the goal is to
+remove or simplify and the accepted changes would grow the plan, the verdict is
+`Goal drift`.
+
+To state the goal instead of letting reviewers infer it, add an optional intent
+card (goals with ids, non-goals, surfaces that must not grow, and trade-offs
+already decided) to the review input. See
+[reviews/README.md](reviews/README.md#recommended-prompt-assembly).
+
+LensTemper never edits your spec on its own; by default you decide what to
+apply. In opt-in auto mode (`--apply-mode auto`) the host may apply only
+accepted blocking fixes that cite a stated goal, then runs one rerun of the
+affected lenses and stops; questions and minor issues still wait for you.
+
+The goal is not more review theater or a longer spec. The goal is a plan that
+still does what its author wanted, with fewer surprises when a coding agent or
+engineer starts implementation.
 
 ## Which Skill Should I Choose?
 
@@ -167,19 +193,21 @@ If you are unsure, pick `Start Plan Review`.
 LensTemper has three run families:
 
 - `full_hosted`: the current agent orchestrates fresh lens-reviewer subagents.
-- `full_detached`: a fresh orchestrator owns the run, reviewers, synthesis,
-  reruns, archive, and completion claims.
+- `full_detached` (opt-in): a fresh orchestrator owns the run, reviewers,
+  synthesis, reruns, archive, and completion claims; its event log is checked
+  with `validate-ledger.mjs --audit`.
 - `inline`: a current-context advisory review. Use this only when explicitly
   requested.
 
 A full run typically follows this path:
 
-1. Choose lenses based on the plan's risk.
-2. Hash the target plan/spec so stale review output can be detected.
+1. Choose lenses from the plan's domains (or the full core profile, opt-in).
+2. Hash the target plan/spec so each review records the revision it read.
 3. Create a ledger and prompt packets for the selected lenses.
 4. Spawn one detached-context reviewer subagent per selected lens.
 5. Capture structured reviewer outputs.
-6. Synthesize findings, decide materiality, and select reruns if needed.
+6. Filter findings against the goal and deliver blocking gaps, questions, and
+   minor issues.
 7. Archive final artifacts and report what the evidence supports.
 
 The detailed agent-facing contract lives in [reviews/README.md](reviews/README.md).
@@ -209,7 +237,7 @@ LensTemper's `standard-v2` profile requires seven core lenses:
 | Risk | Rollout risk, regressions, failure modes, observability, recovery |
 | Security | Trust boundaries, authn/authz, secrets, injection, SSRF, exploitability |
 | Test Strategy | Coverage, edge cases, validation, regression prevention |
-| Product & UX | User-visible behavior, states, copy, recovery paths, accessibility |
+| Product & UX | User-visible behavior, states, recovery paths, accessibility |
 | Data Model | Schemas, storage, migrations, compatibility, integrity |
 
 Natty is a triggered specialist for probabilistic-to-authoritative boundaries:
@@ -221,19 +249,22 @@ is detected, Natty becomes required for that run; otherwise she is omitted.
 
 ## When To Use The Core Profile
 
-Use the full core-profile pass when the plan is broad, high-risk, or intended to
-be implementation-ready without more human interpretation. Examples:
+The default review runs the lenses the plan's domains select. Opt into the full
+core profile (`--core-profile standard-v2`) when a mistake would be hard to
+undo:
 
-- a new user-facing workflow
-- persistence or saved-state behavior
-- cross-module contracts
-- migrations or irreversible data changes
-- release or rollout plans
-- work that already had regressions or disputed review feedback
+- migrations or other irreversible data changes
+- authorization, authentication, or secrets
+- money: billing, payments, or pricing
+- tool or model authority: what an agent or model may write or dispatch
 
-Only a full run whose named core profile passes may make an unqualified
-`LensTemper pass complete` claim. The required set may include triggered
-specialists without changing the core profile's identity.
+When a focused selection touches migration, security, or model-authority
+domains, the scripts print a hint naming the opt-in. Only a full run whose
+named core profile passes may make an unqualified `LensTemper pass complete`
+claim. A focused run delivers its review as `Review delivered: N blocking gaps,
+K minor issues, M questions`, labeled `Full LensTemper review for selected
+lenses only`. The required set may include triggered specialists without
+changing the core profile's identity.
 
 ## When To Compose Individual Lenses
 
@@ -260,11 +291,11 @@ Use inline/advisory mode for quick feedback, but label it honestly.
 
 ## Examples
 
-### Full Plan Review
+### Core-Profile Review (Opt-In)
 
 ```text
 Use LensTemper to run a full standard-v2 core-profile review of
-docs/plans/saved-setups-v2.md. Spawn detached-context reviewer subagents, one
+docs/plans/saved-drafts-v2.md. Spawn detached-context reviewer subagents, one
 per lens, and do not fall back to inline review.
 ```
 
@@ -273,13 +304,6 @@ per lens, and do not fall back to inline review.
 ```text
 Use LensTemper to review docs/plans/import-export.md with Data Model,
 Implementation, and Test Strategy only.
-```
-
-### Rerun After Fixes
-
-```text
-Use LensTemper to decide which lenses need rerun after the edits to
-docs/plans/import-export.md, then rerun only affected lenses.
 ```
 
 ### Inline Advisory Review
@@ -308,7 +332,8 @@ docs/agent-flow.md              Full-run flow diagram
 
 ## Tooling
 
-Validate the reusable review contract and fixtures:
+Validate the reusable review contract and the package's own fixtures (a
+project's run is validated with the individual validators and `--ledger`):
 
 ```powershell
 node reviews/scripts/validate-review-fixtures.mjs
@@ -320,15 +345,33 @@ Useful helpers:
 
 ```powershell
 node reviews/scripts/run-plan-review.mjs --target docs/plans/my-plan.md --pass-id my-pass --review-input docs/plans/my-plan.review-input.json
-node reviews/scripts/assemble-review-prompt.mjs --target docs/plans/my-plan.md --lens implementation --pass-id my-pass --review-input docs/plans/my-plan.review-input.json
+node reviews/scripts/assemble-review-prompt.mjs --target docs/plans/my-plan.md --lens product-ux --pass-id my-pass --review-input docs/plans/my-plan.review-input.json --out my-pass.product-ux.prompt.md
+node reviews/scripts/update-ledger.mjs --ledger <run>/ledger.json --applied <finding-id> --summary "<what changed>" --write
 node reviews/scripts/run-review-evals.mjs
 ```
 
+Scripts resolve the target, run artifacts, and `reviews/archive/` against the
+current directory, or against `--root <project>` when given; the registry,
+lenses, and templates always come from the LensTemper package. To review a plan
+in another project, run the package's scripts from that project, for example
+`node <lens-temper>/reviews/scripts/run-plan-review.mjs --target docs/plan.md --pass-id p1 --lens product-ux --feature-request "..."`.
+
+`run-review-evals.mjs` is the `fixture-lint` lane of `validate-all.mjs`. It
+checks fixture integrity only: each eval fixture still contains the terms that
+describe its planted gap, and assembled reviewer prompts still contain required
+probes. It does not run a reviewer model and does not measure reviewer recall or
+precision; those report fields stay `not_measured`.
+
 `run-plan-review.mjs` validates and snapshots the review contract, resolves or
 validates lens scope, records `lens-selection.json`, then prepares ledgers and
-prompt packets. Omitting `--lens` selects the default core profile plus any
-deterministically triggered specialists; use `--all-lenses` only for an
-explicit complete-registry run. Reviewer execution is
+prompt packets in `reviews/archive/<yyyy-mm-dd>-<target-slug>-<pass-id>/`, the
+pass's run directory and archive, whose `ledger.json` is the pass's one ledger.
+Omitting `--lens` selects the lenses the plan's domains call for, the same
+selection `select-lenses.mjs` reports; `--core-profile standard-v2` opts into
+the full core profile, and `--all-lenses` is an explicit complete-registry run. `assemble-review-prompt.mjs` alone is the
+single-lens path with no ledger: one reviewer packet and nothing else.
+`update-ledger.mjs --applied` records an edit made after delivery in the
+ledger's `target_edits`. Reviewer execution is
 still provided by the host, such as Codex subagents, Claude subagents, Cursor
 Background Agents, or another verified fresh-agent mechanism. Cursor is
 conditional full only when its run proves fresh reviewer isolation and artifact

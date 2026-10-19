@@ -36,6 +36,10 @@ workflow from repository files instead of prior chat context.
 - Fail before spawning full-review agents when the feature request is missing;
   never replace a missing review contract with silent empty strings.
 - Close spawned reviewers after output capture.
+- Never edit the target as part of a review. Apply nothing unless the run is in
+  opt-in `auto` mode, and log any later edit in the ledger's `target_edits`,
+  citing a finding id or marked host-initiated, with
+  `update-ledger.mjs --ledger <run>/ledger.json (--applied <finding-id> | --host-initiated) --summary "<what changed>" --write`.
 - Label run mode honestly. Inline and advisory reviews cannot claim completed
   LensTemper passes, lock states, or lockable all-5 scores.
 
@@ -51,5 +55,5 @@ workflow from repository files instead of prior chat context.
   lockable or complete status.
 - Orchestrators must include the user-facing completion summary from
   `reviews/README.md`, including the per-lens score table, final assessment,
-  artifact path/storage status, accepted material findings, rerun or lock status,
+  artifact path/storage status, accepted material findings, lens state,
   and reviewer cleanup/validation evidence.

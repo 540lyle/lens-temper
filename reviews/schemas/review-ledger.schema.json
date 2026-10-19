@@ -74,10 +74,51 @@
     },
     "archive_paths": {
       "type": "array",
-      "items": { "type": "string" }
+      "items": { "type": "string" },
+      "description": "The first entry is the pass's archive: the run directory holding this ledger when create-ledger.mjs wrote it with --out. archive-review-run.mjs archives there."
     },
     "artifact_visibility": {
       "enum": ["public_safe", "private_local_only"]
+    },
+    "apply_mode": {
+      "description": "interactive (default) applies nothing by policy; auto (opt-in) may apply accepted blocking findings that cite a stated goal. Ledgers written before this field keep the policy rule on target_edits only.",
+      "enum": ["interactive", "auto"]
+    },
+    "pass_index": {
+      "description": "1 for the first pass of a lineage; absent means 1. Pass 2 is the one automatic rerun; later passes need human_approval.",
+      "type": "integer",
+      "minimum": 1
+    },
+    "parent_pass_id": { "type": "string", "minLength": 1 },
+    "parent_intent_revision": {
+      "description": "Intent card revision of the parent pass. A different current card requires intent.amended_by: human.",
+      "type": "string",
+      "minLength": 1
+    },
+    "human_approval": {
+      "type": "object",
+      "required": ["decided_by", "summary"],
+      "properties": {
+        "decided_by": { "const": "human" },
+        "summary": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": true
+    },
+    "rerun_decisions": {
+      "description": "Written by decide-reruns.mjs --write.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["lens", "reason"],
+        "properties": {
+          "lens": { "type": "string" },
+          "lens_state": { "enum": ["open", "settled"] },
+          "rerun_needed": { "type": "boolean" },
+          "reason": { "type": "string" },
+          "reviewed_in_pass": { "type": "boolean", "description": "false when the user reopened a lens this pass did not review." }
+        },
+        "additionalProperties": true
+      }
     },
     "completion_validation": {
       "type": "object",
@@ -121,7 +162,8 @@
         "required": ["record_id", "artifact_path"],
         "properties": {
           "record_id": { "type": "string" },
-          "artifact_path": { "type": "string" }
+          "artifact_path": { "type": "string" },
+          "artifact_sha": { "type": "string", "description": "Content hash of the record file, registered by update-ledger.mjs when it attaches the record and by archive-review-run.mjs. A file edited after attachment, or another file reusing the record_id, fails validation." }
         },
         "additionalProperties": true
       }
@@ -133,14 +175,58 @@
         "required": ["record_id", "artifact_path"],
         "properties": {
           "record_id": { "type": "string" },
-          "artifact_path": { "type": "string" }
+          "artifact_path": { "type": "string" },
+          "artifact_sha": { "type": "string", "description": "Content hash of the record file, registered by update-ledger.mjs when it attaches the record and by archive-review-run.mjs. A file edited after attachment, or another file reusing the record_id, fails validation." }
         },
+        "additionalProperties": true
+      }
+    },
+    "target_edits": {
+      "description": "Every edit a host or user makes to the target after this pass's delivery. Each cites a finding id or is logged as host-initiated.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["decided_by", "summary"],
+        "properties": {
+          "finding_id": { "type": "string", "minLength": 1 },
+          "host_initiated": { "const": true },
+          "decided_by": { "enum": ["human", "policy"] },
+          "summary": { "type": "string", "minLength": 1 }
+        },
+        "oneOf": [
+          { "required": ["finding_id"] },
+          { "required": ["host_initiated"] }
+        ],
+        "allOf": [
+          {
+            "if": { "required": ["decided_by"], "properties": { "decided_by": { "const": "policy" } } },
+            "then": { "required": ["finding_id"] }
+          }
+        ],
         "additionalProperties": true
       }
     }
   },
   "additionalProperties": true,
   "allOf": [
+    {
+      "if": {
+        "required": ["pass_index"],
+        "properties": { "pass_index": { "minimum": 2 } }
+      },
+      "then": {
+        "required": ["parent_pass_id", "parent_intent_revision"]
+      }
+    },
+    {
+      "if": {
+        "required": ["pass_index"],
+        "properties": { "pass_index": { "minimum": 3 } }
+      },
+      "then": {
+        "required": ["human_approval"]
+      }
+    },
     {
       "if": {
         "properties": {

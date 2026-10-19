@@ -8,9 +8,12 @@ import {
   ensureNode18,
   isRepoRelativePath,
   normalizeRepoInputPath,
+  notFoundMessage,
+  PACKAGE_ROOT,
   parseCommonArgs,
+  projectRootFrom,
   readJsonFile,
-  repoRootFrom,
+  readRegistry,
   resolveReviewInput,
   resolveRepoPath,
   usage,
@@ -20,23 +23,24 @@ import {
 ensureNode18();
 
 const scriptName = "assemble-spawn-prompt.mjs";
+const usageText = "--target <path> --lens <id|manifest|path> --pass-id <id> --input-packet <path> --review-input <path> [--root <path>] [--out <path>] [--json]";
 
-function resolveLensManifest(root, registry, lensInput) {
+function resolveLensManifest(registry, lensInput) {
   let lensManifestPath = lensInput;
   const lensById = registry.lenses.find((entry) => entry.id === lensInput);
   if (lensById) lensManifestPath = lensById.manifest_path;
   if (lensManifestPath.endsWith(".md")) {
-    const lensPath = normalizeRepoInputPath(root, lensManifestPath);
+    const lensPath = normalizeRepoInputPath(PACKAGE_ROOT, lensManifestPath);
     lensManifestPath = registry.lenses
       .map((entry) => entry.manifest_path)
-      .find((path) => readJsonFile(join(root, path)).prompt_path === lensPath);
+      .find((path) => readJsonFile(join(PACKAGE_ROOT, path)).prompt_path === lensPath);
   }
   if (!lensManifestPath || !isRepoRelativePath(lensManifestPath)) {
     throw Object.assign(new Error(`unknown lens ${lensInput}`), { exitCode: EXIT_CODES.usage });
   }
   return {
     path: lensManifestPath,
-    manifest: readJsonFile(join(root, lensManifestPath))
+    manifest: readJsonFile(join(PACKAGE_ROOT, lensManifestPath))
   };
 }
 
@@ -55,8 +59,12 @@ function buildSpawnPrompt({
   lensRevision,
   inputPacketPath,
   runScope,
-  executionMode
+  executionMode,
+  separatePackage
 }) {
+  const packageNote = separatePackage
+    ? "\nThe template, lens manifest, and lens prompt paths are relative to the LensTemper package, not this project; the prompt packet already contains their text.\n"
+    : "";
   return `Role: You are the fresh LensTemper ${lensDisplayName} lens reviewer for this one-lens handoff.
 
 # Goal
@@ -65,14 +73,20 @@ Review \`${targetPath}\` through the ${lensDisplayName} lens and return a valid 
 # Success Criteria
 - Treat the current repository checkout as the source of truth.
 - Read the prompt packet at \`${inputPacketPath}\`.
-- Verify the target, review input, template, and lens revisions before reviewing.
 - Review exactly one lens: \`${lensId}\` (${lensDisplayName}).
-- Return exactly the sections required by \`${templatePath}\`.
-- Complete the cross-cutting sweep and stateful workflow sweep.
+- Apply the template's Goal Gate first, using the packet's intent card as the
+  goal reference when one is supplied. Raise \`[critical]\` or \`[major]\` only
+  when the gate is met, and ask pending owner decisions without answering them.
+  A sound plan can have zero findings: do not pad a review, and do not hold
+  back a finding that meets the gate.
 - Challenge whether the plan gives an implementation agent enough concrete
-  guidance to avoid inventing behavior.
+  guidance to avoid inventing behavior the goal depends on.
+- Return exactly the sections required by \`${templatePath}\`.
+- Review the cross-cutting categories the packet says your lens owns; the
+  Implementation lens owns the stateful workflow sweep.
 - Include score-challenge evidence for every \`5/5\`.
-- Report missing files or revision mismatches as input problems.
+- Report missing or unreadable files as input problems. The scripts record
+  provenance and revisions; do not repeat them.
 
 # Context
 Pass ID: \`${passId}\`
@@ -87,7 +101,7 @@ Paths:
 - lens prompt: \`${lensPromptPath}\`
 - prompt packet: \`${inputPacketPath}\`
 - review input: \`${reviewInputPath}\`
-
+${packageNote}
 Revisions:
 - target: \`${targetRevision}\`
 - review input: \`${reviewInputRevision}\`
@@ -95,7 +109,7 @@ Revisions:
 - lens: \`${lensRevision}\`
 
 # Constraints
-Read-only. Do not edit files, update ledgers, inspect sibling review outputs, or synthesize multi-review feedback.
+Read-only. Do not edit the target spec or any other file, update ledgers, inspect sibling review outputs, or synthesize multi-review feedback.
 Ignore inherited conversation context.
 `;
 }
@@ -111,7 +125,7 @@ function lensManifestDisplayName(lensId) {
 try {
   const opts = parseCommonArgs(process.argv.slice(2));
   if (opts.help) {
-    process.stdout.write(`${usage(scriptName, "--target <path> --lens <id|manifest|path> --pass-id <id> --input-packet <path> --review-input <path> [--out <path>] [--json]")}\n`);
+    process.stdout.write(`${usage(scriptName, usageText)}\n`);
     process.exit(EXIT_CODES.ok);
   }
   if (opts.version) {
@@ -119,43 +133,43 @@ try {
     process.exit(EXIT_CODES.ok);
   }
   if (!opts.target || !opts.lens || !opts.passId || !opts.inputPacket || !opts.reviewInput) {
-    process.stderr.write(`${usage(scriptName, "--target <path> --lens <id|manifest|path> --pass-id <id> --input-packet <path> --review-input <path> [--out <path>]")}\n`);
+    process.stderr.write(`${usage(scriptName, usageText)}\n`);
     process.stderr.write(`validation error: missing --target, --lens, --pass-id, --input-packet, or --review-input\n`);
     process.exit(EXIT_CODES.usage);
   }
 
-  const root = repoRootFrom(import.meta.url);
-  const registry = readJsonFile(join(root, "reviews", "registry.json"));
+  const root = projectRootFrom(opts);
+  const registry = readRegistry();
   const targetPath = normalizeRepoInputPath(root, opts.target);
   if (!targetPath) {
-    process.stderr.write(`validation error: --target must resolve under the repository root\n`);
+    process.stderr.write(`validation error: --target must resolve under the project root ${root}\n`);
     process.exit(EXIT_CODES.usage);
   }
   const targetResolved = resolveRepoPath(root, targetPath);
   if (!targetResolved || !existsSync(targetResolved)) {
-    process.stderr.write(`validation error: target not found ${targetPath}\n`);
+    process.stderr.write(`validation error: ${notFoundMessage(root, targetPath, "target")}\n`);
     process.exit(EXIT_CODES.read);
   }
 
   const inputPacketPath = normalizeRepoInputPath(root, opts.inputPacket);
   if (!inputPacketPath) {
-    process.stderr.write(`validation error: --input-packet must resolve under the repository root\n`);
+    process.stderr.write(`validation error: --input-packet must resolve under the project root ${root}\n`);
     process.exit(EXIT_CODES.usage);
   }
   const inputPacketResolved = resolveRepoPath(root, inputPacketPath);
   if (!inputPacketResolved || !existsSync(inputPacketResolved)) {
-    process.stderr.write(`validation error: input packet not found ${inputPacketPath}\n`);
+    process.stderr.write(`validation error: ${notFoundMessage(root, inputPacketPath, "input packet")}\n`);
     process.exit(EXIT_CODES.read);
   }
 
-  const lens = resolveLensManifest(root, registry, opts.lens);
+  const lens = resolveLensManifest(registry, opts.lens);
   const reviewInput = resolveReviewInput(root, opts);
   const templatePath = registry.entrypoints.reviewer_template;
   const lensPromptPath = lens.manifest.prompt_path;
   const lensDisplayName = lens.manifest.display_name || lensManifestDisplayName(lens.manifest.id);
   const targetRevision = computeArtifactSha(root, targetPath);
-  const templateRevision = computeArtifactSha(root, templatePath);
-  const lensRevision = computeArtifactSha(root, lensPromptPath);
+  const templateRevision = computeArtifactSha(PACKAGE_ROOT, templatePath);
+  const lensRevision = computeArtifactSha(PACKAGE_ROOT, lensPromptPath);
   const runScope = opts.runScope || "selected_lenses";
   const executionMode = opts.executionMode || "fresh_spawned_lens_reviewers";
   const prompt = buildSpawnPrompt({
@@ -173,7 +187,8 @@ try {
     lensRevision,
     inputPacketPath,
     runScope,
-    executionMode
+    executionMode,
+    separatePackage: root !== PACKAGE_ROOT
   });
 
   if (opts.out) {
@@ -215,7 +230,7 @@ try {
     process.stdout.write(prompt);
   }
 } catch (error) {
-  process.stderr.write(`${usage(scriptName, "--target <path> --lens <id|manifest|path> --pass-id <id> --input-packet <path> --review-input <path> [--out <path>]")}\n`);
+  process.stderr.write(`${usage(scriptName, usageText)}\n`);
   process.stderr.write(`validation error: ${error.message}\n`);
   process.exit(error.exitCode || EXIT_CODES.internal);
 }

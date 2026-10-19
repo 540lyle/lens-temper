@@ -17,8 +17,9 @@
       "id": "stateful-workflow",
       "lenses": ["architecture", "implementation", "test-strategy"],
       "phrases": [
-        "state transition", "state ownership", "stateful", "saved state", "save", "load",
-        "restore", "delete", "reset", "defer", "deferred", "apply"
+        "state transition", "state ownership", "stateful", "saved state", "save", "load saved",
+        "loads saved", "load a saved", "load the saved", "load state", "reload", "restore",
+        "delete", "reset", "defer", "deferred", "apply"
       ]
     },
     {
@@ -67,7 +68,10 @@
       "lenses": ["security"],
       "phrases": [
         "security", "privacy", "authorization", "authentication", "authn", "authz",
-        "secret", "credential", "token", "trust boundary", "privilege", "injection",
+        "secret", "credential", "password", "api key", "oauth", "jwt", "access token",
+        "bearer token", "auth token", "api token", "refresh token", "session token",
+        "id token", "csrf token", "token scope",
+        "trust boundary", "privilege", "injection",
         "ssrf", "rce", "path traversal", "untrusted input", "external payload",
         "outbound request", "redirect", "allowlist"
       ]
@@ -97,14 +101,14 @@
             "no llm or model generated", "no model generated state", "without an llm"
           ],
           "all_of": [
-            ["llm", "language model", "model", "ai", "assistant"],
+            ["llm", "language model", "ai", "assistant"],
             ["structured output", "json", "schema", "tool argument", "tool arguments", "identity", "confidence", "filter", "state", "write", "persist", "authoritative narration", "narration"]
           ]
         },
         {
           "id": "model-selected-tool-or-route",
           "all_of": [
-            ["llm", "language model", "model", "ai", "assistant"],
+            ["llm", "language model", "ai", "assistant"],
             ["choose tool", "chooses tool", "choose which tool", "chooses which tool", "select tool", "selects tool", "select which tool", "selected tool", "tool call", "route", "routing", "dispatcher"]
           ]
         },
@@ -116,7 +120,7 @@
           ],
           "all_of": [
             ["tool output", "tool result", "tool response", "mcp result", "api response", "rag", "retrieval result", "retrieved document", "retrieved context"],
-            ["model context", "prompt", "llm", "model", "assistant", "decision", "resolve", "route", "routing", "narration"]
+            ["model context", "prompt", "llm", "language model", "assistant", "decision", "resolve", "route", "routing", "narration"]
           ]
         },
         {

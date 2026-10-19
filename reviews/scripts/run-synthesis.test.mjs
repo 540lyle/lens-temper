@@ -16,8 +16,9 @@ test("synthesis helper preserves the canonical review contract", () => {
   assert.match(prompt, /Context sentinel/);
   assert.match(prompt, /Constraint sentinel/);
   assert.match(prompt, /sha256:[a-f0-9]{64}/);
-  assert.match(prompt, /### Consolidated Critique/);
-  assert.doesNotMatch(prompt, /\{\{(?:feature_request|relevant_context|constraints|review_outputs|review_input_revision)\}\}/);
+  assert.match(prompt, /### Questions for the Author/);
+  assert.match(prompt, /No intent card supplied/);
+  assert.doesNotMatch(prompt, /\{\{(?:feature_request|intent_card|relevant_context|constraints|review_outputs|review_input_revision)\}\}/);
 });
 
 test("full synthesis rejects loose review Markdown", () => {

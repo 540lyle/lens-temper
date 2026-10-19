@@ -29,21 +29,15 @@ Security is owned by the Security lens. Report a security issue here only when
 it directly changes rollout, containment, observability, rollback, or recovery;
 do not duplicate exploit analysis or treat Security as a Risk subcategory.
 
-## Stateful Workflow Ownership
+## Stateful Workflows
 
-For plans involving restore, load, save, update, delete, reset, deferred apply,
-planner/apply separation, persisted records, or active application state, own
-these checks:
-
-- Can durable records, active state, and visible state diverge silently?
-- Can a user action during deferred restore corrupt saved data or make rollback ambiguous?
-- Is there a rollback, kill switch, or safe recovery path if persisted or active state handling is wrong?
-- Are stale-state, mixed-snapshot, partial-failure, and duplicate-action failures observable and diagnosable?
-- Is the blast radius bounded if legacy records or omitted fields are interpreted incorrectly?
+The Implementation lens owns the stateful workflow sweep. Raise a stateful
+issue here only when it changes rollback, recovery, observability, or blast
+radius enough to meet the goal gate.
 
 ## Red Flags
 
-Apply the materiality gate before lowering a score: would this risk justify changing the plan before implementation? If not, record it as non-blocking polish and do not let it prevent a `5/5`. Treat the list below as examples of issues to watch for, not a checklist that must produce findings.
+Apply the goal gate from the reviewer template before lowering a score: does this risk meet it? If not, it does not lower the score or block a `5/5`. Treat the list below as examples of issues to watch for, not a checklist that must produce findings.
 
 Flag and classify as `[critical]`, `[major]`, or `[minor]`:
 - No rollback path defined

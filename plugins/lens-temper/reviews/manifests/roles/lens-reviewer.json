@@ -11,9 +11,9 @@
     "Review the target plan through exactly one assigned lens.",
     "Read current referenced files directly from disk when workspace access is available.",
     "Return only the structured output required by reviewer-template.md.",
-    "Complete the cross-cutting sweep without silently skipping categories.",
+    "Review the cross-cutting categories the lens owns; raise other categories only at the goal gate.",
     "Provide score challenge evidence for every 5/5 score.",
-    "Report input provenance so JSON records can distinguish direct workspace reads from provided packets.",
+    "Report which inputs were read directly from the workspace and which came from a provided packet; scripts stamp pass, target, and revision provenance.",
     "Avoid inherited context, other reviewers' conclusions, and unsupported repository assumptions."
   ],
   "inputs": [
@@ -42,7 +42,7 @@
     "Scores must use the six standard dimensions.",
     "Any score below 5/5 must be tied to a material issue.",
     "Any score of 5/5 must explain why a material score-lowering issue is absent.",
-    "The reported target_revision must match the prompt target_revision.",
-    "The reported review_input_revision must match the prompt review_input_revision."
+    "The attached review record's target_revision matches the ledger; update-ledger.mjs stamps it when the record omits it.",
+    "The attached review record's review_input_revision matches the ledger; update-ledger.mjs stamps it when the record omits it."
   ]
 }

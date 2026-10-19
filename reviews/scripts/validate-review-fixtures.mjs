@@ -199,9 +199,11 @@ function validateFixture(root, type, repoPath, ledger) {
     });
   }
   if (type === "ledger") {
+    // Ledger fixtures exercise the opt-in events audit as well.
     return validateLedgerRecord(record, {
       artifactRoot: root,
       targetRevision: TARGET_REVISION,
+      audit: true,
       artifactPath: repoPath
     });
   }
@@ -229,6 +231,9 @@ try {
   if (opts.version) {
     process.stdout.write(`${CONTRACT_VERSION}\n`);
     process.exit(EXIT_CODES.ok);
+  }
+  if (opts.root || opts.artifactRoot || opts.ledger || opts.positional.length > 0) {
+    throw Object.assign(new Error("this validates the LensTemper package's own fixtures; validate a project's run with validate-review-output.mjs, validate-synthesis-output.mjs, and validate-ledger.mjs using --ledger and --root"), { exitCode: EXIT_CODES.usage });
   }
   const root = repoRootFrom(import.meta.url);
   const expectedCountsPath = fixturePath(root, "fixture-counts.json");

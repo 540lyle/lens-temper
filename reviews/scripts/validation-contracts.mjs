@@ -47,7 +47,8 @@ export const FINAL_ASSESSMENTS = [
   "Ready to implement",
   "Ready with minor clarifications",
   "Needs revision",
-  "Not implementation-ready"
+  "Not implementation-ready",
+  "Goal drift"
 ];
 
 export const EXECUTION_MODES = [
@@ -118,6 +119,8 @@ export const LEDGER_STATUSES = [
   "stale"
 ];
 
+// Legacy per-lens lock states. Records that use them stay valid and map onto
+// LENS_STATES through lensStateOf().
 export const LOCK_STATES = [
   "active",
   "failing",
@@ -129,11 +132,79 @@ export const LOCK_STATES = [
   "error"
 ];
 
+export const LEGACY_SETTLED_LOCK_STATES = [
+  "passing_locked",
+  "converged_locked"
+];
+
+// A lens is open until it delivers a validated review, then settled. It
+// reopens only when one of its own findings is applied, another lens's applied
+// finding names it as affected, or the user reopens it.
+export const LENS_STATES = [
+  "open",
+  "settled"
+];
+
+export const LENS_BLOCKING_VALUES = [
+  "yes",
+  "no"
+];
+
+export const GOAL_FIT_VALUES = [
+  "ok",
+  "at_risk",
+  "violated"
+];
+
+// interactive (default) applies nothing; auto (opt-in) may apply accepted
+// blocking findings that cite a stated goal, logged as decided_by: policy.
+export const APPLY_MODES = [
+  "interactive",
+  "auto"
+];
+
+// Pass 1 is the review and pass 2 the one automatic rerun. A later pass needs a
+// recorded human_approval.
+export const AUTOMATIC_PASS_LIMIT = 2;
+
 export const FINDING_DECISIONS = [
   "accepted",
   "rejected",
   "downgraded",
-  "deferred"
+  "deferred",
+  "needs_author"
+];
+
+export const CHANGE_TYPES = [
+  "clarify",
+  "add",
+  "remove"
+];
+
+export const REJECTION_REASONS = [
+  "conflicts_with_goal",
+  "adds_unrequested_scope",
+  "implementer_discretion",
+  "unsupported",
+  "duplicate",
+  "out_of_domain",
+  "contradicted"
+];
+
+export const SCOPE_DELTA_NET_VALUES = [
+  "grows",
+  "shrinks",
+  "unchanged"
+];
+
+export const TARGET_EDIT_DECIDERS = [
+  "human",
+  "policy"
+];
+
+export const BLOCKING_SEVERITIES = [
+  "critical",
+  "major"
 ];
 
 export const FINDING_SEVERITIES = [
@@ -187,8 +258,9 @@ export const COMPLETION_SUMMARY_REQUIRED_FIELDS = [
 ];
 
 export const REQUIRED_MARKDOWN_SECTIONS = {
+  // Review provenance is stamped into the JSON record by update-ledger.mjs;
+  // Markdown that still carries a Provenance section stays valid.
   review: [
-    "### Provenance",
     "### Verdict",
     "### What the Plan Gets Right",
     "### Gaps and Risks",
@@ -199,6 +271,44 @@ export const REQUIRED_MARKDOWN_SECTIONS = {
     "### Scorecard"
   ],
   synthesis: [
+    "### Goal Reference",
+    "### Blocking Gaps",
+    "### Questions for the Author",
+    "### Minor Issues",
+    "### Notes",
+    "### Recommended Plan Changes",
+    "### Scope Delta",
+    "### Synthesis Decisions",
+    "### Reviewer Conflicts",
+    "### Scorecard Reconciliation",
+    "### Cross-Cutting Coverage",
+    "### Lens Lock And Rerun Decisions",
+    "### Final Assessment"
+  ],
+  final: [
+    "Final assessment",
+    "Target",
+    "Artifact storage",
+    "Verification evidence"
+  ]
+};
+
+// Sections the goal-anchored reviewer contract added. A review written to that
+// contract (one that records goal_fit or blocking, was stamped with the
+// current reviewer template revision, or already carries either section) must
+// include both; reviews written before it keep REQUIRED_MARKDOWN_SECTIONS.review.
+export const REVIEW_GOAL_MARKDOWN_SECTIONS = [
+  "### Goal Gate",
+  "### Goal Fit / Recommended Removals"
+];
+
+// The headline line a synthesis ends with and a completion summary repeats.
+export const DELIVERED_LINE_PATTERN = /^Review delivered: (\d+) blocking gaps?, (\d+) minor issues?, (\d+) questions?\s*$/m;
+
+// Synthesis Markdown written before the goal-anchored output contract stays
+// valid. It is recognized by its first section.
+export const LEGACY_MARKDOWN_SECTIONS = {
+  synthesis: [
     "### Consolidated Critique",
     "### Synthesis Decisions",
     "### Reviewer Conflicts",
@@ -208,12 +318,6 @@ export const REQUIRED_MARKDOWN_SECTIONS = {
     "### Recommended Plan Changes",
     "### Unresolved Questions",
     "### Final Assessment"
-  ],
-  final: [
-    "Final assessment",
-    "Target",
-    "Artifact storage",
-    "Verification evidence"
   ]
 };
 
@@ -323,6 +427,18 @@ export const REVIEW_INPUT_REQUIRED_FIELDS = [
   "previous_adjudications"
 ];
 
+export const REVIEW_INPUT_OPTIONAL_FIELDS = ["intent"];
+
+export const INTENT_CARD_FIELDS = [
+  "goals",
+  "non_goals",
+  "must_not_grow",
+  "decided_tradeoffs",
+  "amended_by"
+];
+
+export const INTENT_AMENDED_BY = ["human"];
+
 export const SCHEMA_CONTRACTS = {
   "lens-selection.schema.json": {
     required: LENS_SELECTION_REQUIRED_FIELDS,
@@ -361,6 +477,8 @@ export const SCHEMA_CONTRACTS = {
     },
     enums: {
       verdict: REVIEW_VERDICTS,
+      blocking: LENS_BLOCKING_VALUES,
+      goal_fit: GOAL_FIT_VALUES,
       run_mode: RUN_MODES,
       execution_mode: EXECUTION_MODES,
       status: REVIEW_STATUSES
@@ -385,14 +503,17 @@ export const SCHEMA_CONTRACTS = {
       run_mode: RUN_MODES
     },
     arrayItemRequired: {
-      finding_decisions: ["finding_id", "source_lens", "source_review_record_id", "decision", "affects_rerun_scope", "reason"],
-      lens_lock_decisions: ["lens", "lock_state", "rerun_needed", "reason"],
+      finding_decisions: ["finding_id", "source_lens", "source_review_record_id", "decision", "reason"],
+      lens_lock_decisions: ["lens", "reason"],
       prior_material_findings_context: ["source_record_id", "finding_id", "source_target_path", "source_target_revision", "decision", "severity"]
     },
     arrayItemEnums: {
       "finding_decisions.decision": FINDING_DECISIONS,
       "finding_decisions.severity": FINDING_SEVERITIES,
-      "lens_lock_decisions.lock_state": LOCK_STATES
+      "finding_decisions.change_type": CHANGE_TYPES,
+      "finding_decisions.rejection_reason": REJECTION_REASONS,
+      "lens_lock_decisions.lock_state": LOCK_STATES,
+      "lens_lock_decisions.lens_state": LENS_STATES
     }
   },
   "review-ledger.schema.json": {
@@ -407,14 +528,19 @@ export const SCHEMA_CONTRACTS = {
       run_mode: RUN_MODES,
       run_scope: RUN_SCOPES,
       execution_mode: EXECUTION_MODES,
-      artifact_visibility: ARTIFACT_VISIBILITY
+      artifact_visibility: ARTIFACT_VISIBILITY,
+      apply_mode: APPLY_MODES
     },
     nestedRequired: {
       completion_validation: ["validator_name", "validator_contract_version", "passed", "validated_review_record_ids", "failures"]
     },
     arrayItemRequired: {
       review_record_artifacts: ["record_id", "artifact_path"],
-      synthesis_record_artifacts: ["record_id", "artifact_path"]
+      synthesis_record_artifacts: ["record_id", "artifact_path"],
+      target_edits: ["decided_by", "summary"]
+    },
+    arrayItemEnums: {
+      "target_edits.decided_by": TARGET_EDIT_DECIDERS
     }
   },
   "completion-summary.schema.json": {

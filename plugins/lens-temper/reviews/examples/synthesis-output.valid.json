@@ -22,20 +22,25 @@
   "lens_lock_decisions": [
     {
       "lens": "implementation",
-      "lock_state": "passing_locked",
-      "rerun_needed": false,
-      "reason": "All scores are 5/5 with no material blockers."
+      "lens_state": "settled",
+      "reason": "Validated review delivered with no blocking gaps."
     }
   ],
   "final_assessment": "Ready to implement",
+  "scope_delta": {
+    "added": [],
+    "removed": [],
+    "net": "unchanged",
+    "reductive_goal": false
+  },
   "artifact_path": "reviews/examples/synthesis-output.valid.json",
   "markdown_artifact_path": "reviews/examples/artifacts/synthesis-output.valid.md",
-  "markdown_artifact_sha": "git:cf010010de0681abaf7117f4713e388a111994f9",
+  "markdown_artifact_sha": "git:22abdd6e78e12c41a2db0caba98d650f14fcd864",
   "run_mode": "full",
   "claim_flags": {
     "completion": false,
-    "lock_state": true,
-    "all_5_lockable": true,
+    "lock_state": false,
+    "all_5_lockable": false,
     "review_complete": false
   },
   "prior_material_findings_context": [],

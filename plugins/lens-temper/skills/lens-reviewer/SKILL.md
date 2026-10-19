@@ -21,11 +21,14 @@ verification runner.
 - Pass id.
 - Target path, deterministic target revision, and review input revision.
 - Template and lens revisions.
-- Feature request, proposed plan, relevant context, constraints.
+- Feature request, optional intent card, proposed plan, relevant context,
+  constraints.
 - Optional previous adjudications.
 
 ## Output
 
 Return exactly the structure required by `reviews/reviewer-template.md`.
-Complete the cross-cutting sweep, complete the stateful workflow sweep when it
-applies, and keep findings evidence-based.
+Start with its goal gate, ask pending owner decisions as questions instead of
+answering them, review the cross-cutting categories your lens owns, answer the
+stateful workflow sweep only as the Implementation lens, and keep findings
+evidence-based. Do not repeat provenance; the scripts stamp it.

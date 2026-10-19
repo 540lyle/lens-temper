@@ -1,13 +1,12 @@
 #!/usr/bin/env node
-import { relative, resolve } from "node:path";
 import {
   CONTRACT_VERSION,
   EXIT_CODES,
   computeArtifactSha,
   ensureNode18,
-  isRepoRelativePath,
+  normalizeRepoInputPath,
   parseCommonArgs,
-  repoRootFrom,
+  projectRootFrom,
   usage,
   writeJsonLinesEvent
 } from "./validation-helpers.mjs";
@@ -15,11 +14,12 @@ import {
 ensureNode18();
 
 const scriptName = "hash-review-target.mjs";
+const usageText = "<target-path> [--root <path>] [--json]";
 
 try {
   const opts = parseCommonArgs(process.argv.slice(2));
   if (opts.help) {
-    process.stdout.write(`${usage(scriptName, "<target-path> [--json]")}\n`);
+    process.stdout.write(`${usage(scriptName, usageText)}\n`);
     process.exit(EXIT_CODES.ok);
   }
   if (opts.version) {
@@ -27,16 +27,18 @@ try {
     process.exit(EXIT_CODES.ok);
   }
   if (opts.positional.length !== 1) {
-    process.stderr.write(`${usage(scriptName, "<target-path> [--json]")}\n`);
+    process.stderr.write(`${usage(scriptName, usageText)}\n`);
     process.stderr.write(`validation error: missing target path\n`);
     process.exit(EXIT_CODES.usage);
   }
 
-  const root = repoRootFrom(import.meta.url);
+  const root = projectRootFrom(opts);
   const input = opts.positional[0];
-  const repoPath = isRepoRelativePath(input)
-    ? input
-    : relative(root, resolve(input)).replace(/\\/g, "/");
+  const repoPath = normalizeRepoInputPath(root, input);
+  if (!repoPath) {
+    process.stderr.write(`validation error: target must resolve under the project root ${root}\n`);
+    process.exit(EXIT_CODES.usage);
+  }
   const hash = computeArtifactSha(root, repoPath);
   if (opts.json) {
     writeJsonLinesEvent("hash", { target_path: repoPath, target_revision: hash });
@@ -44,7 +46,7 @@ try {
     process.stdout.write(`${hash}\n`);
   }
 } catch (error) {
-  process.stderr.write(`${usage(scriptName, "<target-path> [--json]")}\n`);
+  process.stderr.write(`${usage(scriptName, usageText)}\n`);
   process.stderr.write(`validation error: ${error.message}\n`);
   process.exit(error.exitCode || EXIT_CODES.internal);
 }

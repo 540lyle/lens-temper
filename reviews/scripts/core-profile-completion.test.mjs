@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -121,11 +121,13 @@ function buildCompletedRun(targetText, expectedLensCount) {
     })),
     artifact_path: synthesisPath,
     markdown_artifact_sha: computeArtifactSha(root, baseSynthesis.markdown_artifact_path),
+    // The synthesis claims nothing; the completion summary derives its claim
+    // from the finalized ledger.
     claim_flags: {
-      completion: true,
-      lock_state: true,
-      all_5_lockable: true,
-      review_complete: true
+      completion: false,
+      lock_state: false,
+      all_5_lockable: false,
+      review_complete: false
     }
   };
   writeJson(synthesisResolved, synthesis);
@@ -161,6 +163,10 @@ function buildCompletedRun(targetText, expectedLensCount) {
   const summary = JSON.parse(readFileSync(join(root, summaryPath), "utf8"));
   assert.equal(summary.core_gate_passed, true);
   assert.deepEqual(summary.completed_lens_ids, selection.selected_lenses);
+  assert.equal(summary.claim_flags.completion, true);
+  assert.equal(summary.claim_flags.review_complete, true);
+  assert.match(summary.summary_text, /^LensTemper pass complete$/m);
+  assert.match(summary.summary_text, /^Review delivered: \d+ blocking gaps, \d+ minor issues, \d+ questions$/m);
   return { dir, finalized, selection, ledgerPath };
 }
 
@@ -168,6 +174,9 @@ test("seven-lens core profile finalizes from validated artifacts", () => {
   const result = buildCompletedRun("Implement an internal deterministic utility.", 7);
   try {
     assert.equal(result.selection.selected_lenses.includes("natty"), false);
+    const reattach = spawnSync(node, ["reviews/scripts/update-ledger.mjs", "--ledger", result.ledgerPath, "--review", result.finalized.review_record_artifacts[0].artifact_path, "--write"], { cwd: root, encoding: "utf8" });
+    assert.equal(reattach.status, 2);
+    assert.match(reattach.stderr, /already finalized; pass --finalize/);
     const substituted = { ...result.finalized, core_profile_id: "future-profile" };
     const failures = validateLedgerRecord(substituted, {
       artifactRoot: root,
