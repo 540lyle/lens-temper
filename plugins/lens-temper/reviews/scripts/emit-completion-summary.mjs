@@ -26,7 +26,7 @@ import {
   validateSynthesisRecord,
   validationError
 } from "./validation-helpers.mjs";
-import { SCORECARD_KEYS } from "./validation-contracts.mjs";
+import { LEGACY_LOCK_FLAG_KEYS, SCORECARD_KEYS } from "./validation-contracts.mjs";
 
 ensureNode18();
 
@@ -60,9 +60,8 @@ function collectLensScores(reviews) {
 // Questions, and minor issues without a decision, exist only in the synthesis
 // Markdown, so its line may raise those two counts; the synthesis validator has
 // already checked that line against the decisions.
-function deliveredCounts(root, synthesis) {
+function deliveredCounts(synthesis, line) {
   const counted = deliveredFromDecisions(synthesis.finding_decisions);
-  const line = readSynthesisDeliveredLine(root, synthesis);
   return {
     blocking_gaps: counted.blocking_gaps,
     minor_issues: Math.max(counted.minor_issues, line?.minor_issues ?? 0),
@@ -94,8 +93,10 @@ function artifactStatus(root, paths) {
 }
 
 // Reviewer closure and direct-read evidence come from the validated current
-// review records, not from a fixed sentence.
-function verificationEvidence(ledger, reviews, synthesis) {
+// review records, not from a fixed sentence. Validators check a record's shape,
+// not that a reviewer really ran or read the file, so those items are reported
+// apart from what the scripts checked.
+function verificationEvidence(ledger, reviews, synthesis, deliveredLine) {
   const records = reviews.map((entry) => entry.record);
   const total = records.length;
   const spawned = records.filter((record) => ["fresh_spawned_lens_reviewers", "fresh_spawned_orchestrator"].includes(record.execution_mode));
@@ -105,12 +106,16 @@ function verificationEvidence(ledger, reviews, synthesis) {
   const closure = spawned.length > 0
     ? `reviewers terminal and closed: ${closed.length}/${spawned.length} spawned reviewers completed, captured, and closed`
     : `reviewers terminal and closed: not applicable (execution_mode ${ledger.execution_mode}; no spawned reviewers)`;
-  return [
+  const deliveredCheck = deliveredLine
+    ? "Review delivered line checked against its finding decisions"
+    : "no Review delivered line in the synthesis Markdown, so the counts come from its finding decisions";
+  const checked = `validators run: ledger, ${total} current review records, and synthesis ${synthesis.record_id} validated; ${deliveredCheck}`;
+  const reported = [
     `reviewer outputs captured: ${total}/${(ledger.selected_lenses || []).length} selected lenses`,
     closure,
-    `current reviewers read current workspace files directly: ${direct.length}/${total} read ${ledger.target_path} at ${ledger.target_revision}`,
-    `validators run: ledger, ${total} current review records, and synthesis ${synthesis.record_id} validated; Review delivered line checked against its finding decisions`
+    `current reviewers read current workspace files directly: ${direct.length}/${total} read ${ledger.target_path} at ${ledger.target_revision}`
   ].join("; ");
+  return `Checked by scripts: ${checked}. Reported by the run (not confirmed by any script): ${reported}`;
 }
 
 function asMarkdown(ledger, synthesis, synthesisPath, lensScores, delivered, status, evidence) {
@@ -218,9 +223,10 @@ try {
   const registeredFailures = registeredArtifactFailures(root, ledger, "synthesis", synthesis, opts.synthesis);
   if (registeredFailures.length > 0) throw validationError(registeredFailures, "synthesis trust chain failed");
   const lensScores = collectLensScores(context.reviews);
-  const delivered = deliveredCounts(root, synthesis);
+  const deliveredLine = readSynthesisDeliveredLine(root, synthesis);
+  const delivered = deliveredCounts(synthesis, deliveredLine);
   const status = artifactStatus(root, ledger.archive_paths || []);
-  const evidence = verificationEvidence(ledger, context.reviews, synthesis);
+  const evidence = verificationEvidence(ledger, context.reviews, synthesis, deliveredLine);
   // The summary claims completion only for what the ledger proves: a full run
   // whose core-profile gate passed. The synthesis need not claim it.
   const coreGatePassed = ledger.run_mode === "full" && ledger.run_scope === "core_profile" && ledger.core_gate_passed === true;
@@ -239,10 +245,10 @@ try {
     target_path: ledger.target_path,
     target_revision: ledger.target_revision,
     ...(ledger.review_input_revision ? { review_input_revision: ledger.review_input_revision } : {}),
+    // Lockability comes from per-lens states, not this legacy pair; the
+    // synthesis validator rejects them as true, and the summary never sets them.
     claim_flags: {
-      lock_state: false,
-      all_5_lockable: false,
-      ...synthesis.claim_flags,
+      ...Object.fromEntries(LEGACY_LOCK_FLAG_KEYS.map((key) => [key, false])),
       completion: coreGatePassed,
       review_complete: coreGatePassed
     },

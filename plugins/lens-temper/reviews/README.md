@@ -519,7 +519,16 @@ status (`committed`, `committed, with uncommitted changes`, `not committed
 (untracked …)`, `ignored/local-only`, or stored outside git) as of emission, and
 derives its verification evidence from the current review records: outputs
 captured per selected lens, spawned reviewers completed, captured, and closed,
-and reviewers that read the target directly at the reviewed revision.
+and reviewers that read the target directly at the reviewed revision. The
+evidence line separates what the scripts checked (`Checked by scripts:`, the
+validators run) from what the run's records report but no script can confirm
+(`Reported by the run (not confirmed by any script):`, the reviewer items).
+It names the Review delivered line check only when the synthesis Markdown has
+that line. The legacy `lock_state` and `all_5_lockable` flags stay in the
+schemas but must be false: the synthesis and completion-summary validators
+reject either set to `true`, so older records that set them no longer
+validate. The summary's `claim_flags` holds only the four contract flags;
+extra flags in the synthesis `claim_flags` are not copied.
 
 Required fields:
 
