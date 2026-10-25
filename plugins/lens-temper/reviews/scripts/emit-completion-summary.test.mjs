@@ -141,26 +141,31 @@ test("a synthesis claiming a legacy lock flag yields no summary", () => {
   }
 });
 
-test("a completion summary claiming a legacy lock flag fails validation", () => {
-  const base = {
-    schema_version: 3,
-    run_mode: "full",
-    run_scope: "selected_lenses",
-    target_path: "reviews/examples/artifacts/target.valid.md",
-    target_revision: "git:test",
-    review_input_revision: "sha256:test",
-    claim_flags: { completion: false, lock_state: false, all_5_lockable: false, review_complete: false },
-    summary_text: "Full LensTemper review for selected lenses only: implementation\n"
-  };
-  const ownFailures = (record) => validateCompletionSummaryRecord(record, { artifactRoot: repoRoot })
-    .filter((failure) => failure.field === "claim_flags.lock_state" || failure.field === "claim_flags.all_5_lockable")
-    .map((failure) => failure.field);
-  assert.deepEqual(ownFailures(base), []);
-  assert.deepEqual(ownFailures({ ...base, claim_flags: { ...base.claim_flags, all_5_lockable: true } }), ["claim_flags.all_5_lockable"]);
-  assert.deepEqual(ownFailures({ ...base, claim_flags: { ...base.claim_flags, lock_state: true } }), ["claim_flags.lock_state"]);
-  // A non-full run already fails for any true flag; the legacy rule adds no second failure.
-  const inline = { ...base, run_mode: "inline", claim_flags: { ...base.claim_flags, lock_state: true } };
-  assert.deepEqual(ownFailures(inline), ["claim_flags.lock_state"]);
+const lockFlagSummary = {
+  schema_version: 3,
+  run_mode: "full",
+  run_scope: "selected_lenses",
+  target_path: "reviews/examples/artifacts/target.valid.md",
+  target_revision: "git:test",
+  review_input_revision: "sha256:test",
+  claim_flags: { completion: false, lock_state: false, all_5_lockable: false, review_complete: false },
+  summary_text: "Full LensTemper review for selected lenses only: implementation\n"
+};
+
+const lockFlagFailures = (record) => validateCompletionSummaryRecord(record, { artifactRoot: repoRoot })
+  .filter((failure) => failure.field === "claim_flags.lock_state" || failure.field === "claim_flags.all_5_lockable")
+  .map((failure) => failure.field);
+
+test("a full-run completion summary claiming a legacy lock flag fails validation", () => {
+  const base = lockFlagSummary;
+  assert.deepEqual(lockFlagFailures(base), []);
+  assert.deepEqual(lockFlagFailures({ ...base, claim_flags: { ...base.claim_flags, all_5_lockable: true } }), ["claim_flags.all_5_lockable"]);
+  assert.deepEqual(lockFlagFailures({ ...base, claim_flags: { ...base.claim_flags, lock_state: true } }), ["claim_flags.lock_state"]);
+});
+
+test("a non-full completion summary claiming a lock flag fails once", () => {
+  const inline = { ...lockFlagSummary, run_mode: "inline", claim_flags: { ...lockFlagSummary.claim_flags, lock_state: true } };
+  assert.deepEqual(lockFlagFailures(inline), ["claim_flags.lock_state"]);
 });
 
 test("completion rejects a synthesis bound to stale review input", () => {

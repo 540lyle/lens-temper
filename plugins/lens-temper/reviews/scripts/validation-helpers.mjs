@@ -776,23 +776,16 @@ export function validateClaimFlags(record, artifactPath, failures) {
       failures.push(makeFailure(artifactPath, record, `claim_flags.${key}`, "boolean", flags[key]));
     }
   }
-  if (record.run_mode === "inline" || record.run_mode === "advisory") {
-    for (const key of CLAIM_FLAG_KEYS) {
-      if (flags[key] === true) {
-        failures.push(makeFailure(artifactPath, record, `claim_flags.${key}`, false, true, "non-full runs cannot make lockable or completion claims"));
-      }
-    }
-  }
-}
-
-// Lockability comes from per-lens states now; a synthesis or summary that sets
-// a legacy lock flag is claiming something no script derived. Non-full runs are
-// already rejected for any true flag by validateClaimFlags.
-export function validateLegacyLockFlagsFalse(record, artifactPath, failures) {
-  if (record.run_mode === "inline" || record.run_mode === "advisory") return;
-  for (const key of LEGACY_LOCK_FLAG_KEYS) {
-    if (record.claim_flags?.[key] === true) {
-      failures.push(makeFailure(artifactPath, record, `claim_flags.${key}`, false, true, "legacy lock flags are always false"));
+  // Non-full runs may claim nothing. Full runs may claim completion, but
+  // lockability comes from per-lens states, so the legacy lock flags stay false.
+  const nonFullRun = record.run_mode === "inline" || record.run_mode === "advisory";
+  const forbidden = nonFullRun ? CLAIM_FLAG_KEYS : LEGACY_LOCK_FLAG_KEYS;
+  const why = nonFullRun
+    ? "non-full runs cannot make lockable or completion claims"
+    : "legacy lock flags are always false";
+  for (const key of forbidden) {
+    if (flags[key] === true) {
+      failures.push(makeFailure(artifactPath, record, `claim_flags.${key}`, false, true, why));
     }
   }
 }
@@ -1624,7 +1617,6 @@ export function validateSynthesisRecord(record, options = {}) {
   validateEnum(record.final_assessment, FINAL_ASSESSMENTS, artifactPath, record, "final_assessment", failures);
   validateRunMode(record, artifactPath, failures, { ledger: options.ledger });
   validateClaimFlags(record, artifactPath, failures);
-  validateLegacyLockFlagsFalse(record, artifactPath, failures);
   validatePathField(root, artifactPath, record, "target_path", failures, { mustExist: false });
   validatePathField(root, artifactPath, record, "artifact_path", failures, { mustExist: false });
   for (const field of ["included_review_record_ids", "superseded_review_record_ids"]) {
@@ -1977,7 +1969,6 @@ export function validateCompletionSummaryRecord(record, options = {}) {
     }
   }
   validateClaimFlags(record, artifactPath, failures);
-  validateLegacyLockFlagsFalse(record, artifactPath, failures);
 
   if (record.run_scope === "core_profile") {
     if (record.run_mode !== "full") failures.push(makeFailure(artifactPath, record, "run_mode", "full for core_profile scope", record.run_mode));

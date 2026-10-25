@@ -527,7 +527,8 @@ It names the Review delivered line check only when the synthesis Markdown has
 that line. The legacy `lock_state` and `all_5_lockable` flags stay in the
 schemas but must be false: the synthesis and completion-summary validators
 reject either set to `true`, so older records that set them no longer
-validate.
+validate. The summary's `claim_flags` holds only the four contract flags;
+extra flags in the synthesis `claim_flags` are not copied.
 
 Required fields:
 
