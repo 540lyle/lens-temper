@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
-import { execFileSync, spawnSync } from "node:child_process";
+import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import test from "node:test";
 import {
   archiveRunPath,
@@ -287,12 +287,18 @@ test("review Markdown under the goal-anchored contract needs the Goal Gate and G
   assert.deepEqual(sections({ ...legacy, template_revision: currentTemplate }), goalSections, "a review stamped with the current template is under the current contract");
 }));
 
-test("a closed output pipe does not crash a script", () => {
-  const program = `import { ensureNode18 } from ${JSON.stringify(script("validation-helpers.mjs"))};
+test("a closed output pipe does not crash a script", async () => {
+  const program = `import { ensureNode18 } from ${JSON.stringify(pathToFileURL(script("validation-helpers.mjs")).href)};
 ensureNode18();
 const line = "x".repeat(65536) + "\\n";
 for (let i = 0; i < 64; i += 1) process.stdout.write(line);`;
-  const result = spawnSync("bash", ["-c", `set -o pipefail; "${node}" --input-type=module -e '${program.replace(/'/g, "'\\''")}' | head -c 1 >/dev/null`], { encoding: "utf8" });
-  assert.equal(result.status, 0, result.stderr);
-  assert.doesNotMatch(result.stderr, /EPIPE|Error/);
+  // Close the read end after the first chunk, like `| head -c 1`, without depending on a POSIX shell.
+  const child = spawn(node, ["--input-type=module", "-e", program], { stdio: ["ignore", "pipe", "pipe"] });
+  let stderr = "";
+  child.stderr.setEncoding("utf8");
+  child.stderr.on("data", (chunk) => { stderr += chunk; });
+  child.stdout.once("data", () => child.stdout.destroy());
+  const status = await new Promise((settle) => child.on("close", settle));
+  assert.equal(status, 0, stderr);
+  assert.doesNotMatch(stderr, /EPIPE|Error/);
 });
