@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // Fails a pull request that changes what ships to users without raising the
-// package version above the base branch's. Claude Code and Codex cache an
-// installed plugin by version, so an unbumped change never reaches installed
-// copies. AGENTS.md documents the same rule and paths.
+// package version above the base branch's. Claude Code caches an installed
+// plugin by version, so an unbumped change never reaches installed copies.
+// AGENTS.md documents the same rule and paths.
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";

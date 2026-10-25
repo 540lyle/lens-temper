@@ -10,9 +10,11 @@ ship to users' projects, so do not put contributor rules there.
 
 ## Bump the version with every shipped change
 
-Claude Code and Codex cache an installed plugin by its version. If a change
-merges without a new version, `claude plugin update` reports the plugin as
-already current and users keep running the old code.
+Claude Code caches an installed plugin by the version in
+`.claude-plugin/plugin.json`. If a change merges without a new version,
+`claude plugin update` reports the plugin as already current and users keep
+running the old code. The same bump keeps the packaged Codex manifest in step
+with the Claude Code one.
 
 Any pull request that changes what users get must raise the version in the same
 pull request. That covers changes under:

@@ -34,8 +34,26 @@ claude plugin install lens-temper@lens-temper
 ```
 
 The repository root is the Claude Code plugin, described by
-`.claude-plugin/marketplace.json` and `.claude-plugin/plugin.json`. Update a
-marketplace install with `claude plugin marketplace update lens-temper`.
+`.claude-plugin/marketplace.json` and `.claude-plugin/plugin.json`.
+
+To update a marketplace install, refresh the marketplace, then update the
+plugin, then restart Claude Code:
+
+```bash
+claude plugin marketplace update lens-temper
+claude plugin update lens-temper@lens-temper
+```
+
+Refreshing the marketplace alone does not change the installed plugin. Claude
+Code updates it only when the version in `.claude-plugin/plugin.json` is higher
+than the installed one. If `claude plugin update` reports the plugin as already
+at the latest version but you need newer commits from the same version,
+reinstall it:
+
+```bash
+claude plugin uninstall lens-temper@lens-temper
+claude plugin install lens-temper@lens-temper
+```
 
 For local development, load a checkout as a local plugin instead:
 

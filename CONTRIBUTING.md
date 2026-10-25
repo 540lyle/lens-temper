@@ -13,9 +13,9 @@ Before opening a change:
 
 ## Versioning
 
-Claude Code and Codex cache an installed plugin by its version, so a change
-merged without a new version never reaches people who already installed
-LensTemper. Any pull request that changes `skills/`, `reviews/`, `assets/`,
+Claude Code caches an installed plugin by its version, so a change merged
+without a new version never reaches people who already installed LensTemper
+from the marketplace. Any pull request that changes `skills/`, `reviews/`, `assets/`,
 the host guides in `docs/hosts/`, `plugins/lens-temper/`,
 `.claude-plugin/plugin.json`, `.codex-plugin/`, `lens-temper.package.json`, or
 the Cursor and Copilot adapters must raise the version in the same pull
