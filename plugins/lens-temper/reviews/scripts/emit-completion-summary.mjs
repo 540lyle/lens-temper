@@ -26,7 +26,7 @@ import {
   validateSynthesisRecord,
   validationError
 } from "./validation-helpers.mjs";
-import { SCORECARD_KEYS } from "./validation-contracts.mjs";
+import { LEGACY_LOCK_FLAG_KEYS, SCORECARD_KEYS } from "./validation-contracts.mjs";
 
 ensureNode18();
 
@@ -113,7 +113,7 @@ function verificationEvidence(ledger, reviews, synthesis) {
     closure,
     `current reviewers read current workspace files directly: ${direct.length}/${total} read ${ledger.target_path} at ${ledger.target_revision}`
   ].join("; ");
-  return `Checked by scripts: ${checked}. Reported by the run: ${reported}`;
+  return `Checked by scripts: ${checked}. Reported by the run (not confirmed by any script): ${reported}`;
 }
 
 function asMarkdown(ledger, synthesis, synthesisPath, lensScores, delivered, status, evidence) {
@@ -242,10 +242,10 @@ try {
     target_path: ledger.target_path,
     target_revision: ledger.target_revision,
     ...(ledger.review_input_revision ? { review_input_revision: ledger.review_input_revision } : {}),
-    // The legacy lock flags are always false; a synthesis cannot set them.
+    // Lockability comes from per-lens states, not this legacy pair; always
+    // false so a synthesis cannot assert it.
     claim_flags: {
-      lock_state: false,
-      all_5_lockable: false,
+      ...Object.fromEntries(LEGACY_LOCK_FLAG_KEYS.map((key) => [key, false])),
       completion: coreGatePassed,
       review_complete: coreGatePassed
     },

@@ -91,10 +91,13 @@ export const PROVENANCE_BASIS_VALUES = [
   "fixture"
 ];
 
+// Legacy lock claims: kept in the schemas for old records, always false in a
+// completion summary.
+export const LEGACY_LOCK_FLAG_KEYS = ["lock_state", "all_5_lockable"];
+
 export const CLAIM_FLAG_KEYS = [
   "completion",
-  "lock_state",
-  "all_5_lockable",
+  ...LEGACY_LOCK_FLAG_KEYS,
   "review_complete"
 ];
 

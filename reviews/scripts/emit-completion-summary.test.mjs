@@ -43,7 +43,7 @@ test("--out ending in .json writes a valid completion-summary JSON record", () =
     assert.equal(summary.claim_flags.review_complete, false);
     assert.deepEqual(summary.rerun_or_lock_status.map((entry) => entry.lens_state), ["settled"]);
     assert.doesNotMatch(summary.verification_evidence, /validators passed/i);
-    assert.match(summary.verification_evidence, /^Checked by scripts: validators run: ledger, 1 current review records, and synthesis \S+ validated; Review delivered line checked against its finding decisions\. Reported by the run: reviewer outputs captured: 1\/1 selected lenses; /);
+    assert.match(summary.verification_evidence, /^Checked by scripts: validators run: ledger, 1 current review records, and synthesis \S+ validated; Review delivered line checked against its finding decisions\. Reported by the run \(not confirmed by any script\): reviewer outputs captured: 1\/1 selected lenses; /);
     assert.match(summary.verification_evidence, /current review records, and synthesis \S+ validated/i);
     assert.match(summary.verification_evidence, /reviewers terminal and closed: 1\/1 spawned reviewers/);
     assert.match(summary.verification_evidence, /read current workspace files directly: 1\/1/);

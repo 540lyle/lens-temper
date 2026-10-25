@@ -32,6 +32,7 @@ import {
   LEDGER_CORE_PROFILE_REQUIRED_FIELDS,
   LEDGER_SCHEMA_VERSION,
   LEDGER_STATUSES,
+  LEGACY_LOCK_FLAG_KEYS,
   LEGACY_MARKDOWN_SECTIONS,
   LEGACY_SETTLED_LOCK_STATES,
   LENS_BLOCKING_VALUES,
@@ -780,6 +781,16 @@ export function validateClaimFlags(record, artifactPath, failures) {
       if (flags[key] === true) {
         failures.push(makeFailure(artifactPath, record, `claim_flags.${key}`, false, true, "non-full runs cannot make lockable or completion claims"));
       }
+    }
+  }
+}
+
+// Lockability comes from per-lens states now; a summary that sets a legacy
+// lock flag is claiming something no script derived.
+export function validateLegacyLockFlagsFalse(record, artifactPath, failures) {
+  for (const key of LEGACY_LOCK_FLAG_KEYS) {
+    if (record.claim_flags?.[key] === true) {
+      failures.push(makeFailure(artifactPath, record, `claim_flags.${key}`, false, true, "legacy lock flags are always false in a completion summary"));
     }
   }
 }
@@ -1963,11 +1974,7 @@ export function validateCompletionSummaryRecord(record, options = {}) {
     }
   }
   validateClaimFlags(record, artifactPath, failures);
-  for (const key of ["lock_state", "all_5_lockable"]) {
-    if (record.claim_flags?.[key] === true) {
-      failures.push(makeFailure(artifactPath, record, `claim_flags.${key}`, false, true, "legacy lock flags are always false in a completion summary"));
-    }
-  }
+  validateLegacyLockFlagsFalse(record, artifactPath, failures);
 
   if (record.run_scope === "core_profile") {
     if (record.run_mode !== "full") failures.push(makeFailure(artifactPath, record, "run_mode", "full for core_profile scope", record.run_mode));

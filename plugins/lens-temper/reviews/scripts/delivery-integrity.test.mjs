@@ -162,7 +162,7 @@ test("the Review delivered line is checked against the finding decisions", () =>
   assert.match(final, /^Review delivered: 1 blocking gaps, 1 minor issues, 2 questions$/m);
   // N2: artifact status and reviewer-closure evidence, as the README requires.
   assert.match(final, /^Artifact status: reviews\/archive\/\S+: not committed \(untracked; commit it or keep it local-only\)$/m);
-  assert.match(final, /^Verification evidence: Checked by scripts: validators run: ledger, 1 current review records, and synthesis \S+ validated; Review delivered line checked against its finding decisions\. Reported by the run: reviewer outputs captured: 1\/1 selected lenses; reviewers terminal and closed: 1\/1 spawned reviewers completed, captured, and closed; current reviewers read current workspace files directly: 1\/1 read plan\.md at /m);
+  assert.match(final, /^Verification evidence: Checked by scripts: validators run: ledger, 1 current review records, and synthesis \S+ validated; Review delivered line checked against its finding decisions\. Reported by the run \(not confirmed by any script\): reviewer outputs captured: 1\/1 selected lenses; reviewers terminal and closed: 1\/1 spawned reviewers completed, captured, and closed; current reviewers read current workspace files directly: 1\/1 read plan\.md at /m);
 
   const summaryPath = `${pass.run}/completion-summary.json`;
   ok(project, "emit-completion-summary.mjs", ["--ledger", pass.ledgerPath, "--synthesis", honest, "--out", summaryPath, "--quiet"]);
