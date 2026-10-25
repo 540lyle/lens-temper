@@ -133,7 +133,7 @@ test("a synthesis claiming a legacy lock flag yields no summary", () => {
     ], { cwd: repoRoot, encoding: "utf8" });
     assert.equal(result.status, 1);
     assert.equal(result.stdout, "");
-    assert.match(result.stderr, /synthesis trust chain failed/);
+    assert.match(result.stderr, /ledger trust chain failed/);
     assert.match(result.stderr, /claim_flags\.lock_state/);
     assert.match(result.stderr, /claim_flags\.all_5_lockable/);
   } finally {
