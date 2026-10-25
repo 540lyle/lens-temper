@@ -15,17 +15,22 @@ Before opening a change:
 
 Claude Code and Codex cache an installed plugin by its version, so a change
 merged without a new version never reaches people who already installed
-LensTemper. Any pull request that changes `skills/`, `reviews/`,
-`plugins/lens-temper/`, the plugin manifests, `lens-temper.package.json`, or
+LensTemper. Any pull request that changes `skills/`, `reviews/`, `assets/`,
+the host guides in `docs/hosts/`, `plugins/lens-temper/`,
+`.claude-plugin/plugin.json`, `.codex-plugin/`, `lens-temper.package.json`, or
 the Cursor and Copilot adapters must raise the version in the same pull
 request: a patch bump for fixes that keep existing records valid, a minor bump
-for new behavior or stricter validation. Changes to only tests, CI, or docs
-outside those paths may skip it.
+for new behavior (including prompt changes that change what reviewers report)
+or stricter validation. Changes to only tests, CI, or other docs may skip it;
+test files copied into `plugins/lens-temper/` by the sync don't count.
 
 Set the new version in `lens-temper.package.json`, `.claude-plugin/plugin.json`,
 and `.codex-plugin/plugin.json`, then run
 `node reviews/scripts/sync-codex-plugin-payload.mjs` to update the packaged
-copy. `validate-package.mjs` fails if the versions disagree, and CI fails a
+copy. Leave `metadata.version` in `.claude-plugin/marketplace.json` alone: it
+versions the marketplace catalog, not the plugin, and Claude Code does not use
+it to detect plugin updates. `validate-package.mjs` fails if the plugin
+versions disagree, and CI fails a
 pull request that changes shipped files without raising the version above
 `main`'s. The full rule, which agents also follow, is in
 [AGENTS.md](AGENTS.md).

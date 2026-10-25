@@ -14,6 +14,10 @@ test("shipped paths match the AGENTS.md list; tests and docs do not ship", () =>
     "skills/start-plan-review/SKILL.md",
     "reviews/scripts/emit-completion-summary.mjs",
     "reviews/README.md",
+    "assets/logo.svg",
+    "docs/hosts/codex.md",
+    "docs/hosts/cursor.md",
+    "plugins/lens-temper/docs/hosts/codex.md",
     "plugins/lens-temper/reviews/scripts/validation-helpers.mjs",
     ".claude-plugin/plugin.json",
     ".codex-plugin/plugin.json",
@@ -30,6 +34,7 @@ test("shipped paths match the AGENTS.md list; tests and docs do not ship", () =>
     "AGENTS.md",
     "CONTRIBUTING.md",
     "docs/INSTALL.md",
+    "docs/PUBLISHING_CHECKLIST.md",
     ".github/workflows/validate.yml",
     ".github/scripts/check-version-bump.mjs",
     ".claude-plugin/marketplace.json"

@@ -19,6 +19,8 @@ const PACKAGE_MANIFEST = "lens-temper.package.json";
 const SHIPPED_PREFIXES = [
   "skills/",
   "reviews/",
+  "assets/",
+  "docs/hosts/",
   "plugins/lens-temper/",
   ".codex-plugin/",
   ".cursor/rules/"
@@ -30,7 +32,8 @@ const SHIPPED_FILES = [
   ".github/copilot-instructions.md"
 ];
 
-// Tests ship with the scripts but change nothing users run.
+// Tests ship with the scripts but change nothing users run, including the
+// copies the payload sync writes under plugins/lens-temper/.
 export function isShippedPath(repoPath) {
   if (repoPath.endsWith(".test.mjs")) return false;
   return SHIPPED_FILES.includes(repoPath) || SHIPPED_PREFIXES.some((prefix) => repoPath.startsWith(prefix));
