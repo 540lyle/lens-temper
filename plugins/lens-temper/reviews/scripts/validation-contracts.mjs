@@ -91,10 +91,18 @@ export const PROVENANCE_BASIS_VALUES = [
   "fixture"
 ];
 
+// Legacy lock claims: kept in the schemas, always false in synthesis and
+// completion-summary records.
+export const LEGACY_LOCK_FLAG_KEYS = ["lock_state", "all_5_lockable"];
+
+// The schemas pin each legacy flag to const false; checked for drift.
+const LEGACY_LOCK_FLAG_CONSTANTS = Object.fromEntries(
+  LEGACY_LOCK_FLAG_KEYS.map((key) => [`claim_flags.${key}`, false])
+);
+
 export const CLAIM_FLAG_KEYS = [
   "completion",
-  "lock_state",
-  "all_5_lockable",
+  ...LEGACY_LOCK_FLAG_KEYS,
   "review_complete"
 ];
 
@@ -502,6 +510,7 @@ export const SCHEMA_CONTRACTS = {
       final_assessment: FINAL_ASSESSMENTS,
       run_mode: RUN_MODES
     },
+    constants: LEGACY_LOCK_FLAG_CONSTANTS,
     arrayItemRequired: {
       finding_decisions: ["finding_id", "source_lens", "source_review_record_id", "decision", "reason"],
       lens_lock_decisions: ["lens", "reason"],
@@ -555,7 +564,8 @@ export const SCHEMA_CONTRACTS = {
     },
     nestedRequired: {
       claim_flags: CLAIM_FLAG_KEYS
-    }
+    },
+    constants: LEGACY_LOCK_FLAG_CONSTANTS
   },
   "review-input.schema.json": {
     required: REVIEW_INPUT_REQUIRED_FIELDS

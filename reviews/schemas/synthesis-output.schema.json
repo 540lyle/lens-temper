@@ -143,8 +143,8 @@
       "required": ["completion", "lock_state", "all_5_lockable", "review_complete"],
       "properties": {
         "completion": { "type": "boolean" },
-        "lock_state": { "type": "boolean" },
-        "all_5_lockable": { "type": "boolean" },
+        "lock_state": { "type": "boolean", "const": false, "description": "Legacy lock claim; always false." },
+        "all_5_lockable": { "type": "boolean", "const": false, "description": "Legacy lock claim; always false." },
         "review_complete": { "type": "boolean" }
       },
       "additionalProperties": true

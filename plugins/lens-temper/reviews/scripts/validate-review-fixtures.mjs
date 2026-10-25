@@ -170,6 +170,18 @@ function checkSchemaDrift(root) {
         }
       }
     }
+    for (const [fieldPath, expected] of Object.entries(contract.constants || {})) {
+      const actual = propertyFor(schema, fieldPath)?.const;
+      if (actual !== expected) {
+        failures.push({
+          artifact_path: schemaPath,
+          field: `properties.${fieldPath}.const`,
+          expected,
+          actual: actual === undefined ? "missing" : actual,
+          message: "schema const does not match validator contract"
+        });
+      }
+    }
   }
   return failures;
 }

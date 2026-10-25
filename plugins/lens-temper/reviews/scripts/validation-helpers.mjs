@@ -32,6 +32,7 @@ import {
   LEDGER_CORE_PROFILE_REQUIRED_FIELDS,
   LEDGER_SCHEMA_VERSION,
   LEDGER_STATUSES,
+  LEGACY_LOCK_FLAG_KEYS,
   LEGACY_MARKDOWN_SECTIONS,
   LEGACY_SETTLED_LOCK_STATES,
   LENS_BLOCKING_VALUES,
@@ -775,11 +776,16 @@ export function validateClaimFlags(record, artifactPath, failures) {
       failures.push(makeFailure(artifactPath, record, `claim_flags.${key}`, "boolean", flags[key]));
     }
   }
-  if (record.run_mode === "inline" || record.run_mode === "advisory") {
-    for (const key of CLAIM_FLAG_KEYS) {
-      if (flags[key] === true) {
-        failures.push(makeFailure(artifactPath, record, `claim_flags.${key}`, false, true, "non-full runs cannot make lockable or completion claims"));
-      }
+  // Non-full runs may claim nothing. Full runs may claim completion, but
+  // lockability comes from per-lens states, so the legacy lock flags stay false.
+  const nonFullRun = record.run_mode === "inline" || record.run_mode === "advisory";
+  const forbidden = nonFullRun ? CLAIM_FLAG_KEYS : LEGACY_LOCK_FLAG_KEYS;
+  const why = nonFullRun
+    ? "non-full runs cannot make lockable or completion claims"
+    : "legacy lock flags are always false";
+  for (const key of forbidden) {
+    if (flags[key] === true) {
+      failures.push(makeFailure(artifactPath, record, `claim_flags.${key}`, false, true, why));
     }
   }
 }
