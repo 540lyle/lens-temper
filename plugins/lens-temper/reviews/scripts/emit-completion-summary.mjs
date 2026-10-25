@@ -94,7 +94,9 @@ function artifactStatus(root, paths) {
 }
 
 // Reviewer closure and direct-read evidence come from the validated current
-// review records, not from a fixed sentence.
+// review records, not from a fixed sentence. Validators check a record's shape,
+// not that a reviewer really ran or read the file, so those items are reported
+// apart from what the scripts checked.
 function verificationEvidence(ledger, reviews, synthesis) {
   const records = reviews.map((entry) => entry.record);
   const total = records.length;
@@ -105,12 +107,13 @@ function verificationEvidence(ledger, reviews, synthesis) {
   const closure = spawned.length > 0
     ? `reviewers terminal and closed: ${closed.length}/${spawned.length} spawned reviewers completed, captured, and closed`
     : `reviewers terminal and closed: not applicable (execution_mode ${ledger.execution_mode}; no spawned reviewers)`;
-  return [
+  const checked = `validators run: ledger, ${total} current review records, and synthesis ${synthesis.record_id} validated; Review delivered line checked against its finding decisions`;
+  const reported = [
     `reviewer outputs captured: ${total}/${(ledger.selected_lenses || []).length} selected lenses`,
     closure,
-    `current reviewers read current workspace files directly: ${direct.length}/${total} read ${ledger.target_path} at ${ledger.target_revision}`,
-    `validators run: ledger, ${total} current review records, and synthesis ${synthesis.record_id} validated; Review delivered line checked against its finding decisions`
+    `current reviewers read current workspace files directly: ${direct.length}/${total} read ${ledger.target_path} at ${ledger.target_revision}`
   ].join("; ");
+  return `Checked by scripts: ${checked}. Reported by the run: ${reported}`;
 }
 
 function asMarkdown(ledger, synthesis, synthesisPath, lensScores, delivered, status, evidence) {
@@ -239,10 +242,10 @@ try {
     target_path: ledger.target_path,
     target_revision: ledger.target_revision,
     ...(ledger.review_input_revision ? { review_input_revision: ledger.review_input_revision } : {}),
+    // The legacy lock flags are always false; a synthesis cannot set them.
     claim_flags: {
       lock_state: false,
       all_5_lockable: false,
-      ...synthesis.claim_flags,
       completion: coreGatePassed,
       review_complete: coreGatePassed
     },

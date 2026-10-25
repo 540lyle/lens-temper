@@ -41,8 +41,8 @@
   "run_mode": "full",
   "claim_flags": {
     "completion": false,
-    "lock_state": true,
-    "all_5_lockable": true,
+    "lock_state": false,
+    "all_5_lockable": false,
     "review_complete": false
   },
   "prior_material_findings_context": [],

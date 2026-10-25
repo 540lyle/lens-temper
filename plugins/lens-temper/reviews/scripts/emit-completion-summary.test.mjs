@@ -43,6 +43,7 @@ test("--out ending in .json writes a valid completion-summary JSON record", () =
     assert.equal(summary.claim_flags.review_complete, false);
     assert.deepEqual(summary.rerun_or_lock_status.map((entry) => entry.lens_state), ["settled"]);
     assert.doesNotMatch(summary.verification_evidence, /validators passed/i);
+    assert.match(summary.verification_evidence, /^Checked by scripts: validators run: ledger, 1 current review records, and synthesis \S+ validated; Review delivered line checked against its finding decisions\. Reported by the run: reviewer outputs captured: 1\/1 selected lenses; /);
     assert.match(summary.verification_evidence, /current review records, and synthesis \S+ validated/i);
     assert.match(summary.verification_evidence, /reviewers terminal and closed: 1\/1 spawned reviewers/);
     assert.match(summary.verification_evidence, /read current workspace files directly: 1\/1/);
@@ -111,6 +112,51 @@ test("without a delivered line in the synthesis Markdown, the counts come from i
   }
 });
 
+test("legacy lock flags in the synthesis never reach the summary", () => {
+  cleanup();
+  try {
+    mkdirSync(resolve(repoRoot, tempDir), { recursive: true });
+    const record = JSON.parse(readFileSync(resolve(repoRoot, synthesis), "utf8"));
+    const synthesisPath = `${tempDir}/synthesis.json`;
+    const claiming = { ...record, artifact_path: synthesisPath, claim_flags: { ...record.claim_flags, lock_state: true, all_5_lockable: true } };
+    writeFileSync(resolve(repoRoot, synthesisPath), `${JSON.stringify(claiming, null, 2)}\n`, "utf8");
+    const ledgerRecord = JSON.parse(readFileSync(resolve(repoRoot, ledger), "utf8"));
+    const ledgerPath = `${tempDir}/ledger.json`;
+    const artifacts = ledgerRecord.synthesis_record_artifacts.map((entry) => ({ ...entry, artifact_path: synthesisPath }));
+    writeFileSync(resolve(repoRoot, ledgerPath), `${JSON.stringify({ ...ledgerRecord, synthesis_record_artifacts: artifacts }, null, 2)}\n`, "utf8");
+    const summary = JSON.parse(execFileSync(node, [
+      "reviews/scripts/emit-completion-summary.mjs",
+      "--ledger", ledgerPath,
+      "--synthesis", synthesisPath,
+      "--json"
+    ], { cwd: repoRoot, encoding: "utf8" }));
+    assert.equal(summary.claim_flags.lock_state, false);
+    assert.equal(summary.claim_flags.all_5_lockable, false);
+    assert.deepEqual(validateCompletionSummaryRecord(summary, { artifactRoot: repoRoot }), []);
+  } finally {
+    cleanup();
+  }
+});
+
+test("a completion summary claiming a legacy lock flag fails validation", () => {
+  const base = {
+    schema_version: 3,
+    run_mode: "full",
+    run_scope: "selected_lenses",
+    target_path: "reviews/examples/artifacts/target.valid.md",
+    target_revision: "git:test",
+    review_input_revision: "sha256:test",
+    claim_flags: { completion: false, lock_state: false, all_5_lockable: false, review_complete: false },
+    summary_text: "Full LensTemper review for selected lenses only: implementation\n"
+  };
+  const ownFailures = (record) => validateCompletionSummaryRecord(record, { artifactRoot: repoRoot })
+    .filter((failure) => failure.field === "claim_flags.lock_state" || failure.field === "claim_flags.all_5_lockable")
+    .map((failure) => failure.field);
+  assert.deepEqual(ownFailures(base), []);
+  assert.deepEqual(ownFailures({ ...base, claim_flags: { ...base.claim_flags, all_5_lockable: true } }), ["claim_flags.all_5_lockable"]);
+  assert.deepEqual(ownFailures({ ...base, claim_flags: { ...base.claim_flags, lock_state: true } }), ["claim_flags.lock_state"]);
+});
+
 test("completion rejects a synthesis bound to stale review input", () => {
   cleanup();
   try {
@@ -148,7 +194,7 @@ test("core-profile completion requires every required lens and a passed gate", (
     review_input_revision: "sha256:test",
     claim_flags: {
       completion: true,
-      lock_state: true,
+      lock_state: false,
       all_5_lockable: false,
       review_complete: true
     },

@@ -519,7 +519,12 @@ status (`committed`, `committed, with uncommitted changes`, `not committed
 (untracked …)`, `ignored/local-only`, or stored outside git) as of emission, and
 derives its verification evidence from the current review records: outputs
 captured per selected lens, spawned reviewers completed, captured, and closed,
-and reviewers that read the target directly at the reviewed revision.
+and reviewers that read the target directly at the reviewed revision. The
+evidence line separates what the scripts checked (`Checked by scripts:`, the
+validators run) from what the run's records report but no script can confirm
+(`Reported by the run:`, the reviewer items). The legacy `lock_state` and
+`all_5_lockable` flags are always false in a summary, whatever the synthesis
+holds.
 
 Required fields:
 

@@ -1963,6 +1963,11 @@ export function validateCompletionSummaryRecord(record, options = {}) {
     }
   }
   validateClaimFlags(record, artifactPath, failures);
+  for (const key of ["lock_state", "all_5_lockable"]) {
+    if (record.claim_flags?.[key] === true) {
+      failures.push(makeFailure(artifactPath, record, `claim_flags.${key}`, false, true, "legacy lock flags are always false in a completion summary"));
+    }
+  }
 
   if (record.run_scope === "core_profile") {
     if (record.run_mode !== "full") failures.push(makeFailure(artifactPath, record, "run_mode", "full for core_profile scope", record.run_mode));
