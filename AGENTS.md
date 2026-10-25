@@ -25,8 +25,15 @@ pull request. That covers changes under:
 - `.cursor/rules/`, `.github/copilot-instructions.md`
 
 A pull request may skip the bump only if it changes nothing but tests
-(`*.test.mjs`), CI workflows, or docs outside those paths (`README.md`,
-`docs/`, `CONTRIBUTING.md`, this file). If unsure, bump.
+(`*.test.mjs`), CI (`.github/workflows/`, `.github/scripts/`), or docs outside
+those paths (`README.md`, `docs/`, `CONTRIBUTING.md`, this file). If unsure,
+bump.
+
+CI enforces this: `.github/scripts/check-version-bump.mjs` fails a pull
+request that changes a shipped path unless `lens-temper.package.json` holds a
+version above the base branch's. Run it locally with
+`node .github/scripts/check-version-bump.mjs --base origin/main`. If you change
+the list of shipped paths, change it in that script and here together.
 
 Pick the number (the package is pre-1.0):
 

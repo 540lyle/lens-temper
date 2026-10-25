@@ -25,8 +25,10 @@ outside those paths may skip it.
 Set the new version in `lens-temper.package.json`, `.claude-plugin/plugin.json`,
 and `.codex-plugin/plugin.json`, then run
 `node reviews/scripts/sync-codex-plugin-payload.mjs` to update the packaged
-copy. `validate-package.mjs` fails if the versions disagree. The full rule,
-which agents also follow, is in [AGENTS.md](AGENTS.md).
+copy. `validate-package.mjs` fails if the versions disagree, and CI fails a
+pull request that changes shipped files without raising the version above
+`main`'s. The full rule, which agents also follow, is in
+[AGENTS.md](AGENTS.md).
 
 ## Checks
 
@@ -37,5 +39,7 @@ node reviews/scripts/validate-package.mjs
 node reviews/scripts/validate-review-fixtures.mjs
 node reviews/scripts/run-review-evals.mjs  # fixture-lint: fixture integrity only, not a model eval
 Get-ChildItem reviews/scripts -Filter *.mjs | ForEach-Object { node --check $_.FullName }
+node --test .github/scripts/check-version-bump.test.mjs
+node .github/scripts/check-version-bump.mjs --base origin/main
 git diff --check
 ```

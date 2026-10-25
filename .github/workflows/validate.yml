@@ -18,15 +18,27 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
+        with:
+          # The version check diffs against the base branch's history.
+          fetch-depth: 0
 
       - name: Set up Node.js
         uses: actions/setup-node@v7
         with:
           node-version: "22"
 
+      - name: Require a version bump for shipped changes
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: node .github/scripts/check-version-bump.mjs --base "origin/$BASE_REF"
+
+      - name: Test CI scripts
+        run: node --test .github/scripts/*.test.mjs
+
       - name: Check script syntax
         run: |
-          for file in reviews/scripts/*.mjs; do
+          for file in reviews/scripts/*.mjs .github/scripts/*.mjs; do
             node --check "$file"
           done
 
