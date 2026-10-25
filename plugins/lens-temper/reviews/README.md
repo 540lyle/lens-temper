@@ -523,8 +523,11 @@ and reviewers that read the target directly at the reviewed revision. The
 evidence line separates what the scripts checked (`Checked by scripts:`, the
 validators run) from what the run's records report but no script can confirm
 (`Reported by the run (not confirmed by any script):`, the reviewer items).
-The legacy `lock_state` and `all_5_lockable` flags are always false in a
-summary, whatever the synthesis holds.
+It names the Review delivered line check only when the synthesis Markdown has
+that line. The legacy `lock_state` and `all_5_lockable` flags stay in the
+schemas but must be false: the synthesis and completion-summary validators
+reject either set to `true`, so older records that set them no longer
+validate.
 
 Required fields:
 

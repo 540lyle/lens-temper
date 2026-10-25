@@ -785,12 +785,14 @@ export function validateClaimFlags(record, artifactPath, failures) {
   }
 }
 
-// Lockability comes from per-lens states now; a summary that sets a legacy
-// lock flag is claiming something no script derived.
+// Lockability comes from per-lens states now; a synthesis or summary that sets
+// a legacy lock flag is claiming something no script derived. Non-full runs are
+// already rejected for any true flag by validateClaimFlags.
 export function validateLegacyLockFlagsFalse(record, artifactPath, failures) {
+  if (record.run_mode === "inline" || record.run_mode === "advisory") return;
   for (const key of LEGACY_LOCK_FLAG_KEYS) {
     if (record.claim_flags?.[key] === true) {
-      failures.push(makeFailure(artifactPath, record, `claim_flags.${key}`, false, true, "legacy lock flags are always false in a completion summary"));
+      failures.push(makeFailure(artifactPath, record, `claim_flags.${key}`, false, true, "legacy lock flags are always false"));
     }
   }
 }
@@ -1622,6 +1624,7 @@ export function validateSynthesisRecord(record, options = {}) {
   validateEnum(record.final_assessment, FINAL_ASSESSMENTS, artifactPath, record, "final_assessment", failures);
   validateRunMode(record, artifactPath, failures, { ledger: options.ledger });
   validateClaimFlags(record, artifactPath, failures);
+  validateLegacyLockFlagsFalse(record, artifactPath, failures);
   validatePathField(root, artifactPath, record, "target_path", failures, { mustExist: false });
   validatePathField(root, artifactPath, record, "artifact_path", failures, { mustExist: false });
   for (const field of ["included_review_record_ids", "superseded_review_record_ids"]) {
