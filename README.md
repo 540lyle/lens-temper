@@ -436,8 +436,11 @@ claude plugin install lens-temper@lens-temper
 ```
 
 Interactively, the same flow is `/plugin marketplace add 540lyle/lens-temper`
-followed by `/plugin install lens-temper@lens-temper`. Update later with
-`claude plugin marketplace update lens-temper`.
+followed by `/plugin install lens-temper@lens-temper`. To update later, run
+`claude plugin marketplace update lens-temper`, then
+`claude plugin update lens-temper@lens-temper`, then restart Claude Code; the
+first command alone does not update the installed plugin. See
+[docs/INSTALL.md](docs/INSTALL.md#claude-code).
 
 For local development, clone the repo and load it as a local plugin instead:
 

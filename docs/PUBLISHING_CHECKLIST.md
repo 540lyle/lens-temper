@@ -34,7 +34,9 @@
 ## Release Distribution Checklist
 
 - [ ] Bump `lens-temper.package.json`, `.codex-plugin/plugin.json`, and
-  `.claude-plugin/plugin.json` versions together.
+  `.claude-plugin/plugin.json` versions together; the sync below writes the
+  fourth copy in `plugins/lens-temper/`. Every pull request that changes shipped
+  files must already do this; see the versioning rule in `AGENTS.md`.
 - [ ] Run the full validation suite:
   `node reviews/scripts/sync-codex-plugin-payload.mjs`,
   `node --test reviews/scripts/*.test.mjs`,
